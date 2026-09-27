@@ -489,4 +489,4 @@ Exportar
 
 ## Licença
 
-A licença do FlowForge deve ser definida pelo autor do projeto. Enquanto nenhuma licença específica estiver declarada, os direitos sobre o código e os arquivos permanecem com seus respectivos autores.
+A licença do FlowForge  é a GPL 3.0.
