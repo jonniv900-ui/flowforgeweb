@@ -1,43 +1,82 @@
-/* FlowForge Designer Viewport - restores real Mobile/Tablet/Desktop preview switching. */
+/* FlowForge Designer Viewport
+ * Single owner of the designer stage size (Mobile / Tablet / Desktop).
+ * - Every UI control (Viewport select, device preset, "Recursos" panel) goes through apply().
+ * - The chosen layout is stored in project.viewport, so it is saved in the .flowmobile file
+ *   and restored whenever the project is rendered, opened, or created.
+ */
 (function(w,d){'use strict';
   const PRESETS={
     mobile:{width:390,height:844},
     tablet:{width:768,height:1024},
     desktop:{width:1440,height:900}
   };
-  const byWidth={390:'mobile',768:'tablet',1200:'desktop',1440:'desktop'};
+  const MIN=280,MAX=1440;
   const $=id=>d.getElementById(id);
+  const proj=()=>typeof project!=='undefined'?project:null;
 
-  function presetName(width){return byWidth[Number(width)]||
-    (Number(width)<768?'mobile':Number(width)<1200?'tablet':'desktop');}
+  function presetName(width){
+    width=Number(width);
+    return width<768?'mobile':width<1200?'tablet':'desktop';
+  }
+  function defaults(type){return {width:type==='app'?390:1200,device:''};}
+  function valid(v){
+    const n=Number(v&&v.width);
+    return Number.isFinite(n)&&n>=MIN&&n<=MAX;
+  }
+  /* Layout stored in the project (or the default for its type). */
+  function current(){
+    const p=proj();
+    if(p&&valid(p.viewport))return {width:Number(p.viewport.width),device:String(p.viewport.device??'')};
+    return defaults(p&&p.type);
+  }
+  const hasOption=(sel,value)=>!!sel&&[...sel.options].some(o=>o.value===value);
 
-  function apply(width,height,name){
+  function apply(width,height,name,opts){
     const stage=$('stage');
     if(!stage)return;
-    width=Number(width)||390;
-    const preset=PRESETS[name||presetName(width)];
-    height=Number(height)||preset?.height||900;
-    stage.style.width=Math.min(Math.max(width,280),1440)+'px';
+    width=Math.min(Math.max(Number(width)||390,MIN),MAX);
+    const key=name||presetName(width);
+    height=Number(height)||PRESETS[key]?.height||900;
+    stage.style.width=width+'px';
     stage.style.minHeight=height+'px';
     stage.style.height=height+'px';
-    stage.dataset.viewport=name||presetName(width);
+    stage.dataset.viewport=key;
     stage.classList.remove('ff-viewport-mobile','ff-viewport-tablet','ff-viewport-desktop');
-    stage.classList.add('ff-viewport-'+(name||presetName(width)));
+    stage.classList.add('ff-viewport-'+key);
     const vp=$('viewport');
     if(vp){
       const value=String(width===1440?1200:width);
-      const option=[...vp.options].find(o=>o.value===value);
-      if(option)vp.value=value;
+      if(hasOption(vp,value))vp.value=value;
     }
     const dp=$('devicePreset');
-    /* In "Designer" mode (empty value) keep the selector as is; the stage follows the Viewport select. */
-    if(dp&&dp.value!=='')dp.value=(name||presetName(width))==='desktop'?'1440':String(width);
+    /* Empty value = "Designer" (free mode): keep it, the stage follows the Viewport select. */
+    if(dp&&dp.value!=='')dp.value=key==='desktop'?'1440':String(width);
+    if(!(opts&&opts.persist===false)){
+      const p=proj();
+      if(p)p.viewport={width,device:dp?dp.value:''};
+    }
+    w.FFResponsive?.update?.();
   }
 
   function applyPreset(key){
     const p=PRESETS[key];
     if(!p)return;
     apply(p.width,p.height,key);
+  }
+
+  /* Re-apply the layout stored in the current project (called by render()). */
+  function restore(){
+    const s=current();
+    const dp=$('devicePreset');
+    if(dp&&hasOption(dp,s.device))dp.value=s.device;
+    apply(s.width);
+  }
+
+  /* New project or project type change: go back to the default layout for that type. */
+  function reset(type){
+    const p=proj();
+    if(p)p.viewport=defaults(type||p.type);
+    restore();
   }
 
   function bind(){
@@ -49,44 +88,20 @@
         const value=this.value;
         if(!value){
           /* Designer mode: follow the layout selected in the Viewport select. */
-          const width=Number($('viewport')?.value)||390;
-          const key=presetName(width);
-          apply(width,PRESETS[key]?.height||900,key);
+          apply(Number(vp?.value)||390);
           return;
         }
-        const key=value==='390'?'mobile':value==='768'?'tablet':'desktop';
-        applyPreset(key);
+        applyPreset(value==='390'?'mobile':value==='768'?'tablet':'desktop');
       });
     }
     if(vp&&!vp.dataset.ffViewportBound){
       vp.dataset.ffViewportBound='1';
-      vp.addEventListener('change',function(){
-        const width=Number(this.value)||390;
-        const key=presetName(width);
-        const p=PRESETS[key];
-        apply(width,p?.height||900,key);
-      });
+      vp.addEventListener('change',function(){apply(Number(this.value)||390);});
     }
-    applyCurrent();
+    restore();
   }
 
-  function applyCurrent(){
-    const stage=$('stage');
-    if(!stage)return;
-    const dp=$('devicePreset');
-    const value=dp?.value;
-    if(value==='390')return applyPreset('mobile');
-    if(value==='768')return applyPreset('tablet');
-    if(value==='1440')return applyPreset('desktop');
-    const vp=$('viewport');
-    if(vp?.value){
-      const width=Number(vp.value);
-      const key=presetName(width);
-      apply(width,PRESETS[key]?.height||900,key);
-    }
-  }
-
-  w.FFDesignerViewport={presets:PRESETS,apply,applyPreset,bind,applyCurrent};
+  w.FFDesignerViewport={presets:PRESETS,apply,applyPreset,bind,restore,reset,current,applyCurrent:restore};
   if(d.readyState==='loading')d.addEventListener('DOMContentLoaded',bind,{once:true});
   else bind();
 })(window,document);
