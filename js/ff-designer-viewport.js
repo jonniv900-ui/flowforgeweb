@@ -30,7 +30,8 @@
       if(option)vp.value=value;
     }
     const dp=$('devicePreset');
-    if(dp)dp.value=(name||presetName(width))==='desktop'?'1440':String(width);
+    /* In "Designer" mode (empty value) keep the selector as is; the stage follows the Viewport select. */
+    if(dp&&dp.value!=='')dp.value=(name||presetName(width))==='desktop'?'1440':String(width);
   }
 
   function applyPreset(key){
@@ -47,8 +48,10 @@
       dp.addEventListener('change',function(){
         const value=this.value;
         if(!value){
-          const current=parseInt($('stage')?.style.width)||390;
-          apply(current,parseInt($('stage')?.style.height)||900,presetName(current));
+          /* Designer mode: follow the layout selected in the Viewport select. */
+          const width=Number($('viewport')?.value)||390;
+          const key=presetName(width);
+          apply(width,PRESETS[key]?.height||900,key);
           return;
         }
         const key=value==='390'?'mobile':value==='768'?'tablet':'desktop';
