@@ -216,8 +216,19 @@ function generated(){
    }
    return `${indent(n)}<div id="${x.name}"${pageNav}${x.enabled===false?' aria-disabled="true"':''} class="ff-component ff-kind-${x.kind}" data-flow-id="${x.id}"\n${indent(n+1)}style="left:${x.x}px; top:${x.y}px; width:${x.width}; height:${x.height}; background:${x.bg}; color:${x.color};${x.textAlign?` text-align:${x.textAlign};`:''}${x.dock==='top'?' position:absolute; left:0; right:0; top:0; width:100%;':''}${x.dock==='bottom'?' position:absolute; left:0; right:0; bottom:0; width:100%;':''}${x.dock==='left'?' position:absolute; left:0; top:0; bottom:0;':''}${x.dock==='right'?' position:absolute; right:0; top:0; bottom:0;':''}${x.dock==='fill'?' position:absolute; inset:0; width:100%; height:100%;':''}${x.visible===false?' display:none;':''}${x.enabled===false?' pointer-events:none; opacity:.6;':''}"${events}>\n${indent(n+1)}${inner}${childHost}\n${indent(n)}</div>`;
  };
+ const pageHeights=project.pages.map(p=>{
+   let h=0;
+   for(const x of (p.items||[])){
+     if(x.visible===false) continue;
+     const y=Number.parseFloat(String(x.y??0));
+     const hh=Number.parseFloat(String(x.height??0));
+     if(Number.isFinite(y)&&Number.isFinite(hh)) h=Math.max(h,y+hh);
+   }
+   return Math.max(720,h+32);
+ });
  const pages=project.pages.map((p,i)=>{
-   let lines=[`  <section id="page-${i}" data-page-id="${esc(p.id||String(i))}" class="ff-page"${i?' hidden':''}>`];
+   const pageHeight=pageHeights[i]||720;
+   let lines=[`  <section id="page-${i}" data-page-id="${esc(p.id||String(i))}" class="ff-page" style="--ff-page-height:${pageHeight}px"${i?' hidden':''}>`];
    if(project.type==='app'){const t=project.titlebar||{text:project.name,height:'52px',bg:'#20242a',color:'#fff',showMenu:true};{const custom=t.autoStyle===false?`;background:${t.bg};color:${t.color}`:'';lines.push(`    <div class="ff-app-titlebar ff-title-${project.framework||'none'}" style="height:${t.height}${custom}">`,`      ${titlebarContent(t)}`,`    </div>`);}}
    lines.push(`    <div class="ff-page-surface">`);
    const byParent=new Map();p.items.forEach(x=>{const k=x.parentId||'__root__';if(!byParent.has(k))byParent.set(k,[]);byParent.get(k).push(x)});const roots=byParent.get('__root__')||p.items.filter(x=>!x.parentId);roots.forEach(x=>lines.push(componentHtml(x,3,byParent)));
@@ -263,8 +274,8 @@ function generated(){
     .ff-page.hidden{display:none!important}.ff-kind-listbox select{padding:6px}.ff-page-nav{width:100%;height:100%;padding:8px;border:1px solid #cfd5db;border-radius:6px;background:#fff}.ff-kind-combobox select{width:100%;height:100%}
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-    .ff-page { position: relative; min-height: 100vh; width: 100%; max-width: ${maxw}; margin: 0 auto; overflow: hidden; background: #fff; }
-    .ff-page-surface { position: ${project.type==='app'?'absolute':'relative'}; top: 0; left: 0; min-height: 100vh; width: 100%; overflow: hidden; }
+    .ff-page { position: relative; min-height: max(100vh, var(--ff-page-height, 720px)); width: 100%; max-width: ${maxw}; margin: 0 auto; overflow: visible; background: #fff; }
+    .ff-page-surface { position: relative; top: 0; left: 0; min-height: max(100vh, var(--ff-page-height, 720px)); width: 100%; overflow: visible; }
     .ff-app-titlebar { width:100%; height: 52px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; background: #212529; color: #fff; font-weight: 600; position: relative; z-index: 10000; }
     .ff-component { position: absolute; min-width: 24px; min-height: 20px; } .ff-child-host{position:absolute;inset:0;overflow:visible;pointer-events:none}.ff-child-host>.ff-component{pointer-events:auto}
     .ff-component button, .ff-component input, .ff-component textarea, .ff-component select { max-width: 100%; }
