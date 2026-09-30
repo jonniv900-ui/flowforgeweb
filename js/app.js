@@ -191,6 +191,12 @@ function eventMarker(x,ev){return `// @flow-event:${x.id}:${ev}`}
 function openDefaultAction(x){selected=x;let ev=defaultEvent(x.kind);x.events??={};if(!(ev in x.events))x.events[ev]=`// ${x.name}: ação padrão\n`;updateCode();activateTab('code');let ta=$('#code'),mark=eventMarker(x,ev),i=ta.value.indexOf(mark);if(i>=0){let fn=ta.value.indexOf('function ',i),brace=ta.value.indexOf('{',fn),start=ta.value.indexOf('\n',brace)+1,end=ta.value.indexOf('\n}',start);ta.focus();ta.setSelectionRange(start,end>start?end:start);ta.scrollTop=Math.max(0,(ta.value.slice(0,start).split('\n').length-6)*21.7);syncCodeHighlight()}$('#selectionInfo').textContent=`${x.name} → ${ev}()`}
 window.generated=generated;
 function frameworkHead(){let f=project.framework||'none';if(f==='bootstrap')return '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">';if(f==='bulma')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">';if(f==='pico')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">';if(f==='tailwind')return '<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>';if(f==='materialize')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/materialize-css@1.0.0/dist/css/materialize.min.css">';if(f==='foundation')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.9.0/dist/css/foundation.min.css">';if(f==='uikit')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.23.11/dist/css/uikit.min.css"><script src="https://cdn.jsdelivr.net/npm/uikit@3.23.11/dist/js/uikit.min.js"></script><script src="https://cdn.jsdelivr.net/npm/uikit@3.23.11/dist/js/uikit-icons.min.js"></script>';if(f==='semantic')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css">';return ''}
+function resolveProjectImageRef(value){
+ const v=String(value||'');
+ if(!v.startsWith('asset://'))return v;
+ const id=v.slice(8);const a=(project.assets||[]).find(x=>String(x.id)===id);
+ return a?.data||'';
+}
 function generated(){
  const indent=(n)=>'  '.repeat(n);
  const componentHtml=(x,n=0,byParent=null)=>{
@@ -249,9 +255,9 @@ function generated(){
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="${esc(project.themeColor||'#20242a')}">
-  ${project.favicon?`<link rel="icon" href="${esc(project.favicon)}">`:''}
-  ${project.icon?`<link rel="apple-touch-icon" href="${esc(project.icon)}">`:''}
-  ${project.icon?`<link rel="icon" sizes="192x192" href="${esc(project.icon)}">`:''}
+  ${project.favicon?`<link rel="icon" href="${esc(resolveProjectImageRef(project.favicon))}">`:''}
+  ${project.icon?`<link rel="apple-touch-icon" href="${esc(resolveProjectImageRef(project.icon))}">`:''}
+  ${project.icon?`<link rel="icon" sizes="192x192" href="${esc(resolveProjectImageRef(project.icon))}">`:''}
   ${frameworkHead()}
   <style>
     .ff-page.hidden{display:none!important}.ff-kind-listbox select{padding:6px}.ff-page-nav{width:100%;height:100%;padding:8px;border:1px solid #cfd5db;border-radius:6px;background:#fff}.ff-kind-combobox select{width:100%;height:100%}
@@ -542,8 +548,48 @@ function readImageAsBase64(file){
 }
 function setImageInfo(id,value,emptyText='Nenhuma imagem selecionada'){
  const el=$('#'+id);if(!el)return;
- if(value){const m=String(value).match(/^data:([^;,]+)/i);el.textContent=m?`Imagem incorporada · ${m[1]}`:'Imagem definida';}
+ const v=String(value||'');
+ if(v.startsWith('asset://')){
+  const idRef=v.slice(8); const a=(project.assets||[]).find(x=>String(x.id)===idRef);
+  el.textContent=a?`Asset: ${a.name}`:'Asset do projeto';
+ }else if(v){const m=v.match(/^data:([^;,]+)/i);el.textContent=m?'Imagem definida':'Imagem definida';}
  else el.textContent=emptyText;
+}
+function projectAssetList(){
+ return (project.assets||[]).filter(a=>/^image\//i.test(String(a.type||'')) || /\.(png|jpe?g|gif|webp|svg|ico|bmp|avif)$/i.test(String(a.name||'')));
+}
+let ffProjectAssetPickerKind='';
+let ffProjectAssetPickerTarget='';
+function openProjectAssetPicker(kind,target){
+ ffProjectAssetPickerKind=kind;ffProjectAssetPickerTarget=target;
+ const dlg=$('#projectAssetPickerDlg'); if(!dlg)return;
+ const search=$('#projectAssetSearch'); if(search)search.value='';
+ renderProjectAssetPicker();dlg.showModal();
+ setTimeout(()=>search?.focus(),0);
+}
+function renderProjectAssetPicker(){
+ const box=$('#projectAssetList');if(!box)return;
+ const q=String($('#projectAssetSearch')?.value||'').trim().toLowerCase();
+ const list=projectAssetList().filter(a=>!q||String(a.name||'').toLowerCase().includes(q));
+ box.innerHTML='';
+ if(!list.length){box.innerHTML='<div class="ffProjectAssetEmpty">Nenhuma imagem encontrada nos Assets.</div>';return;}
+ const frag=document.createDocumentFragment();
+ list.slice(0,100).forEach(a=>{
+  const b=document.createElement('button');b.type='button';b.className='ffProjectAssetItem';
+  const img=document.createElement('span');img.className='ffAssetIcon';img.textContent='🖼️';img.setAttribute('aria-hidden','true');
+  const meta=document.createElement('span');meta.className='ffAssetMeta';
+  const name=document.createElement('span');name.className='ffAssetName';name.textContent=a.name||'Asset';
+  const type=document.createElement('span');type.className='ffAssetType';type.textContent=`${a.type||'imagem'} · ${Math.ceil((Number(a.size)||0)/1024)} KB`;
+  meta.append(name,type);b.append(img,meta);b.onclick=()=>selectProjectAsset(a);frag.appendChild(b);
+ });
+ box.appendChild(frag);
+}
+function selectProjectAsset(a){
+ if(!a)return;
+ project[ffProjectAssetPickerKind]=`asset://${a.id}`;
+ setImageInfo(ffProjectAssetPickerTarget,project[ffProjectAssetPickerKind]);
+ if(ffProjectAssetPickerTarget.startsWith('saveProject'))updateSaveReview();
+ $('#projectAssetPickerDlg')?.close();
 }
 async function chooseProjectImage(kind,file,infoId){
  if(!file)return;
@@ -577,6 +623,11 @@ bindImageField('saveProjectIconFile','saveProjectIconPick','saveProjectIconClear
 bindImageField('saveProjectFaviconFile','saveProjectFaviconPick','saveProjectFaviconClear','saveProjectFaviconInfo','favicon');
 bindImageField('exportProjectIconFile','exportProjectIconPick','exportProjectIconClear','exportProjectIconInfo','icon','Usará o ícone salvo no projeto');
 bindImageField('exportProjectFaviconFile','exportProjectFaviconPick','exportProjectFaviconClear','exportProjectFaviconInfo','favicon','Usará o favicon salvo no projeto');
+$('#saveProjectIconAssetPick').onclick=()=>openProjectAssetPicker('icon','saveProjectIconInfo');
+$('#saveProjectFaviconAssetPick').onclick=()=>openProjectAssetPicker('favicon','saveProjectFaviconInfo');
+$('#exportProjectIconAssetPick').onclick=()=>openProjectAssetPicker('icon','exportProjectIconInfo');
+$('#exportProjectFaviconAssetPick').onclick=()=>openProjectAssetPicker('favicon','exportProjectFaviconInfo');
+$('#projectAssetSearch').oninput=renderProjectAssetPicker;
 $('#confirmSaveProject').onclick=e=>{e.preventDefault();project.name=$('#saveProjectName').value.trim()||'Meu Projeto';project.projectVersion=$('#saveProjectVersion').value.trim()||'1.0.0';project.themeColor=$('#saveThemeColor').value;let n=$('#saveFileName').value.trim()||safeFileName(project.name)+'.flowmobile';if(!n.toLowerCase().endsWith('.flowmobile'))n+='.flowmobile';$('#saveProjectDlg').close();render();download(n,JSON.stringify(project,null,2),'application/json');};
 $('#confirmExportHtml').onclick=e=>{e.preventDefault();saveEventBodiesFromEditor();$('#exportHtmlDlg').close();download('index.html',generated(),'text/html')};
 $('#projectName').onchange=e=>{snapshot();let old=project.name;project.name=e.target.value;if(project.titlebar&&project.titlebar.text===old)project.titlebar.text=project.name;render()};$('#projectType').onchange=e=>{snapshot();project.type=e.target.value;ffApplyViewport(project.type);render()};function applyFrameworkPreview(){
