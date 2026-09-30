@@ -249,9 +249,9 @@ function generated(){
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="${esc(project.themeColor||'#20242a')}">
-  ${project.favicon?`<link rel="icon" href="${esc(project.favicon)}">`:''}
-  ${project.icon?`<link rel="apple-touch-icon" href="${esc(project.icon)}">`:''}
-  ${project.icon?`<link rel="icon" sizes="192x192" href="${esc(project.icon)}">`:''}
+  ${project.favicon?`<link rel="icon" href="${esc(imageValueForProject(project.favicon))}">`:''}
+  ${project.icon?`<link rel="apple-touch-icon" href="${esc(imageValueForProject(project.icon))}">`:''}
+  ${project.icon?`<link rel="icon" sizes="192x192" href="${esc(imageValueForProject(project.icon))}">`:''}
   ${frameworkHead()}
   <style>
     .ff-page.hidden{display:none!important}.ff-kind-listbox select{padding:6px}.ff-page-nav{width:100%;height:100%;padding:8px;border:1px solid #cfd5db;border-radius:6px;background:#fff}.ff-kind-combobox select{width:100%;height:100%}
@@ -421,7 +421,7 @@ function syntaxHighlight(code){
 }
 function syncCodeHighlight(){let ta=$('#code'),pre=$('#codeHighlight'),nums=$('#codeLines');pre.innerHTML=syntaxHighlight(ta.value);pre.scrollTop=ta.scrollTop;pre.scrollLeft=ta.scrollLeft;if(nums){let n=ta.value.split('\n').length;nums.textContent=Array.from({length:n},(_,i)=>i+1).join('\n');nums.scrollTop=ta.scrollTop}}
 function saveEventBodiesFromEditor(){let code=$('#code').value;project.pages.flatMap(p=>p.items).forEach(x=>Object.keys(x.events||{}).forEach(ev=>{let a=code.indexOf(eventMarker(x,ev));if(a<0)return;let fn=code.indexOf('function ',a),brace=code.indexOf('{',fn),endMark=`// @flow-event-end:${x.id}:${ev}`,end=code.indexOf(endMark,brace);if(brace<0||end<0)return;let body=code.slice(brace+1,end).replace(/^\s*\n/,'').replace(/\n\s*}\s*$/,'').split('\n').map(line=>line.startsWith('    ')?line.slice(4):line).join('\n');x.events[ev]=body.replace(/\s+$/,'')+'\n'}))}
-function updateCode(){let c=generated();$('#code').value=c;syncCodeHighlight();$('#preview').srcdoc=c}
+function updateCode(){let c=generated();$('#code').value=c;syncCodeHighlight();const pv=$('#preview');if(getComputedStyle(pv).display!=='none')pv.srcdoc=window.FlowForgeImageAssets?.resolveHtml?.(c)??c}
 function duplicate(){if(!selected)return;snapshot();let x=JSON.parse(JSON.stringify(selected));x.id=uid();x.name=uniqueName(x.kind,(x.name||x.kind)+'_copy');x.x=(Number(x.x)||0)+16;x.y=(Number(x.y)||0)+16;project.pages[project.active].items.push(x);selected=x;render()}function del(){if(!selected)return;snapshot();let a=project.pages[project.active].items;a.splice(a.findIndex(x=>x.id===selected.id),1);selected=null;render()}
 
 
@@ -532,17 +532,122 @@ ffStage.addEventListener('dragenter',ffDragOver,true);ffStage.addEventListener('
 $('#pTitleAuto').onchange=e=>{if(selected?.kind!=='titlebar')return;snapshot();selected.autoStyle=e.target.checked;project.titlebar=selected;render()};
 ['pName','pText','pX','pY','pWidth','pHeight','pBg','pColor'].forEach(id=>$('#'+id).onchange=e=>{if(!selected)return;snapshot();let map={pName:'name',pText:'text',pX:'x',pY:'y',pWidth:'width',pHeight:'height',pBg:'bg',pColor:'color'},k=map[id],v=e.target.value;if(k==='x'||k==='y')v=+v;if((k==='width'||k==='height')&&/^\d+$/.test(v))v+='px';if(k==='name'){const oldName=selected.name;v=sanitizeName(v,selected.kind||'component');const taken=ffItems().some(x=>x!==selected&&x.name===v);if(taken)v=uniqueName(selected.kind,v);selected.name=v;if(selected.events)Object.keys(selected.events).forEach(ev=>{if(String(selected.events[ev]||'').startsWith('// '+oldName+':'))selected.events[ev]=String(selected.events[ev]).replace('// '+oldName+':','// '+v+':')});}else selected[k]=v;if(selected.kind==='titlebar')project.titlebar=selected;render()});$('#pVisible').onchange=e=>{if(!selected)return;snapshot();selected.visible=e.target.checked;render()};$('#pEnabled').onchange=e=>{if(!selected)return;snapshot();selected.enabled=e.target.checked;render()};$('#propDynamic').onchange=e=>{const k=e.target.dataset.key;if(!k||!selected)return;snapshot();let ty=e.target.dataset.type,v;if(ty==='page')v=e.target.value||'';else if(ty==='checkbox')v=e.target.checked;else if(ty==='number')v=e.target.value===''?undefined:Number(e.target.value);else if(ty==='textarea'){try{v=JSON.parse(e.target.value)}catch{v=e.target.value}}else v=e.target.value;if((k==='options'||k==='items')&&typeof v==='string'){try{v=JSON.parse(v)}catch{}}selected[k]=v;render()};$('#deleteBtn').onclick=del;$('#duplicateBtn').onclick=duplicate;document.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;if(e.key==='Delete')del();if(e.ctrlKey&&e.key.toLowerCase()==='d'){e.preventDefault();duplicate()}if(e.ctrlKey&&e.key.toLowerCase()==='z'){e.preventDefault();$('#undoBtn').click()}if(e.ctrlKey&&e.key.toLowerCase()==='y'){e.preventDefault();$('#redoBtn').click()}});
 function safeFileName(v){return String(v||'projeto').trim().replace(/[<>:"/\\|?*\x00-\x1F]+/g,'_').replace(/\s+/g,'_')||'projeto'}
-function openSaveDialog(){
- project.projectVersion??='1.0.0'; project.icon??=''; project.favicon??=''; project.themeColor??='#20242a';
- $('#saveProjectName').value=project.name||'Meu Projeto'; $('#saveProjectVersion').value=project.projectVersion;
- $('#saveProjectIcon').value=project.icon; $('#saveProjectFavicon').value=project.favicon; $('#saveThemeColor').value=project.themeColor;
- $('#saveFileName').value=safeFileName(project.name)+'.flowmobile'; updateSaveReview(); $('#saveProjectDlg').showModal();
+function readImageAsBase64(file){return new Promise((resolve,reject)=>{
+ const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(r.error||new Error('Não foi possível ler a imagem.'));r.readAsDataURL(file);
+ });
 }
-function updateSaveReview(){$('#saveReview').innerHTML=`<b>Projeto:</b> ${esc($('#saveProjectName').value)}<br><b>Versão:</b> ${esc($('#saveProjectVersion').value)}<br><b>Arquivo:</b> ${esc($('#saveFileName').value)}<br><b>Ícone:</b> ${esc($('#saveProjectIcon').value||'não definido')}<br><b>Favicon:</b> ${esc($('#saveProjectFavicon').value||'não definido')}`;}
-['saveProjectName','saveProjectVersion','saveProjectIcon','saveProjectFavicon','saveFileName','saveThemeColor'].forEach(id=>$('#'+id).addEventListener('input',updateSaveReview));
-$('#confirmSaveProject').onclick=e=>{e.preventDefault();project.name=$('#saveProjectName').value.trim()||'Meu Projeto';project.projectVersion=$('#saveProjectVersion').value.trim()||'1.0.0';project.icon=$('#saveProjectIcon').value.trim();project.favicon=$('#saveProjectFavicon').value.trim();project.themeColor=$('#saveThemeColor').value;let n=$('#saveFileName').value.trim()||safeFileName(project.name)+'.flowmobile';if(!n.toLowerCase().endsWith('.flowmobile'))n+='.flowmobile';$('#saveProjectDlg').close();render();download(n,JSON.stringify(project,null,2),'application/json');};
-$('#projectName').onchange=e=>{snapshot();let old=project.name;project.name=e.target.value;if(project.titlebar && project.titlebar.text===old)project.titlebar.text=project.name;render()};$('#projectType').onchange=e=>{snapshot();project.type=e.target.value;ffApplyViewport(project.type);render()};function setFramework(v){snapshot();project.framework=v;render()}function setDesignerMode(v){snapshot();project.designerMode=v==='flowforge'?'flowforge':'framework';render()}$('#framework').onchange=e=>setFramework(e.target.value);$('#frameworkTop').onchange=e=>setFramework(e.target.value);$('#designerMode').onchange=e=>setDesignerMode(e.target.value);$('#designerModeTop').onchange=e=>setDesignerMode(e.target.value);$('#projectPageTop').onchange=e=>ffSwitchPage(e.target.value);$('#saveBtn').onclick=()=>{saveEventBodiesFromEditor();openSaveDialog()};$('#exportBtn').onclick=()=>{saveEventBodiesFromEditor();download('index.html',generated(),'text/html')};function download(n,c,t){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-
+function projectImageAssets(){try{return FlowForge.modules.assets.ensure(project)||[]}catch(_){return project.assets||[]}}
+function imageAssetById(id){return projectImageAssets().find(a=>String(a.id)===String(id))}
+const PROJECT_IMAGE_PICKERS={
+  saveProjectIconAsset:'icon', saveProjectFaviconAsset:'favicon',
+  exportProjectIconAsset:'icon', exportProjectFaviconAsset:'favicon'
+};
+function assetDisplayName(a){return `${a?.name||'Imagem'}${a?.size?` · ${Math.ceil(Number(a.size)/1024)} KB`:''}`}
+function fillProjectAssetSelect(id,current){
+ const el=$('#'+id);if(!el)return;
+ const value=current&&String(current).startsWith('asset://')?String(current).slice(8):'';
+ const a=value?imageAssetById(value):null;
+ el.dataset.assetId=value;
+ el.textContent=a?assetDisplayName(a):'Escolher dos Assets...';
+}
+function ensureProjectAssetChooser(){
+ if($('#ffProjectAssetChooser'))return;
+ const d=document.createElement('dialog');d.id='ffProjectAssetChooser';d.className='ffAssetChooserDlg';
+ d.innerHTML=`<form method="dialog" class="ffAssetChooserForm">
+   <h3>Escolher imagem dos Assets</h3>
+   <input id="ffAssetSearch" type="search" placeholder="Buscar por nome..." autocomplete="off">
+   <div id="ffAssetCount" class="ffAssetCount"></div>
+   <div id="ffAssetResults" class="ffAssetResults"></div>
+   <div class="saveActions"><button value="cancel">Cancelar</button></div>
+ </form>`;
+ document.body.appendChild(d);
+ $('#ffAssetSearch').oninput=()=>renderProjectAssetResults();
+ d.addEventListener('close',()=>{if($('#ffAssetSearch'))$('#ffAssetSearch').value='';});
+}
+let ffProjectAssetChooserTarget='';
+function renderProjectAssetResults(){
+ const box=$('#ffAssetResults'),count=$('#ffAssetCount');if(!box)return;
+ const q=String($('#ffAssetSearch')?.value||'').trim().toLowerCase();
+ const all=projectImageAssets().filter(a=>String(a.type||'').startsWith('image/')||/\.ico$/i.test(a.name||''));
+ const matches=q?all.filter(a=>String(a.name||'').toLowerCase().includes(q)):all;
+ const max=40;
+ count.textContent=`${matches.length} imagem${matches.length===1?'':'ns'} encontrada${matches.length===1?'':'s'}${matches.length>max?' · mostrando as primeiras 40':''}`;
+ box.replaceChildren();
+ if(!matches.length){const empty=document.createElement('div');empty.className='ffAssetEmpty';empty.textContent='Nenhuma imagem encontrada.';box.appendChild(empty);return;}
+ const frag=document.createDocumentFragment();
+ matches.slice(0,max).forEach(a=>{
+   const b=document.createElement('button');b.type='button';b.className='ffAssetResult';b.dataset.id=String(a.id);
+   const thumb=document.createElement('span');thumb.className='ffAssetThumb';
+   thumb.textContent='IMG';
+   const meta=document.createElement('span');meta.className='ffAssetMeta';
+   const name=document.createElement('b');name.textContent=String(a.name||'Imagem');
+   const size=document.createElement('small');size.textContent=a.size?`${Math.ceil(Number(a.size)/1024)} KB`:'';
+   meta.append(name,size);b.append(thumb,meta);
+   b.onclick=()=>chooseProjectAsset(ffProjectAssetChooserTarget,a.id);
+   frag.appendChild(b);
+ });
+ box.appendChild(frag);
+}
+function openProjectAssetChooser(id){
+ ensureProjectAssetChooser();
+ ffProjectAssetChooserTarget=id;
+ const d=$('#ffProjectAssetChooser');
+ $('#ffAssetSearch').value='';renderProjectAssetResults();
+ if(typeof d.showModal==='function')d.showModal();else d.setAttribute('open','');
+}
+function chooseProjectAsset(pickerId,assetId){
+ const kind=PROJECT_IMAGE_PICKERS[pickerId];const a=imageAssetById(assetId);if(!kind||!a)return;
+ project[kind]='asset://'+a.id;
+ fillProjectAssetSelect(pickerId,project[kind]);
+ setImageInfo(pickerId.replace(/Asset$/,'Info'),project[kind],a.name);
+ if(pickerId.startsWith('saveProject'))updateSaveReview();
+ const d=$('#ffProjectAssetChooser');if(d?.open)d.close();
+}
+function imageValueForProject(value){
+ const m=String(value||'').match(/^asset:\/\/(.+)$/);return m?(imageAssetById(m[1])?.data||''):String(value||'');
+}
+function setImageInfo(id,value,emptyText='Nenhuma imagem selecionada'){
+ const el=$('#'+id);if(!el)return;
+ if(value){const asset=String(value).match(/^asset:\/\/(.+)$/);el.textContent=asset?(imageAssetById(asset[1])?.name||'Imagem dos Assets'):'Imagem selecionada';}
+ else el.textContent=emptyText;
+}
+async function chooseProjectImage(kind,file,infoId){
+ if(!file)return;
+ try{const data=await readImageAsBase64(file);snapshot();project[kind]=data;setImageInfo(infoId,data);updateSaveReview();}
+ catch(err){ideMessage('Imagem inválida',err?.message||'Não foi possível ler a imagem.','error');}
+}
+function bindImageField(fileId,pickId,clearId,infoId,kind,emptyText='Nenhuma imagem selecionada',assetId){
+ $('#'+pickId).onclick=()=>$('#'+fileId).click();
+ $('#'+fileId).onchange=async e=>{await chooseProjectImage(kind,e.target.files?.[0],infoId);e.target.value=''};
+ $('#'+clearId).onclick=()=>{snapshot();project[kind]='';setImageInfo(infoId,'',emptyText);if(assetId)fillProjectAssetSelect(assetId,'');updateSaveReview()};
+ if(assetId)$('#'+assetId).onclick=()=>openProjectAssetChooser(assetId);
+}
+function syncProjectImageFields(){
+ project.projectVersion??='1.0.0';project.icon??='';project.favicon??='';project.themeColor??='#20242a';
+ ['saveProjectIconAsset','saveProjectFaviconAsset','exportProjectIconAsset','exportProjectFaviconAsset'].forEach(id=>fillProjectAssetSelect(id,''));
+ setImageInfo('saveProjectIconInfo',project.icon);setImageInfo('saveProjectFaviconInfo',project.favicon);
+}
+function openSaveDialog(){
+ syncProjectImageFields();
+ $('#saveProjectName').value=project.name||'Meu Projeto';$('#saveProjectVersion').value=project.projectVersion;
+ $('#saveThemeColor').value=project.themeColor;$('#saveFileName').value=safeFileName(project.name)+'.flowmobile';
+ updateSaveReview();$('#saveProjectDlg').showModal();
+}
+function openExportDialog(){
+ syncProjectImageFields();
+ setImageInfo('exportProjectIconInfo',project.icon,'Usará o ícone salvo no projeto');
+ setImageInfo('exportProjectFaviconInfo',project.favicon,'Usará o favicon salvo no projeto');
+ $('#exportHtmlDlg').showModal();
+}
+function updateSaveReview(){$('#saveReview').innerHTML=`<b>Projeto:</b> ${esc($('#saveProjectName').value)}<br><b>Versão:</b> ${esc($('#saveProjectVersion').value)}<br><b>Arquivo:</b> ${esc($('#saveFileName').value)}<br><b>Ícone:</b> ${project.icon?'definido':'não definido'}<br><b>Favicon:</b> ${project.favicon?'definido':'não definido'}`;}
+['saveProjectName','saveProjectVersion','saveFileName','saveThemeColor'].forEach(id=>$('#'+id).addEventListener('input',updateSaveReview));
+bindImageField('saveProjectIconFile','saveProjectIconPick','saveProjectIconClear','saveProjectIconInfo','icon','Nenhum ícone selecionado','saveProjectIconAsset');
+bindImageField('saveProjectFaviconFile','saveProjectFaviconPick','saveProjectFaviconClear','saveProjectFaviconInfo','favicon','Nenhum favicon selecionado','saveProjectFaviconAsset');
+bindImageField('exportProjectIconFile','exportProjectIconPick','exportProjectIconClear','exportProjectIconInfo','icon','Usará o ícone salvo no projeto','exportProjectIconAsset');
+bindImageField('exportProjectFaviconFile','exportProjectFaviconPick','exportProjectFaviconClear','exportProjectFaviconInfo','favicon','Usará o favicon salvo no projeto','exportProjectFaviconAsset');
+$('#confirmSaveProject').onclick=e=>{e.preventDefault();project.name=$('#saveProjectName').value.trim()||'Meu Projeto';project.projectVersion=$('#saveProjectVersion').value.trim()||'1.0.0';project.themeColor=$('#saveThemeColor').value;let n=$('#saveFileName').value.trim()||safeFileName(project.name)+'.flowmobile';if(!n.toLowerCase().endsWith('.flowmobile'))n+='.flowmobile';$('#saveProjectDlg').close();render();download(n,JSON.stringify(project,null,2),'application/json');};
+$('#confirmExportHtml').onclick=e=>{e.preventDefault();saveEventBodiesFromEditor();$('#exportHtmlDlg').close();let html=generated();html=window.FlowForgeImageAssets?.resolveHtml?.(html)??html;download('index.html',html,'text/html')};
+$('#projectName').onchange=e=>{snapshot();let old=project.name;project.name=e.target.value;if(project.titlebar&&project.titlebar.text===old)project.titlebar.text=project.name;render()};$('#projectType').onchange=e=>{snapshot();project.type=e.target.value;ffApplyViewport(project.type);render()};function setFramework(v){snapshot();project.framework=v;render()}function setDesignerMode(v){snapshot();project.designerMode=v==='flowforge'?'flowforge':'framework'}$('#framework').onchange=e=>setFramework(e.target.value);$('#frameworkTop').onchange=e=>setFramework(e.target.value);$('#designerMode').onchange=e=>setDesignerMode(e.target.value);$('#designerModeTop').onchange=e=>setDesignerMode(e.target.value);$('#projectPageTop').onchange=e=>ffSwitchPage(e.target.value);$('#saveBtn').onclick=()=>{saveEventBodiesFromEditor();openSaveDialog()};$('#exportBtn').onclick=()=>{saveEventBodiesFromEditor();openExportDialog()};function download(n,c,t){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function ideMessage(title,message,type='info'){
  $('#ideMsgTitle').textContent=title||'FlowForge webstudio 0.5 Beta';
  $('#ideMsgText').textContent=message||'';

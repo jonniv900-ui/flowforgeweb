@@ -65,7 +65,7 @@
   }
 
   function resolveHtml(html){
-    return String(html||'').replace(/asset:\/\/([^\s"'<>]+)/g,(full,id)=>assetById(id)?.data||full);
+    return String(html||'').replace(/asset:\/\/([A-Za-z0-9_-]+)/g,(full,id)=>assetById(id)?.data||full);
   }
 
   function ensurePickerStyles(){
@@ -202,6 +202,7 @@
       exportBtn.__ffImageWrapped=true;
       exportBtn.onclick=()=>{
         if(typeof saveEventBodiesFromEditor==='function')saveEventBodiesFromEditor();
+        if(typeof window.openExportDialog==='function'){window.openExportDialog();return;}
         const html=resolveHtml(generated());
         const a=document.createElement('a');
         a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
@@ -226,7 +227,14 @@
     compactProjectImages();
     const stage=document.getElementById('stage');
     if(stage && !stage.__ffImageObserver){
-      const observer=new MutationObserver(()=>resolveStageImages(stage));
+      let resolving=false;
+      const observer=new MutationObserver(()=>{
+        if(resolving)return;
+        resolving=true;
+        requestAnimationFrame(()=>{
+          try{resolveStageImages(stage)}finally{resolving=false}
+        });
+      });
       observer.observe(stage,{childList:true,subtree:true});
       stage.__ffImageObserver=observer;
       resolveStageImages(stage);

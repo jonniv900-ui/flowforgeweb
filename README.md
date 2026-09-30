@@ -316,6 +316,21 @@ Footer  -> bottom
 
 Sempre teste o projeto em desktop, tablet e celular.
 
+### Viewport do Designer
+
+O tamanho do palco pode ser escolhido de três formas:
+
+- **Viewport** (propriedades do projeto): Mobile 390, Tablet 768 ou Desktop 1200.
+- **Largura × Altura** (propriedades do projeto): valores livres, de 280 a 1440 de largura e de 200 a 4000 de altura. O Viewport passa a mostrar *Outro*.
+- **Seletor de dispositivo** (barra de ferramentas): *Livre* segue o Viewport / Largura × Altura; *Mobile*, *Tablet* e *Desktop* aplicam largura e altura de um dispositivo.
+
+A escolha é salva no projeto (`project.viewport`, no arquivo `.flowmobile`) e restaurada ao reabrir. Projetos antigos, sem esse campo, usam 390 (App) ou 1200 (Site e Landing Page). Desfazer e refazer não alteram o viewport.
+
+O módulo `js/ff-designer-viewport.js` (`FFDesignerViewport`) é o único responsável por esse tamanho. Os breakpoints do `FFResponsive` (mobile, tablet e desktop) são medidos sobre o palco, e não sobre a janela do navegador.
+
+Para rodar o teste de regressão, inicie um servidor local na raiz do projeto (`python -m http.server`) e abra `/tests/viewport_test.html`.
+
+
 ## QR Code
 
 O QR Code pode ser atualizado por JavaScript:

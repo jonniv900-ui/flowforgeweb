@@ -33,7 +33,7 @@
  }
  addEventListener('message',e=>{let d=e.data;if(!d?.__ffdbg)return;if(state.paused&&d.type!=='error')return;if(d.type==='console')state.logs.push({kind:d.kind,args:d.args});else if(d.type==='error')state.errors.push({args:d.args});else if(d.type==='event')state.events.push({args:d.args});if(state.logs.length>500)state.logs.shift();if(state.events.length>500)state.events.shift();render()});
  addEventListener('DOMContentLoaded',()=>{
-  $('#debugBtn').onclick=()=>{document.querySelector('[data-tab="preview"]').click();$('#debuggerPanel').hidden=false;$('#preview').srcdoc=window.generated();$('#dbgState').textContent='Iniciando...'};
+  $('#debugBtn').onclick=()=>{document.querySelector('[data-tab="preview"]').click();$('#debuggerPanel').hidden=false;$('#preview').srcdoc=window.FlowForgeImageAssets?.resolveHtml?.(window.generated())??window.generated();$('#dbgState').textContent='Iniciando...'};
   $('#preview').addEventListener('load',()=>{if(!$('#debuggerPanel').hidden){inject();inspect();render()}});
   $('#dbgClose').onclick=()=>$('#debuggerPanel').hidden=true;$('#dbgClear').onclick=()=>{state.logs=[];state.errors=[];state.events=[];render()};
   $('#dbgRefresh').onclick=inspect;$('#dbgPause').onclick=()=>{state.paused=true;render()};$('#dbgResume').onclick=()=>{state.paused=false;render()};
