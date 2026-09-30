@@ -82,7 +82,7 @@
       #ffImageAssetBox .ffImgFileBtn{display:flex;align-items:center;justify-content:center;width:100%;min-height:32px;padding:7px 8px;border:1px solid #526077;border-radius:5px;background:#303640;color:#eef3f8;cursor:pointer;font-size:12px}
       #ffImageAssetBox .ffImgFileBtn:hover{background:#3b4350}
       #ffImageAssetBox .ffImgFileName{font-size:10px;color:#7f8795;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      #ffImageAssetBox .ffImgAssetBtn{width:100%;padding:7px 8px;font-size:11px;border-radius:5px;text-align:left}
+      #ffImageAssetBox select{width:100%;min-width:0;padding:7px 8px;font-size:11px;background:#30343c;color:#eee;border:1px solid #484e59;border-radius:5px}
       #ffImageAssetBox .ffImgClear{width:100%;padding:7px 8px;font-size:11px;border-radius:5px}
       #ffImageAssetBox .ffImgStatus{display:block;margin-top:7px;font-size:10px;line-height:1.3;color:#7f8795}
     `;
@@ -93,22 +93,29 @@
     const box=document.getElementById('ffImageAssetBox');
     const x=selectedImage();
     if(!box || !x)return;
+    const list=assets();
     const current=String(x.assetId||'');
-    const assetBtn=box.querySelector('[data-ff-asset-select]');
-    const currentAsset=current?assetById(current):null;
-    if(assetBtn)assetBtn.textContent=currentAsset?`${currentAsset.name||'Imagem'} · ${Math.ceil((Number(currentAsset.size)||0)/1024)} KB`:'Escolher dos Assets...';
+    const select=box.querySelector('[data-ff-asset-select]');
+    if(select){
+      const opts=['<option value="">Escolher dos Assets...</option>']
+        .concat(list.filter(a=>String(a.type||'').startsWith('image/')).map(a=>
+          `<option value="${escText(a.id)}"${current===String(a.id)?' selected':''}>${escText(a.name)} · ${Math.ceil((Number(a.size)||0)/1024)} KB</option>`
+        ));
+      select.innerHTML=opts.join('');
+    }
     const status=box.querySelector('[data-ff-asset-status]');
     const fileName=box.querySelector('[data-ff-file-name]');
     const preview=box.querySelector('[data-ff-preview]');
     const data=resolveSrc(x.src);
     if(preview){
       if(data){
-        preview.replaceChildren();
-        const img=document.createElement('img');img.alt='';img.src=data;preview.appendChild(img);
-      }else preview.textContent='Pré-visualização da imagem';
+        preview.innerHTML=`<img src="${escText(data)}" alt="">`;
+      }else{
+        preview.textContent='Pré-visualização da imagem';
+      }
     }
-    if(fileName)fileName.textContent=current?(currentAsset?.name||'Imagem armazenada no projeto'):'Nenhuma imagem selecionada';
-    if(status)status.textContent=current?'Imagem armazenada no projeto':(DATA_RE.test(String(x.src||''))?'Imagem incorporada no projeto':'Nenhuma imagem local selecionada');
+    if(fileName)fileName.textContent=current?(assetById(current)?.name||'Imagem armazenada no projeto'):'Nenhuma imagem selecionada';
+    if(status)status.textContent=current?'Imagem armazenada no projeto':(DATA_RE.test(String(x.src||''))?'Imagem incorporada':'Nenhuma imagem local selecionada');
   }
 
   function injectPicker(){
@@ -131,7 +138,7 @@
         </div>
         <div class="ffImgSection">
           <div class="ffImgLabel">Imagem dos Assets</div>
-          <button type="button" class="ffImgAssetBtn" data-ff-asset-select>Escolher dos Assets...</button>
+          <select data-ff-asset-select></select>
         </div>
         <button type="button" class="ffImgClear" data-ff-clear-image>Remover imagem</button>
         <small class="ffImgStatus" data-ff-asset-status></small>`;
@@ -156,17 +163,23 @@
         }finally{e.target.value=''}
       });
 
-      box.querySelector('[data-ff-asset-select]').addEventListener('click',()=>{
+      box.querySelector('[data-ff-asset-select]').addEventListener('change',e=>{
         const current=selectedImage();
-        if(!current || typeof openImageAssetChooserForComponent!=='function')return;
-        openImageAssetChooserForComponent(a=>{
-          if(typeof snapshot==='function')snapshot();
+        const a=assetById(e.target.value);
+        if(!current)return;
+        if(typeof snapshot==='function')snapshot();
+        if(a){
           current.assetId=a.id;
           current.src=tokenFor(a);
           current.srcType='asset';
           current.assetName=a.name;
-          render();
-        });
+        }else{
+          delete current.assetId;
+          delete current.srcType;
+          delete current.assetName;
+          current.src='';
+        }
+        render();
       });
 
       box.querySelector('[data-ff-clear-image]').addEventListener('click',()=>{
@@ -213,7 +226,27 @@
   function boot(){
     compactProjectImages();
     const stage=document.getElementById('stage');
-    if(stage)resolveStageImages(stage);
+    if(stage && !stage.__ffImageObserver){
+      const observer=new MutationObserver(()=>resolveStageImages(stage));
+      observer.observe(stage,{childList:true,subtree:true});
+      stage.__ffImageObserver=observer;
+      resolveStageImages(stage);
+    }
+    // propDynamic is observed only for picker creation; it does not watch the
+    // whole document and therefore remains cheap during normal editing.
+    const host=document.getElementById('propDynamic');
+    if(host && !host.__ffImageObserver){
+      // propDynamic is rebuilt by the property panel. Only create the picker
+      // when it does not already exist. Do NOT call injectPicker on every
+      // mutation: renderAssetPicker() updates <select>.innerHTML, which itself
+      // fires MutationObserver and can otherwise create an endless loop that
+      // freezes the browser when an Image component is selected.
+      const observer=new MutationObserver(()=>{
+        if(selectedImage() && !document.getElementById('ffImageAssetBox')) injectPicker();
+      });
+      observer.observe(host,{childList:true,subtree:true});
+      host.__ffImageObserver=observer;
+    }
     if(selectedImage())injectPicker();
     wrapExportButtons();
   }
@@ -227,8 +260,6 @@
     list:()=>assets(),
     resolve:(id)=>assetById(id)?.data||'',
     resolveSrc,
-    resolveHtml,
-    resolveStageImages,
-    syncPicker:()=>{if(selectedImage())injectPicker()}
+    resolveHtml
   };
 })();

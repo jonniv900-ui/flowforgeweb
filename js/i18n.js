@@ -16,67 +16,23 @@
   const lang=browser.startsWith('en')?'en':browser.startsWith('es')?'es':'pt';
   const dict=LANGS[lang];
   const rootSelector='header, #tabs, #props, dialog, #debuggerPanel, #studioDrawer, #blocksEditor';
-  let translating=false;
-  let translateQueued=false;
-  let observer=null;
-
   function translate(root=document){
-    if(translating)return;
-    translating=true;
-    try{
-      const scopes=[];
-      root.querySelectorAll?.(rootSelector).forEach(scope=>scopes.push(scope));
-      // Avoid translating the same nested scope more than once.
-      const unique=scopes.filter((scope,i)=>!scopes.some((other,j)=>j!==i && other.contains(scope)));
-      unique.forEach(scope=>{
-        const walker=document.createTreeWalker(scope,NodeFilter.SHOW_TEXT);
-        const nodes=[];
-        while(walker.nextNode())nodes.push(walker.currentNode);
-        nodes.forEach(n=>{
-          const key=n.nodeValue.trim();
-          if(!key||!dict[key])return;
-          const next=n.nodeValue.replace(key,dict[key]);
-          if(next!==n.nodeValue)n.nodeValue=next;
-        });
-        scope.querySelectorAll('option,button,[title],[placeholder]').forEach(el=>{
-          if(el.tagName==='OPTION'&&dict[el.textContent.trim()])el.textContent=dict[el.textContent.trim()];
-          if(el.title&&dict[el.title])el.title=dict[el.title];
-          if(el.placeholder&&dict[el.placeholder])el.placeholder=dict[el.placeholder];
-        });
+    root.querySelectorAll?.(rootSelector).forEach(scope=>{
+      const walker=document.createTreeWalker(scope,NodeFilter.SHOW_TEXT);
+      const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+      nodes.forEach(n=>{const key=n.nodeValue.trim();if(!key||!dict[key])return; const next=n.nodeValue.replace(key,dict[key]); if(next!==n.nodeValue)n.nodeValue=next;});
+      scope.querySelectorAll('option,button,[title],[placeholder]').forEach(el=>{
+        if(el.tagName==='OPTION'&&dict[el.textContent.trim()])el.textContent=dict[el.textContent.trim()];
+        if(el.title&&dict[el.title])el.title=dict[el.title];
+        if(el.placeholder&&dict[el.placeholder])el.placeholder=dict[el.placeholder];
       });
-      document.documentElement.lang=lang==='en'?'en':lang==='es'?'es':'pt-BR';
-    }finally{
-      translating=false;
-    }
-  }
-
-  function scheduleTranslate(){
-    if(translateQueued||translating)return;
-    translateQueued=true;
-    requestAnimationFrame(()=>{
-      translateQueued=false;
-      translate();
     });
+    document.documentElement.lang=browser.startsWith('en')?'en':browser.startsWith('es')?'es':'pt-BR';
   }
-
   function boot(){
     translate();
-    const scopeSelector=rootSelector;
-    observer=new MutationObserver(mutations=>{
-      if(translating)return;
-      for(const m of mutations){
-        const target=m.target?.nodeType===1?m.target:m.target?.parentElement;
-        if(target?.closest?.(scopeSelector)){scheduleTranslate();break;}
-        if(m.type==='childList'){
-          for(const node of m.addedNodes||[]){
-            if(node.nodeType===1 && (node.matches?.(scopeSelector)||node.querySelector?.(scopeSelector))){scheduleTranslate();return;}
-          }
-        }
-      }
-    });
-    observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['title','placeholder']});
-    window.FlowForgeI18n={language:lang,translate:scheduleTranslate};
+    const obs=new MutationObserver(()=>translate());obs.observe(document.body,{childList:true,subtree:true});
+    window.FlowForgeI18n={language:lang,translate};
   }
-
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();

@@ -18,10 +18,7 @@ function uniqueName(kind='component',base){let items=ffItems?.()||project?.pages
 function ensureProjectNames(p){const all=(p?.pages||[]).flatMap(page=>page.items||[]),used=new Set();all.forEach(x=>{let base=sanitizeName(x.name,x.kind||'component'),name=base,i=2;while(used.has(name)){name=base+'_'+i++;}x.name=name;used.add(name);});}
 window.sanitizeName=sanitizeName;window.uniqueName=uniqueName;window.FF_NAME_RE=FF_NAME_RE;
 function fresh(type='app'){const page={id:uid(),name:type==='landing'?'Landing':'Home',items:[]};return {version:'0.13.0',name:'Meu Projeto',projectVersion:'1.0.0',icon:'',favicon:'',themeColor:'#20242a',type,framework:'none',designerMode:'framework',titlebar:{name:'titlebar1',text:'FlowForge webstudio 0.5 Beta',height:'52px',bg:'#20242a',color:'#ffffff',showMenu:true,autoStyle:true},pages:[page],active:0,activePage:page.id};}
-function historySerialize(){const h={...project};delete h.assets;return JSON.stringify(h)}
-function historyEntry(){return {state:historySerialize(),assets:(project.assets||[]).slice(),viewport:project.viewport}}
-function snapshot(){undoStack.push(historyEntry());if(undoStack.length>80)undoStack.shift();future=[]}
-function restoreHistoryEntry(entry){const h=typeof entry==='string'?JSON.parse(entry):JSON.parse(entry.state);const assets=typeof entry==='string'?(project.assets||[]):(entry.assets||[]);const vp=typeof entry==='string'?project.viewport:entry.viewport;project=h;project.assets=assets;if(vp)project.viewport=vp}
+function snapshot(){undoStack.push(JSON.stringify(project));if(undoStack.length>80)undoStack.shift();future=[]}
 const META={pagenav:['Navegação de páginas',260,44],combobox:['Selecione',200,44],listbox:['Item 1\nItem 2\nItem 3',220,120],label:['Texto',120,40],heading:['Título',220,52],button:['Botão',120,44],link:['Link',100,36],image:['Imagem',180,120],picturebox:['PictureBox',220,160],icon:['★',64,64],divider:['',240,16],spacer:['',120,48],input:['Digite aqui',180,44],textarea:['Texto',220,90],checkbox:['Opção',150,40],radio:['Opção',150,40],switch:['Ativar',150,40],select:['Selecione',180,44],range:['',180,40],date:['',180,44],time:['',180,44],file:['',220,44],form:['Formulário',280,180],container:['Container',260,180],section:['Seção',320,180],card:['Card',240,140],row:['Row / Flex',300,100],columns:['Columns / Grid',320,140],hero:['Seu grande título',340,150],navbar:['Minha Marca',360,56],bottomnav:['Home   Buscar   Perfil',360,60],tabs:['Aba 1   Aba 2   Aba 3',300,48],tabcontrol:['Abas',340,190],drawer:['Menu',250,300],bottomsheet:['Bottom Sheet',340,160],sidebar:['Sidebar',240,300],toolbar:['Toolbar',360,50],footer:['Rodapé',400,70],breadcrumb:['Home / Página',260,40],pagination:['‹  1  2  3  ›',220,44],fab:['+',58,58],list:['Item 1',240,120],table:['Tabela',300,130],datagrid:['DataGrid',360,180],chart:['Gráfico',320,180],calendar:['Calendário',300,240],listview:['ListView',300,180],treeview:['TreeView',300,190],statcard:['Indicador',220,120],rating:['★★★★★',220,60],timeline:['Timeline',260,220],stepper:['Etapas',320,80],badge:['Novo',90,38],progress:['',240,32],spinner:['',60,60],accordion:['Clique para expandir',280,90],alert:['Mensagem de alerta',280,64],modalbox:['Título do modal',300,150],video:['Vídeo',300,170],audio:['Áudio',300,54],camera:['Câmera',300,190],fileupload:['Enviar arquivo',280,70],colorpicker:['Cor',160,60],avatar:['Avatar',100,100],modal:['Modal',340,220],toast:['Mensagem',280,70],tooltip:['Dica',180,60],carousel:['Carousel',340,200],timer:['Timer',1,1],http:['HTTP',1,1],websocket:['WebSocket',1,1],storage:['Storage',1,1],geolocation:['Geolocation',1,1],notification:['Notification',1,1],clipboard:['Clipboard',1,1],network:['Network',1,1],vibration:['Vibration',1,1],iframe:['Web / iFrame',300,180],canvas:['Canvas',300,180],map:['Mapa',300,180],qrcode:['QR',160,160],iframe:['Web / iFrame',300,180],canvas:['Canvas',300,180],map:['Mapa',300,180],battery:['78%',180,54],thermometer:['24 °C',90,180],led:['Online',120,42],sevenseg:['12:34',180,72],dotmatrix:['HELLO',220,70],sparkline:['Uso',220,90],valuecard:['1.234',220,110],statuscard:['Sistema OK',240,100],glasspanel:['Glass Panel',260,150],gradientbutton:['Continuar',180,48],iconbutton:['★',56,56],mobilelist:['Item principal',280,150]};
 const DEFAULT_EVENT={button:'click',link:'click',fab:'click',navbar:'click',bottomnav:'click',tabs:'click',tabcontrol:'click',drawer:'click',bottomsheet:'click',sidebar:'click',toolbar:'click',footer:'click',pagination:'click',pagenav:'change',accordion:'toggle',input:'input',textarea:'input',select:'change',combobox:'change',listbox:'change',checkbox:'change',radio:'change',switch:'change',range:'input',date:'change',time:'change',file:'change',fileupload:'change',form:'submit',image:'click',picturebox:'click',icon:'click',card:'click',list:'click',table:'click',datagrid:'click',chart:'click',calendar:'change',listview:'click',treeview:'click',statcard:'click',rating:'change',timeline:'click',stepper:'change',badge:'click',alert:'click',modalbox:'click',toast:'click',video:'play',audio:'play',camera:'click',colorpicker:'change',avatar:'click',modal:'click',tooltip:'click',carousel:'change',timer:'tick',http:'response',websocket:'message',storage:'change',geolocation:'change',notification:'click',clipboard:'change',network:'change',vibration:'start',iframe:'load',canvas:'click',map:'click',qrcode:'click',label:'click',heading:'click',container:'click',section:'click',row:'click',columns:'click',hero:'click',divider:'click',spacer:'click',battery:'click',thermometer:'click',led:'click',sevenseg:'click',dotmatrix:'click',sparkline:'click',valuecard:'click',statuscard:'click',glasspanel:'click',gradientbutton:'click',iconbutton:'click',mobilelist:'click'};
 function defaultEvent(kind){return FlowForgeRegistry?.get(kind)?.event||DEFAULT_EVENT[kind]||'click'}
@@ -88,7 +85,7 @@ function ffInitCanvasElement(d,x){if(x.kind!=='canvas')return;const c=d.querySel
 function ffDockStyle(x){const dock=x?.dock||'';const style={};if(!dock)return style;style.position='absolute';if(dock==='top'){style.left='0';style.right='0';style.top=(project?.type==='app' ? ((parseInt(project?.titlebar?.height)||52)) : 0)+'px';style.width='100%';}else if(dock==='bottom'){style.left='0';style.right='0';style.bottom='0';style.width='100%';}else if(dock==='left'){style.left='0';style.top=(project?.type==='app' ? ((parseInt(project?.titlebar?.height)||52)) : 0)+'px';style.bottom='0';}else if(dock==='right'){style.right='0';style.top=(project?.type==='app' ? ((parseInt(project?.titlebar?.height)||52)) : 0)+'px';style.bottom='0';}else if(dock==='fill'){style.left='0';style.right='0';style.top=(project?.type==='app' ? ((parseInt(project?.titlebar?.height)||52)) : 0)+'px';style.bottom='0';style.width='100%';}return style;}
 function makeEl(x){let d=document.createElement('div');d.className='component '+x.kind+' ff-kind-'+x.kind;d.dataset.id=x.id;Object.assign(d.style,{left:x.x+'px',top:x.y+'px',width:x.width,height:x.height,background:x.bg||'',color:x.color||'',textAlign:x.textAlign||''},ffDockStyle(x));d.innerHTML=content(x);ffInitCanvasElement(d,x);if(x.kind==='audio'||x.kind==='video'){const media=d.querySelector('audio,video');if(media&&Number.isFinite(Number(x.volume)))media.volume=Math.max(0,Math.min(1,Number(x.volume)));}d.addEventListener('pointerdown',e=>startDrag(e,x,d),true);d.onclick=e=>{e.stopPropagation();if(selected?.id!==x.id)select(x)};d.ondblclick=e=>{e.preventDefault();e.stopPropagation();lastComponentTap={id:null,time:0};openDefaultAction(x)};if(selected?.id===x.id){d.classList.add('selected');['nw','ne','sw','se'].forEach(pos=>{let h=document.createElement('i');h.className='handle '+pos;h.onpointerdown=e=>startResize(e,x,d,pos);d.append(h)})}return d}
 function select(x){selected=x;render()}function markSelected(x,d){selected=x;document.querySelectorAll('.component.selected,.app-titlebar.selected').forEach(el=>{el.classList.remove('selected');el.querySelectorAll(':scope > .handle').forEach(h=>h.remove())});d.classList.add('selected');if(x.kind!=='titlebar')['nw','ne','sw','se'].forEach(pos=>{let h=document.createElement('i');h.className='handle '+pos;h.onpointerdown=e=>startResize(e,x,d,pos);d.append(h)});props();$('#selectionInfo').textContent=x.kind==='titlebar'?`${x.name} • TitleBar`:`${x.name}  ${x.x},${x.y}  ${x.width}×${x.height}`}function applyFrameworkDesignerCSS(){let id='ff-framework-designer-css',fw=project.framework||'none',mode=project.designerMode||'framework',css=mode==='framework'?(window.FlowForgeFrameworkDesignerCSS?.[fw]||''):'';let el=document.getElementById(id);if(!el){el=document.createElement('style');el.id=id;document.head.appendChild(el)}el.textContent=css}
-function render(){renderPages();renderTopPagePicker();project.titlebar??={name:'titlebar1',text:project.name,height:'52px',bg:'#20242a',color:'#ffffff',showMenu:true,autoStyle:true};project.titlebar.autoStyle??=true;applyFrameworkDesignerCSS();$('#projectName').value=project.name;$('#projectType').value=project.type;$('#framework').value=project.framework||'none';$('#frameworkTop').value=project.framework||'none';$('#designerMode').value=project.designerMode||'framework';$('#designerModeTop').value=project.designerMode||'framework';let stage=$('#stage');stage.dataset.framework=project.framework||'none';stage.dataset.designerMode=project.designerMode||'framework';stage.dataset.projectType=project.type;stage.innerHTML='';if(project.type==='app'){let t=project.titlebar,tb=document.createElement('div');tb.className='app-titlebar'+(selected?.kind==='titlebar'?' selected':'');tb.style.height=t.height;if(!t.autoStyle){tb.style.background=t.bg;tb.style.color=t.color}else{tb.style.background='';tb.style.color=''}tb.innerHTML=titlebarContent(t);tb.onclick=e=>{e.stopPropagation();selected=t;selected.kind='titlebar';render()};stage.append(tb)}project.pages[project.active].items.forEach(x=>stage.append(makeEl(x)));props();window.FlowForgeImageAssets?.syncPicker?.();const activeTab=$('#tabs button.active')?.dataset.tab;if(activeTab==='code'||activeTab==='preview')updateCode();window.FlowForgeImageAssets?.resolveStageImages?.(stage);$('#selectionInfo').textContent=selected?(selected.kind==='titlebar'?`${selected.name} • TitleBar`:`${selected.name}  ${selected.x},${selected.y}  ${selected.width}×${selected.height}`):'';window.FFDesignerViewport?.restore?.();window.FFProjectModes?.responsive?.()}
+function render(){renderPages();renderTopPagePicker();project.titlebar??={name:'titlebar1',text:project.name,height:'52px',bg:'#20242a',color:'#ffffff',showMenu:true,autoStyle:true};project.titlebar.autoStyle??=true;applyFrameworkDesignerCSS();$('#projectName').value=project.name;$('#projectType').value=project.type;$('#framework').value=project.framework||'none';$('#frameworkTop').value=project.framework||'none';$('#designerMode').value=project.designerMode||'framework';$('#designerModeTop').value=project.designerMode||'framework';let stage=$('#stage');stage.dataset.framework=project.framework||'none';stage.dataset.designerMode=project.designerMode||'framework';stage.dataset.projectType=project.type;stage.innerHTML='';if(project.type==='app'){let t=project.titlebar,tb=document.createElement('div');tb.className='app-titlebar'+(selected?.kind==='titlebar'?' selected':'');tb.style.height=t.height;if(!t.autoStyle){tb.style.background=t.bg;tb.style.color=t.color}else{tb.style.background='';tb.style.color=''}tb.innerHTML=titlebarContent(t);tb.onclick=e=>{e.stopPropagation();selected=t;selected.kind='titlebar';render()};stage.append(tb)}project.pages[project.active].items.forEach(x=>stage.append(makeEl(x)));props();updateCode();$('#selectionInfo').textContent=selected?(selected.kind==='titlebar'?`${selected.name} • TitleBar`:`${selected.name}  ${selected.x},${selected.y}  ${selected.width}×${selected.height}`):'';window.FFDesignerViewport?.restore?.();window.FFProjectModes?.responsive?.()}
 
 const EVENT_OPTIONS={button:['click','dblclick','mousedown','mouseup','mouseenter','mouseleave','focus','blur'],link:['click','focus','blur'],input:['input','change','focus','blur','keydown','keyup'],textarea:['input','change','focus','blur','keydown','keyup'],select:['change','focus','blur'],checkbox:['change','click'],radio:['change','click'],switch:['change','click'],range:['input','change'],form:['submit','reset'],image:['click','load','error'],picturebox:['click','load','error'],video:['play','pause','ended','timeupdate','volumechange'],audio:['play','pause','ended','timeupdate','volumechange'],file:['change'],fileupload:['change'],camera:['click','camerastart','camerastop','cameraerror'],iframe:['load'],calendar:['change','click'],rating:['change','click'],progress:['change','complete'],tabcontrol:['click'],drawer:['click'],bottomsheet:['click'],timer:['tick','start','stop'],http:['request','response','error'],websocket:['open','message','close','error'],storage:['change'],geolocation:['change','error'],notification:['click','close','error'],network:['change','online','offline'],default:['click','dblclick','mouseenter','mouseleave','focus','blur']};
 function eventsFor(kind){let base=EVENT_OPTIONS[kind]||EVENT_OPTIONS.default,def=defaultEvent(kind);return [...new Set([def,...base])]}
@@ -252,9 +249,9 @@ function generated(){
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="${esc(project.themeColor||'#20242a')}">
-  ${project.favicon?`<link rel="icon" href="${esc(imageValueForProject(project.favicon))}">`:''}
-  ${project.icon?`<link rel="apple-touch-icon" href="${esc(imageValueForProject(project.icon))}">`:''}
-  ${project.icon?`<link rel="icon" sizes="192x192" href="${esc(imageValueForProject(project.icon))}">`:''}
+  ${project.favicon?`<link rel="icon" href="${esc(project.favicon)}">`:''}
+  ${project.icon?`<link rel="apple-touch-icon" href="${esc(project.icon)}">`:''}
+  ${project.icon?`<link rel="icon" sizes="192x192" href="${esc(project.icon)}">`:''}
   ${frameworkHead()}
   <style>
     .ff-page.hidden{display:none!important}.ff-kind-listbox select{padding:6px}.ff-page-nav{width:100%;height:100%;padding:8px;border:1px solid #cfd5db;border-radius:6px;background:#fff}.ff-kind-combobox select{width:100%;height:100%}
@@ -535,96 +532,17 @@ ffStage.addEventListener('dragenter',ffDragOver,true);ffStage.addEventListener('
 $('#pTitleAuto').onchange=e=>{if(selected?.kind!=='titlebar')return;snapshot();selected.autoStyle=e.target.checked;project.titlebar=selected;render()};
 ['pName','pText','pX','pY','pWidth','pHeight','pBg','pColor'].forEach(id=>$('#'+id).onchange=e=>{if(!selected)return;snapshot();let map={pName:'name',pText:'text',pX:'x',pY:'y',pWidth:'width',pHeight:'height',pBg:'bg',pColor:'color'},k=map[id],v=e.target.value;if(k==='x'||k==='y')v=+v;if((k==='width'||k==='height')&&/^\d+$/.test(v))v+='px';if(k==='name'){const oldName=selected.name;v=sanitizeName(v,selected.kind||'component');const taken=ffItems().some(x=>x!==selected&&x.name===v);if(taken)v=uniqueName(selected.kind,v);selected.name=v;if(selected.events)Object.keys(selected.events).forEach(ev=>{if(String(selected.events[ev]||'').startsWith('// '+oldName+':'))selected.events[ev]=String(selected.events[ev]).replace('// '+oldName+':','// '+v+':')});}else selected[k]=v;if(selected.kind==='titlebar')project.titlebar=selected;render()});$('#pVisible').onchange=e=>{if(!selected)return;snapshot();selected.visible=e.target.checked;render()};$('#pEnabled').onchange=e=>{if(!selected)return;snapshot();selected.enabled=e.target.checked;render()};$('#propDynamic').onchange=e=>{const k=e.target.dataset.key;if(!k||!selected)return;snapshot();let ty=e.target.dataset.type,v;if(ty==='page')v=e.target.value||'';else if(ty==='checkbox')v=e.target.checked;else if(ty==='number')v=e.target.value===''?undefined:Number(e.target.value);else if(ty==='textarea'){try{v=JSON.parse(e.target.value)}catch{v=e.target.value}}else v=e.target.value;if((k==='options'||k==='items')&&typeof v==='string'){try{v=JSON.parse(v)}catch{}}selected[k]=v;render()};$('#deleteBtn').onclick=del;$('#duplicateBtn').onclick=duplicate;document.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;if(e.key==='Delete')del();if(e.ctrlKey&&e.key.toLowerCase()==='d'){e.preventDefault();duplicate()}if(e.ctrlKey&&e.key.toLowerCase()==='z'){e.preventDefault();$('#undoBtn').click()}if(e.ctrlKey&&e.key.toLowerCase()==='y'){e.preventDefault();$('#redoBtn').click()}});
 function safeFileName(v){return String(v||'projeto').trim().replace(/[<>:"/\\|?*\x00-\x1F]+/g,'_').replace(/\s+/g,'_')||'projeto'}
-function readImageAsBase64(file){return new Promise((resolve,reject)=>{
- const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(r.error||new Error('Não foi possível ler a imagem.'));r.readAsDataURL(file);
+function readImageAsBase64(file){
+ return new Promise((resolve,reject)=>{
+  if(!file){resolve('');return}
+  const ok=/^image\//i.test(file.type)||/\.ico$/i.test(file.name||'');
+  if(!ok){reject(new Error('Selecione uma imagem válida (PNG, JPG, SVG, ICO etc.).'));return}
+  const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(r.error||new Error('Não foi possível ler a imagem.'));r.readAsDataURL(file);
  });
-}
-function projectImageAssets(){try{return FlowForge.modules.assets.ensure(project)||[]}catch(_){return project.assets||[]}}
-function imageAssetById(id){return projectImageAssets().find(a=>String(a.id)===String(id))}
-const PROJECT_IMAGE_PICKERS={
-  saveProjectIconAsset:'icon', saveProjectFaviconAsset:'favicon',
-  exportProjectIconAsset:'icon', exportProjectFaviconAsset:'favicon'
-};
-function assetDisplayName(a){return `${a?.name||'Imagem'}${a?.size?` · ${Math.ceil(Number(a.size)/1024)} KB`:''}`}
-function fillProjectAssetSelect(id,current){
- const el=$('#'+id);if(!el)return;
- const value=current&&String(current).startsWith('asset://')?String(current).slice(8):'';
- const a=value?imageAssetById(value):null;
- el.dataset.assetId=value;
- el.textContent=a?assetDisplayName(a):'Escolher dos Assets...';
-}
-function ensureProjectAssetChooser(){
- if($('#ffProjectAssetChooser'))return;
- const d=document.createElement('dialog');d.id='ffProjectAssetChooser';d.className='ffAssetChooserDlg';
- d.innerHTML=`<form method="dialog" class="ffAssetChooserForm">
-   <h3>Escolher imagem dos Assets</h3>
-   <input id="ffAssetSearch" type="search" placeholder="Buscar por nome..." autocomplete="off">
-   <div id="ffAssetCount" class="ffAssetCount"></div>
-   <div id="ffAssetResults" class="ffAssetResults"></div>
-   <div class="saveActions"><button value="cancel">Cancelar</button></div>
- </form>`;
- document.body.appendChild(d);
- $('#ffAssetSearch').oninput=()=>renderProjectAssetResults();
- d.addEventListener('close',()=>{if($('#ffAssetSearch'))$('#ffAssetSearch').value='';});
-}
-let ffProjectAssetChooserTarget='';
-let ffProjectAssetChooserCallback=null;
-function renderProjectAssetResults(){
- const box=$('#ffAssetResults'),count=$('#ffAssetCount');if(!box)return;
- const q=String($('#ffAssetSearch')?.value||'').trim().toLowerCase();
- const all=projectImageAssets().filter(a=>String(a.type||'').startsWith('image/')||/\.ico$/i.test(a.name||''));
- const matches=q?all.filter(a=>String(a.name||'').toLowerCase().includes(q)):all;
- const max=40;
- count.textContent=`${matches.length} imagem${matches.length===1?'':'ns'} encontrada${matches.length===1?'':'s'}${matches.length>max?' · mostrando as primeiras 40':''}`;
- box.replaceChildren();
- if(!matches.length){const empty=document.createElement('div');empty.className='ffAssetEmpty';empty.textContent='Nenhuma imagem encontrada.';box.appendChild(empty);return;}
- const frag=document.createDocumentFragment();
- matches.slice(0,max).forEach(a=>{
-   const b=document.createElement('button');b.type='button';b.className='ffAssetResult';b.dataset.id=String(a.id);
-   const thumb=document.createElement('span');thumb.className='ffAssetThumb';
-   thumb.textContent='IMG';
-   const meta=document.createElement('span');meta.className='ffAssetMeta';
-   const name=document.createElement('b');name.textContent=String(a.name||'Imagem');
-   const size=document.createElement('small');size.textContent=a.size?`${Math.ceil(Number(a.size)/1024)} KB`:'';
-   meta.append(name,size);b.append(thumb,meta);
-   b.onclick=()=>chooseProjectAsset(ffProjectAssetChooserTarget,a.id);
-   frag.appendChild(b);
- });
- box.appendChild(frag);
-}
-function openProjectAssetChooser(id){
- ensureProjectAssetChooser();
- ffProjectAssetChooserTarget=id;
- ffProjectAssetChooserCallback=null;
- const d=$('#ffProjectAssetChooser');
- $('#ffAssetSearch').value='';renderProjectAssetResults();
- if(typeof d.showModal==='function')d.showModal();else d.setAttribute('open','');
-}
-function openImageAssetChooserForComponent(callback){
- ensureProjectAssetChooser();
- ffProjectAssetChooserTarget='';
- ffProjectAssetChooserCallback=typeof callback==='function'?callback:null;
- const d=$('#ffProjectAssetChooser');
- $('#ffAssetSearch').value='';renderProjectAssetResults();
- if(typeof d.showModal==='function')d.showModal();else d.setAttribute('open','');
-}
-function chooseProjectAsset(pickerId,assetId){
- const a=imageAssetById(assetId);if(!a)return;
- if(ffProjectAssetChooserCallback){const cb=ffProjectAssetChooserCallback;ffProjectAssetChooserCallback=null;cb(a);const d=$('#ffProjectAssetChooser');if(d?.open)d.close();return;}
- const kind=PROJECT_IMAGE_PICKERS[pickerId];if(!kind)return;
- snapshot();
- project[kind]='asset://'+a.id;
- fillProjectAssetSelect(pickerId,project[kind]);
- setImageInfo(pickerId.replace(/Asset$/,'Info'),project[kind],a.name);
- if(pickerId.startsWith('saveProject'))updateSaveReview();
- const d=$('#ffProjectAssetChooser');if(d?.open)d.close();
-}
-function imageValueForProject(value){
- const m=String(value||'').match(/^asset:\/\/(.+)$/);return m?(imageAssetById(m[1])?.data||''):String(value||'');
 }
 function setImageInfo(id,value,emptyText='Nenhuma imagem selecionada'){
  const el=$('#'+id);if(!el)return;
- if(value){const asset=String(value).match(/^asset:\/\/(.+)$/);el.textContent=asset?(imageAssetById(asset[1])?.name||'Imagem dos Assets'):'Imagem selecionada';}
+ if(value){const m=String(value).match(/^data:([^;,]+)/i);el.textContent=m?`Imagem incorporada · ${m[1]}`:'Imagem definida';}
  else el.textContent=emptyText;
 }
 async function chooseProjectImage(kind,file,infoId){
@@ -632,15 +550,13 @@ async function chooseProjectImage(kind,file,infoId){
  try{const data=await readImageAsBase64(file);snapshot();project[kind]=data;setImageInfo(infoId,data);updateSaveReview();}
  catch(err){ideMessage('Imagem inválida',err?.message||'Não foi possível ler a imagem.','error');}
 }
-function bindImageField(fileId,pickId,clearId,infoId,kind,emptyText='Nenhuma imagem selecionada',assetId){
+function bindImageField(fileId,pickId,clearId,infoId,kind,emptyText){
  $('#'+pickId).onclick=()=>$('#'+fileId).click();
  $('#'+fileId).onchange=async e=>{await chooseProjectImage(kind,e.target.files?.[0],infoId);e.target.value=''};
- $('#'+clearId).onclick=()=>{snapshot();project[kind]='';setImageInfo(infoId,'',emptyText);if(assetId)fillProjectAssetSelect(assetId,'');updateSaveReview()};
- if(assetId)$('#'+assetId).onclick=()=>openProjectAssetChooser(assetId);
+ $('#'+clearId).onclick=()=>{snapshot();project[kind]='';setImageInfo(infoId,'',emptyText);updateSaveReview()};
 }
 function syncProjectImageFields(){
  project.projectVersion??='1.0.0';project.icon??='';project.favicon??='';project.themeColor??='#20242a';
- ['saveProjectIconAsset','saveProjectFaviconAsset','exportProjectIconAsset','exportProjectFaviconAsset'].forEach(id=>fillProjectAssetSelect(id,''));
  setImageInfo('saveProjectIconInfo',project.icon);setImageInfo('saveProjectFaviconInfo',project.favicon);
 }
 function openSaveDialog(){
@@ -657,39 +573,79 @@ function openExportDialog(){
 }
 function updateSaveReview(){$('#saveReview').innerHTML=`<b>Projeto:</b> ${esc($('#saveProjectName').value)}<br><b>Versão:</b> ${esc($('#saveProjectVersion').value)}<br><b>Arquivo:</b> ${esc($('#saveFileName').value)}<br><b>Ícone:</b> ${project.icon?'definido':'não definido'}<br><b>Favicon:</b> ${project.favicon?'definido':'não definido'}`;}
 ['saveProjectName','saveProjectVersion','saveFileName','saveThemeColor'].forEach(id=>$('#'+id).addEventListener('input',updateSaveReview));
-bindImageField('saveProjectIconFile','saveProjectIconPick','saveProjectIconClear','saveProjectIconInfo','icon','Nenhum ícone selecionado','saveProjectIconAsset');
-bindImageField('saveProjectFaviconFile','saveProjectFaviconPick','saveProjectFaviconClear','saveProjectFaviconInfo','favicon','Nenhum favicon selecionado','saveProjectFaviconAsset');
-bindImageField('exportProjectIconFile','exportProjectIconPick','exportProjectIconClear','exportProjectIconInfo','icon','Usará o ícone salvo no projeto','exportProjectIconAsset');
-bindImageField('exportProjectFaviconFile','exportProjectFaviconPick','exportProjectFaviconClear','exportProjectFaviconInfo','favicon','Usará o favicon salvo no projeto','exportProjectFaviconAsset');
-$('#confirmSaveProject').onclick=async e=>{e.preventDefault();project.name=$('#saveProjectName').value.trim()||'Meu Projeto';project.projectVersion=$('#saveProjectVersion').value.trim()||'1.0.0';project.themeColor=$('#saveThemeColor').value;let n=$('#saveFileName').value.trim()||safeFileName(project.name)+'.flowmobile';if(!n.toLowerCase().endsWith('.flowmobile'))n+='.flowmobile';$('#saveProjectDlg').close();render();try{const json=await ffSerializeProjectAsync(project);download(n,json,'application/json')}catch(err){ideMessage('Não foi possível salvar',err?.message||'Falha ao preparar o projeto.','error')}};
-$('#confirmExportHtml').onclick=e=>{e.preventDefault();saveEventBodiesFromEditor();$('#exportHtmlDlg').close();let html=generated();html=window.FlowForgeImageAssets?.resolveHtml?.(html)??html;download('index.html',html,'text/html')};
-$('#projectName').onchange=e=>{snapshot();let old=project.name;project.name=e.target.value;if(project.titlebar&&project.titlebar.text===old)project.titlebar.text=project.name;render()};$('#projectType').onchange=e=>{snapshot();project.type=e.target.value;ffApplyViewport(project.type);render()};function setFramework(v){snapshot();project.framework=v;render()}function setDesignerMode(v){snapshot();project.designerMode=v==='flowforge'?'flowforge':'framework'}$('#framework').onchange=e=>setFramework(e.target.value);$('#frameworkTop').onchange=e=>setFramework(e.target.value);$('#designerMode').onchange=e=>setDesignerMode(e.target.value);$('#designerModeTop').onchange=e=>setDesignerMode(e.target.value);$('#projectPageTop').onchange=e=>ffSwitchPage(e.target.value);$('#saveBtn').onclick=()=>{saveEventBodiesFromEditor();openSaveDialog()};$('#exportBtn').onclick=()=>{saveEventBodiesFromEditor();openExportDialog()};function download(n,c,t){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-let ffSerializerWorker=null,ffSerializerSeq=0,ffSerializerPending=new Map();
-function ffGetSerializerWorker(){
- if(ffSerializerWorker)return ffSerializerWorker;
- try{
-   const workerCode=document.getElementById('ffSerializationWorkerSource')?.textContent||'';
-   if(!workerCode.trim())throw new Error('Fonte do worker indisponível');
-   const blob=new Blob([workerCode],{type:'text/javascript'});
-   ffSerializerWorker=new Worker(URL.createObjectURL(blob));
-   ffSerializerWorker.onmessage=e=>{const p=ffSerializerPending.get(e.data?.id);if(!p)return;ffSerializerPending.delete(e.data.id);e.data.ok?p.resolve(e.data.result):p.reject(new Error(e.data.error||'Falha na operação em segundo plano.'))};
-   ffSerializerWorker.onerror=e=>{for(const p of ffSerializerPending.values())p.reject(e.error||new Error('Falha no processo em segundo plano.'));ffSerializerPending.clear();ffSerializerWorker?.terminate();ffSerializerWorker=null};
-   return ffSerializerWorker;
- }catch(_){return null}
+bindImageField('saveProjectIconFile','saveProjectIconPick','saveProjectIconClear','saveProjectIconInfo','icon');
+bindImageField('saveProjectFaviconFile','saveProjectFaviconPick','saveProjectFaviconClear','saveProjectFaviconInfo','favicon');
+bindImageField('exportProjectIconFile','exportProjectIconPick','exportProjectIconClear','exportProjectIconInfo','icon','Usará o ícone salvo no projeto');
+bindImageField('exportProjectFaviconFile','exportProjectFaviconPick','exportProjectFaviconClear','exportProjectFaviconInfo','favicon','Usará o favicon salvo no projeto');
+$('#confirmSaveProject').onclick=e=>{e.preventDefault();project.name=$('#saveProjectName').value.trim()||'Meu Projeto';project.projectVersion=$('#saveProjectVersion').value.trim()||'1.0.0';project.themeColor=$('#saveThemeColor').value;let n=$('#saveFileName').value.trim()||safeFileName(project.name)+'.flowmobile';if(!n.toLowerCase().endsWith('.flowmobile'))n+='.flowmobile';$('#saveProjectDlg').close();render();download(n,JSON.stringify(project,null,2),'application/json');};
+$('#confirmExportHtml').onclick=e=>{e.preventDefault();saveEventBodiesFromEditor();$('#exportHtmlDlg').close();download('index.html',generated(),'text/html')};
+$('#projectName').onchange=e=>{snapshot();let old=project.name;project.name=e.target.value;if(project.titlebar&&project.titlebar.text===old)project.titlebar.text=project.name;render()};$('#projectType').onchange=e=>{snapshot();project.type=e.target.value;ffApplyViewport(project.type);render()};function applyFrameworkPreview(){
+  const fw=project.framework||'none';
+  const stage=$('#stage');
+  if(stage){
+    stage.dataset.framework=fw;
+    stage.dataset.designerMode=project.designerMode||'framework';
+  }
+  applyFrameworkDesignerCSS();
+  $('#framework').value=fw;
+  $('#frameworkTop').value=fw;
+
+  // Do not rebuild the stage here. Rebuilding it would recreate every image
+  // element and can decode large Base64 assets synchronously.
+  const items=[];
+  (project.pages||[]).forEach(p=>(p.items||[]).forEach(x=>items.push(x)));
+  if(project.type==='app' && project.titlebar){
+    const tb=stage?.querySelector('.app-titlebar');
+    if(tb){
+      tb.innerHTML=titlebarContent(project.titlebar);
+      tb.style.height=project.titlebar.height||'52px';
+    }
+  }
+
+  selected=null;
+  stage?.querySelectorAll('.component.selected,.app-titlebar.selected').forEach(el=>{
+    el.classList.remove('selected');
+    el.querySelectorAll(':scope > .handle').forEach(h=>h.remove());
+  });
+
+  let i=0;
+  const token=Symbol('framework-update');
+  window.__ffFrameworkUpdateToken=token;
+  const step=()=>{
+    if(window.__ffFrameworkUpdateToken!==token)return;
+    const end=Math.min(i+50,items.length);
+    for(;i<end;i++){
+      const x=items[i];
+      // Images are intentionally left untouched. Framework styling does not
+      // change their markup, and replacing them would force large image decode.
+      if(x.kind==='image'||x.kind==='picturebox')continue;
+      const d=stage?.querySelector(`.component[data-id="${CSS.escape(String(x.id))}"]`);
+      if(!d)continue;
+      d.className='component '+x.kind+' ff-kind-'+x.kind;
+      d.innerHTML=content(x);
+      ffInitCanvasElement(d,x);
+    }
+    if(i<items.length)requestAnimationFrame(step);
+    else {
+      props();
+      $('#selectionInfo').textContent='';
+    }
+  };
+  requestAnimationFrame(step);
 }
-function ffWorkerRun(action,value,replacements){
- return new Promise((resolve,reject)=>{
-   const w=ffGetSerializerWorker();
-   if(!w)return reject(new Error('Worker indisponível'));
-   const id=++ffSerializerSeq;ffSerializerPending.set(id,{resolve,reject});
-   try{w.postMessage({id,action,value,replacements})}catch(e){ffSerializerPending.delete(id);reject(e)}
- });
+function snapshotFramework(){
+  undoStack.push(JSON.stringify({__ffHistoryType:'framework',framework:project.framework||'none'}));
+  if(undoStack.length>80)undoStack.shift();
+  future=[];
 }
-async function ffSerializeProjectAsync(value){
- const estimate=(()=>{try{return JSON.stringify(value).length}catch(_){return 0}})();
- if(estimate<1500000)return JSON.stringify(value,null,2);
- try{return await ffWorkerRun('json',value)}catch(_){return JSON.stringify(value,null,2)}
+function setFramework(v){
+  v=v||'none';
+  if(project.framework===v)return;
+  snapshotFramework();
+  project.framework=v;
+  applyFrameworkPreview();
 }
+function setDesignerMode(v){snapshot();project.designerMode=v==='flowforge'?'flowforge':'framework'}$('#framework').onchange=e=>setFramework(e.target.value);$('#frameworkTop').onchange=e=>setFramework(e.target.value);$('#designerMode').onchange=e=>setDesignerMode(e.target.value);$('#designerModeTop').onchange=e=>setDesignerMode(e.target.value);$('#projectPageTop').onchange=e=>ffSwitchPage(e.target.value);$('#saveBtn').onclick=()=>{saveEventBodiesFromEditor();openSaveDialog()};$('#exportBtn').onclick=()=>{saveEventBodiesFromEditor();openExportDialog()};function download(n,c,t){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function ideMessage(title,message,type='info'){
  $('#ideMsgTitle').textContent=title||'FlowForge webstudio 0.5 Beta';
  $('#ideMsgText').textContent=message||'';
@@ -713,7 +669,38 @@ $('#openBtn').onclick=()=>$('#fileInput').click();$('#fileInput').onchange=async
  ideMessage('Projeto aberto',`"${project.name}" foi carregado com sucesso.`);
  }catch(err){ideMessage('Não foi possível abrir o projeto',err?.message||'Arquivo de projeto inválido.','error')}
  finally{e.target.value=''}
-};$('#newBtn').onclick=()=>$('#newDlg').showModal();$$('[data-new]').forEach(b=>b.onclick=()=>{project=fresh(b.dataset.new);selected=null;undoStack=[];future=[];ffApplyViewport(b.dataset.new);setTimeout(render)});$('#undoBtn').onclick=()=>{if(!undoStack.length)return;future.push(historyEntry());restoreHistoryEntry(undoStack.pop());selected=null;render()};$('#redoBtn').onclick=()=>{if(!future.length)return;undoStack.push(historyEntry());restoreHistoryEntry(future.pop());selected=null;render()};$$('#tabs button').forEach(b=>b.onclick=()=>{$$('#tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');let t=b.dataset.tab;activateTab(t);updateCode()});$('#previewBtn').onclick=()=>{let w=open();w.document.write(generated());w.document.close()};$('#startupOpen').onclick=()=>{ $('#newDlg').close(); $('#fileInput').click(); };$('#examplesBtn').onclick=showExamples;$('#startupExamples').onclick=()=>{ $('#newDlg').close(); showExamples(); };
+};$('#newBtn').onclick=()=>$('#newDlg').showModal();$$('[data-new]').forEach(b=>b.onclick=()=>{project=fresh(b.dataset.new);selected=null;undoStack=[];future=[];ffApplyViewport(b.dataset.new);setTimeout(render)});$('#undoBtn').onclick=()=>{
+  if(!undoStack.length)return;
+  const entry=JSON.parse(undoStack.pop());
+  if(entry?.__ffHistoryType==='framework'){
+    future.push(JSON.stringify({__ffHistoryType:'framework',framework:project.framework||'none'}));
+    project.framework=entry.framework||'none';
+    applyFrameworkPreview();
+    return;
+  }
+  future.push(JSON.stringify(project));
+  const vp=project.viewport;
+  project=entry;
+  if(vp)project.viewport=vp;
+  selected=null;
+  render();
+};
+$('#redoBtn').onclick=()=>{
+  if(!future.length)return;
+  const entry=JSON.parse(future.pop());
+  if(entry?.__ffHistoryType==='framework'){
+    undoStack.push(JSON.stringify({__ffHistoryType:'framework',framework:project.framework||'none'}));
+    project.framework=entry.framework||'none';
+    applyFrameworkPreview();
+    return;
+  }
+  undoStack.push(JSON.stringify(project));
+  const vp=project.viewport;
+  project=entry;
+  if(vp)project.viewport=vp;
+  selected=null;
+  render();
+};$$('#tabs button').forEach(b=>b.onclick=()=>{$$('#tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');let t=b.dataset.tab;activateTab(t);updateCode()});$('#previewBtn').onclick=()=>{let w=open();w.document.write(generated());w.document.close()};$('#startupOpen').onclick=()=>{ $('#newDlg').close(); $('#fileInput').click(); };$('#examplesBtn').onclick=showExamples;$('#startupExamples').onclick=()=>{ $('#newDlg').close(); showExamples(); };
 // -----------------------------------------------------------------------------
 // FlowForge IntelliSense - autocomplete leve, sem bibliotecas externas.
 // Sugere os nomes dos componentes do projeto e, depois de "componente.",
