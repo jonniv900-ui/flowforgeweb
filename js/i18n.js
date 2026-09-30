@@ -61,16 +61,18 @@
 
   function boot(){
     translate();
+    const scopeSelector=rootSelector;
     observer=new MutationObserver(mutations=>{
-      // Ignore mutations caused by our own translation and only schedule one
-      // pass for a burst of editor DOM updates.
       if(translating)return;
-      let relevant=false;
       for(const m of mutations){
-        if(m.type==='childList' && (m.addedNodes.length||m.removedNodes.length)){relevant=true;break;}
-        if(m.type==='attributes' && (m.attributeName==='title'||m.attributeName==='placeholder')){relevant=true;break;}
+        const target=m.target?.nodeType===1?m.target:m.target?.parentElement;
+        if(target?.closest?.(scopeSelector)){scheduleTranslate();break;}
+        if(m.type==='childList'){
+          for(const node of m.addedNodes||[]){
+            if(node.nodeType===1 && (node.matches?.(scopeSelector)||node.querySelector?.(scopeSelector))){scheduleTranslate();return;}
+          }
+        }
       }
-      if(relevant)scheduleTranslate();
     });
     observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['title','placeholder']});
     window.FlowForgeI18n={language:lang,translate:scheduleTranslate};

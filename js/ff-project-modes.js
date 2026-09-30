@@ -29,5 +29,4 @@
   function init(){panel();refresh();responsive();const sel=$('projectType');if(sel&&!sel.dataset.ffModeBound){sel.dataset.ffModeBound='1';sel.addEventListener('change',()=>{setTimeout(()=>{panel();refresh();responsive()},0)})} }
   w.FFProjectModes={refresh,add,responsive};
   if(d.readyState==='loading')d.addEventListener('DOMContentLoaded',init,{once:true});else init();
-  let ticks=0;const observer=new MutationObserver(()=>{if(ticks++>30){observer.disconnect();return}init();});observer.observe(d.body,{childList:true,subtree:true});
 })(window,document);
