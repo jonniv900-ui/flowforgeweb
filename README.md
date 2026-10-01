@@ -347,6 +347,19 @@ A exportação transforma a estrutura do projeto em uma aplicação web executá
 
 Assets armazenados no projeto podem ser incorporados ao resultado final.
 
+### Ícone e favicon
+
+Tanto **Salvar** quanto **Exportar HTML** permitem definir o ícone do app (Apple Touch Icon) e o favicon. Os dois sempre ficam incorporados em **Base64**, dentro do `.flowmobile` e do `index.html` exportado, sem arquivos externos.
+
+- **Escolher** abre um arquivo (PNG, JPEG, WEBP, GIF, SVG ou ICO). **Usar Asset** aproveita uma imagem dos Assets do projeto, que também é convertida em Base64. **Remover** limpa o campo.
+- Imagens maiores que o necessário são reduzidas e gravadas como PNG: o ícone fica com no máximo 192 px e o favicon com no máximo 64 px, mantendo a proporção. Imagens pequenas são mantidas como estão. SVG e ICO são incorporados sem alteração (até 512 KB). O limite do arquivo escolhido é 5 MB.
+- Cada campo mostra uma prévia, o formato, o tamanho e as dimensões. Um aviso aparece quando a imagem não é quadrada.
+- No HTML exportado, o `<head>` recebe `<link rel="icon">`, `<link rel="apple-touch-icon">` e `<link rel="icon" sizes="192x192">`, com o `type` correto.
+- Projetos antigos que usam um caminho (por exemplo `assets/icon-192.png`) ou um token `asset://` continuam funcionando. Escolha a imagem novamente para convertê-la em Base64.
+
+Para rodar os testes de regressão, inicie um servidor local na raiz do projeto (`python -m http.server`) e abra `/tests/project_icons_test.html`, `/tests/viewport_test.html` ou `/tests/preview_assets_test.html`.
+
+
 ## Formato `.flowmobile`
 
 Um projeto possui estrutura JSON. Entre as informações principais estão:

@@ -380,3 +380,9 @@ main{overflow:hidden;display:grid;grid-template-rows:40px minmax(0,1fr)}
 #props .ffVpSize .ffVpRow{display:flex;align-items:center;gap:8px;margin-top:6px;width:100%}
 #props .ffVpSize .ffVpRow input{display:block!important;flex:1 1 0;width:0!important;min-width:0;margin:0!important;box-sizing:border-box}
 #props .ffVpSize .ffVpRow b{color:#8c93a1;font-weight:400;flex:none}
+/* Prévia e descrição do ícone / favicon (Salvar e Exportar HTML) */
+.assetInfoRow{display:flex;align-items:center;gap:8px;min-width:0}
+.assetInfoRow .assetFileInfo{flex:1;min-width:0}
+.assetInfoRow .assetFileInfo.hasImage{color:#c5cdd8}
+.assetThumb{width:40px;height:40px;flex:none;object-fit:contain;border:1px solid #46505d;border-radius:6px;background:repeating-conic-gradient(#2a2f37 0 25%,#343a44 0 50%) 50%/10px 10px}
+.assetThumb[hidden]{display:none}

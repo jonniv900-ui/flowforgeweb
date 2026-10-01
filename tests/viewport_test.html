@@ -69,7 +69,7 @@ async function run(){
   check('modo Livre segue o Viewport',sw()===1200&&st().device==='',[sw(),vpState()]);
   await setSel('#viewport','390');
   check('Livre: trocar Viewport não muda o seletor de dispositivo',$('#devicePreset').value==='',$('#devicePreset').value);
-  check('opção "Livre" existe',$('#devicePreset').options[0].textContent==='Livre',$('#devicePreset').options[0].textContent);
+  check('opção "Livre" existe (qualquer idioma)',['Livre','Free','Libre'].includes($('#devicePreset').options[0].textContent.trim()),$('#devicePreset').options[0].textContent);
 
   /* 5. Largura × Altura personalizadas */
   await setNum('#viewportW','500');await setNum('#viewportH','700');

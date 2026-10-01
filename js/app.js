@@ -255,9 +255,9 @@ function generated(){
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="theme-color" content="${esc(project.themeColor||'#20242a')}">
-  ${project.favicon?`<link rel="icon" href="${esc(resolveProjectImageRef(project.favicon))}">`:''}
+  ${project.favicon?`<link rel="icon"${ffLinkType(resolveProjectImageRef(project.favicon))} href="${esc(resolveProjectImageRef(project.favicon))}">`:''}
   ${project.icon?`<link rel="apple-touch-icon" href="${esc(resolveProjectImageRef(project.icon))}">`:''}
-  ${project.icon?`<link rel="icon" sizes="192x192" href="${esc(resolveProjectImageRef(project.icon))}">`:''}
+  ${project.icon?`<link rel="icon" sizes="192x192"${ffLinkType(resolveProjectImageRef(project.icon))} href="${esc(resolveProjectImageRef(project.icon))}">`:''}
   ${frameworkHead()}
   <style>
     .ff-page.hidden{display:none!important}.ff-kind-listbox select{padding:6px}.ff-page-nav{width:100%;height:100%;padding:8px;border:1px solid #cfd5db;border-radius:6px;background:#fff}.ff-kind-combobox select{width:100%;height:100%}
@@ -538,23 +538,100 @@ ffStage.addEventListener('dragenter',ffDragOver,true);ffStage.addEventListener('
 $('#pTitleAuto').onchange=e=>{if(selected?.kind!=='titlebar')return;snapshot();selected.autoStyle=e.target.checked;project.titlebar=selected;render()};
 ['pName','pText','pX','pY','pWidth','pHeight','pBg','pColor'].forEach(id=>$('#'+id).onchange=e=>{if(!selected)return;snapshot();let map={pName:'name',pText:'text',pX:'x',pY:'y',pWidth:'width',pHeight:'height',pBg:'bg',pColor:'color'},k=map[id],v=e.target.value;if(k==='x'||k==='y')v=+v;if((k==='width'||k==='height')&&/^\d+$/.test(v))v+='px';if(k==='name'){const oldName=selected.name;v=sanitizeName(v,selected.kind||'component');const taken=ffItems().some(x=>x!==selected&&x.name===v);if(taken)v=uniqueName(selected.kind,v);selected.name=v;if(selected.events)Object.keys(selected.events).forEach(ev=>{if(String(selected.events[ev]||'').startsWith('// '+oldName+':'))selected.events[ev]=String(selected.events[ev]).replace('// '+oldName+':','// '+v+':')});}else selected[k]=v;if(selected.kind==='titlebar')project.titlebar=selected;render()});$('#pVisible').onchange=e=>{if(!selected)return;snapshot();selected.visible=e.target.checked;render()};$('#pEnabled').onchange=e=>{if(!selected)return;snapshot();selected.enabled=e.target.checked;render()};$('#propDynamic').onchange=e=>{const k=e.target.dataset.key;if(!k||!selected)return;snapshot();let ty=e.target.dataset.type,v;if(ty==='page')v=e.target.value||'';else if(ty==='checkbox')v=e.target.checked;else if(ty==='number')v=e.target.value===''?undefined:Number(e.target.value);else if(ty==='textarea'){try{v=JSON.parse(e.target.value)}catch{v=e.target.value}}else v=e.target.value;if((k==='options'||k==='items')&&typeof v==='string'){try{v=JSON.parse(v)}catch{}}selected[k]=v;render()};$('#deleteBtn').onclick=del;$('#duplicateBtn').onclick=duplicate;document.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;if(e.key==='Delete')del();if(e.ctrlKey&&e.key.toLowerCase()==='d'){e.preventDefault();duplicate()}if(e.ctrlKey&&e.key.toLowerCase()==='z'){e.preventDefault();$('#undoBtn').click()}if(e.ctrlKey&&e.key.toLowerCase()==='y'){e.preventDefault();$('#redoBtn').click()}});
 function safeFileName(v){return String(v||'projeto').trim().replace(/[<>:"/\\|?*\x00-\x1F]+/g,'_').replace(/\s+/g,'_')||'projeto'}
-function readImageAsBase64(file){
- return new Promise((resolve,reject)=>{
-  if(!file){resolve('');return}
-  const ok=/^image\//i.test(file.type)||/\.ico$/i.test(file.name||'');
-  if(!ok){reject(new Error('Selecione uma imagem válida (PNG, JPG, SVG, ICO etc.).'));return}
-  const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(r.error||new Error('Não foi possível ler a imagem.'));r.readAsDataURL(file);
- });
+/* ---------- Project icon / favicon: always embedded as Base64 ----------
+   Raster images are downscaled (icon <= 192 px, favicon <= 64 px) and re-encoded as PNG when needed, so a large
+   picture does not bloat every .flowmobile and every exported HTML. SVG and ICO are embedded untouched. */
+const FF_IMG_MAX={icon:192,favicon:64};
+const FF_IMG_LIMIT_FILE=5*1024*1024,FF_IMG_LIMIT_VECTOR=512*1024,FF_IMG_KEEP_BYTES=256*1024;
+const FF_IMG_EXT={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',bmp:'image/bmp',avif:'image/avif',svg:'image/svg+xml',ico:'image/x-icon'};
+const FF_IMG_FMT={'image/png':'PNG','image/jpeg':'JPEG','image/webp':'WEBP','image/gif':'GIF','image/svg+xml':'SVG','image/x-icon':'ICO','image/vnd.microsoft.icon':'ICO','image/bmp':'BMP','image/avif':'AVIF'};
+const FF_IMG_MSG={
+ 'pt-BR':{invalid:'Imagem inválida',format:'Selecione uma imagem válida (PNG, JPG, WEBP, GIF, SVG ou ICO).',tooBig:'Arquivo muito grande (máximo 5 MB).',vectorBig:'SVG/ICO muito grande (máximo 512 KB).',corrupt:'Imagem inválida ou corrompida.',read:'Não foi possível ler a imagem.',notSquare:'não quadrada',none:'Nenhuma imagem selecionada'},
+ en:{invalid:'Invalid image',format:'Select a valid image (PNG, JPG, WEBP, GIF, SVG or ICO).',tooBig:'File too large (maximum 5 MB).',vectorBig:'SVG/ICO too large (maximum 512 KB).',corrupt:'Invalid or corrupted image.',read:'Could not read the image.',notSquare:'not square',none:'No image selected'},
+ es:{invalid:'Imagen no válida',format:'Selecciona una imagen válida (PNG, JPG, WEBP, GIF, SVG o ICO).',tooBig:'Archivo demasiado grande (máximo 5 MB).',vectorBig:'SVG/ICO demasiado grande (máximo 512 KB).',corrupt:'Imagen no válida o dañada.',read:'No se pudo leer la imagen.',notSquare:'no cuadrada',none:'Ninguna imagen seleccionada'}
+};
+function ffImgMsg(k){const l=window.FlowForgeI18n?.getLanguage?.()||'pt-BR';return (FF_IMG_MSG[l]||FF_IMG_MSG['pt-BR'])[k]}
+function ffImageMime(file){
+ const t=String(file?.type||'').toLowerCase();
+ if(/^image\//.test(t))return t==='image/vnd.microsoft.icon'?'image/x-icon':t;
+ return FF_IMG_EXT[String(file?.name||'').split('.').pop().toLowerCase()]||'';
 }
-function setImageInfo(id,value,emptyText='Nenhuma imagem selecionada'){
+function ffReadDataUrl(blob){
+ return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result||''));r.onerror=()=>reject(r.error||new Error(ffImgMsg('read')));r.readAsDataURL(blob)});
+}
+function ffLoadImage(src){
+ return new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=()=>reject(new Error(ffImgMsg('corrupt')));i.src=src});
+}
+/* src: object URL or data URL. keepOriginal() may return the untouched data URL when it is already small enough. */
+async function ffFitRaster(src,max,keepOriginal){
+ const img=await ffLoadImage(src);const w=img.naturalWidth,h=img.naturalHeight;
+ if(!w||!h)throw new Error(ffImgMsg('corrupt'));
+ const scale=Math.min(1,max/Math.max(w,h));
+ if(scale===1){const kept=await keepOriginal();if(kept)return kept}
+ const cw=Math.max(1,Math.round(w*scale)),ch=Math.max(1,Math.round(h*scale));
+ const c=document.createElement('canvas');c.width=cw;c.height=ch;
+ const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(img,0,0,cw,ch);
+ return c.toDataURL('image/png');
+}
+async function readImageAsBase64(file,kind){
+ if(!file)return '';
+ const mime=ffImageMime(file);
+ if(!mime)throw new Error(ffImgMsg('format'));
+ if(file.size>FF_IMG_LIMIT_FILE)throw new Error(ffImgMsg('tooBig'));
+ const blob=new Blob([file],{type:mime}); /* fixes empty/odd types (e.g. .ico) so the data URL has a real MIME */
+ if(/svg|x-icon/.test(mime)){if(file.size>FF_IMG_LIMIT_VECTOR)throw new Error(ffImgMsg('vectorBig'));return ffReadDataUrl(blob)}
+ const max=FF_IMG_MAX[kind];
+ if(!max)return ffReadDataUrl(blob);
+ const url=URL.createObjectURL(blob);
+ try{return await ffFitRaster(url,max,async()=>file.size<=FF_IMG_KEEP_BYTES?ffReadDataUrl(blob):null)}
+ finally{URL.revokeObjectURL(url)}
+}
+async function ffFitDataUrl(dataUrl,kind){
+ const m=/^data:([^;,]+)/i.exec(String(dataUrl||''));
+ if(!m)return dataUrl;
+ if(/svg|x-icon|vnd\.microsoft\.icon/i.test(m[1]))return dataUrl;
+ const max=FF_IMG_MAX[kind];
+ if(!max)return dataUrl;
+ return ffFitRaster(dataUrl,max,async()=>dataUrl.length<=FF_IMG_KEEP_BYTES*1.34?dataUrl:null);
+}
+function ffImgKb(bytes){return bytes<1024?bytes+' B':bytes<1048576?Math.max(1,Math.round(bytes/1024))+' KB':(bytes/1048576).toFixed(1)+' MB'}
+/* Short, language-neutral description of a stored value. Never prints the Base64 itself. */
+function ffImgBrief(v){
+ v=String(v||'');if(!v)return '';
+ if(v.startsWith('asset://')){const a=(project.assets||[]).find(x=>String(x.id)===v.slice(8));return a?`Asset: ${a.name}`:'Asset'}
+ const m=/^data:([^;,]+)[^,]*,/i.exec(v);
+ if(m)return `${FF_IMG_FMT[m[1].toLowerCase()]||m[1]} · ${ffImgKb(Math.round((v.length-m[0].length)*3/4))} · Base64`;
+ return '⚠ '+v;
+}
+function ffImgEmptyText(id,fallback){
+ const key={saveProjectIconInfo:'noIcon',saveProjectFaviconInfo:'noFavicon',exportProjectIconInfo:'useSavedIcon',exportProjectFaviconInfo:'useSavedFavicon'}[id];
+ return (key&&window.FlowForgeI18n?.t?.(key))||fallback||ffImgMsg('none');
+}
+function setImageInfo(id,value,emptyText){
  const el=$('#'+id);if(!el)return;
+ let row=el.parentElement;
+ if(!row||!row.classList.contains('assetInfoRow')){row=document.createElement('div');row.className='assetInfoRow';el.parentElement.insertBefore(row,el);row.appendChild(el)}
+ let thumb=row.querySelector('.assetThumb');
+ if(!thumb){thumb=document.createElement('img');thumb.className='assetThumb';thumb.alt='';row.insertBefore(thumb,el)}
  const v=String(value||'');
- if(v.startsWith('asset://')){
-  const idRef=v.slice(8); const a=(project.assets||[]).find(x=>String(x.id)===idRef);
-  el.textContent=a?`Asset: ${a.name}`:'Asset do projeto';
- }else if(v){const m=v.match(/^data:([^;,]+)/i);el.textContent=m?'Imagem definida':'Imagem definida';}
- else el.textContent=emptyText;
+ if(!v){thumb.hidden=true;thumb.removeAttribute('src');el.classList.remove('hasImage');el.textContent=ffImgEmptyText(id,emptyText);return}
+ let src=v;
+ if(v.startsWith('asset://')){const a=(project.assets||[]).find(x=>String(x.id)===v.slice(8));src=a?.data||''}
+ el.classList.add('hasImage');
+ const base=ffImgBrief(v);el.textContent=base;
+ if(!src){thumb.hidden=true;thumb.removeAttribute('src');return}
+ thumb.hidden=false;
+ thumb.onload=()=>{const w=thumb.naturalWidth,h=thumb.naturalHeight;if(w&&h)el.textContent=`${base} · ${w}×${h}`+(w!==h?` · ⚠ ${ffImgMsg('notSquare')}`:'')};
+ thumb.onerror=()=>{thumb.hidden=true};
+ thumb.src=src;
 }
+/* Re-render all four info lines (also after a language change, which resets their text). */
+function ffRefreshProjectImageInfos(){
+ if(typeof project==='undefined'||!project)return;
+ setImageInfo('saveProjectIconInfo',project.icon);setImageInfo('saveProjectFaviconInfo',project.favicon);
+ setImageInfo('exportProjectIconInfo',project.icon);setImageInfo('exportProjectFaviconInfo',project.favicon);
+}
+function ffLinkType(u){const m=/^data:([^;,]+)/i.exec(String(u||''));return m?` type="${esc(m[1])}"`:''}
 function projectAssetList(){
  return (project.assets||[]).filter(a=>/^image\//i.test(String(a.type||'')) || /\.(png|jpe?g|gif|webp|svg|ico|bmp|avif)$/i.test(String(a.name||'')));
 }
@@ -584,17 +661,20 @@ function renderProjectAssetPicker(){
  });
  box.appendChild(frag);
 }
-function selectProjectAsset(a){
+async function selectProjectAsset(a){
  if(!a)return;
- project[ffProjectAssetPickerKind]=`asset://${a.id}`;
- setImageInfo(ffProjectAssetPickerTarget,project[ffProjectAssetPickerKind]);
- if(ffProjectAssetPickerTarget.startsWith('saveProject'))updateSaveReview();
+ const kind=ffProjectAssetPickerKind,target=ffProjectAssetPickerTarget;
  $('#projectAssetPickerDlg')?.close();
+ let value=`asset://${a.id}`; /* fallback when the asset carries no embedded data */
+ try{if(/^data:image\//i.test(String(a.data||'')))value=await ffFitDataUrl(a.data,kind)}
+ catch(err){ideMessage(ffImgMsg('invalid'),err?.message||ffImgMsg('read'),'error');return}
+ snapshot();project[kind]=value;setImageInfo(target,value);
+ if(target.startsWith('saveProject'))updateSaveReview();
 }
 async function chooseProjectImage(kind,file,infoId){
  if(!file)return;
- try{const data=await readImageAsBase64(file);snapshot();project[kind]=data;setImageInfo(infoId,data);updateSaveReview();}
- catch(err){ideMessage('Imagem inválida',err?.message||'Não foi possível ler a imagem.','error');}
+ try{const data=await readImageAsBase64(file,kind);snapshot();project[kind]=data;setImageInfo(infoId,data);updateSaveReview();}
+ catch(err){ideMessage(ffImgMsg('invalid'),err?.message||ffImgMsg('read'),'error');}
 }
 function bindImageField(fileId,pickId,clearId,infoId,kind,emptyText){
  $('#'+pickId).onclick=()=>$('#'+fileId).click();
@@ -603,7 +683,7 @@ function bindImageField(fileId,pickId,clearId,infoId,kind,emptyText){
 }
 function syncProjectImageFields(){
  project.projectVersion??='1.0.0';project.icon??='';project.favicon??='';project.themeColor??='#20242a';
- setImageInfo('saveProjectIconInfo',project.icon);setImageInfo('saveProjectFaviconInfo',project.favicon);
+ ffRefreshProjectImageInfos();
 }
 function openSaveDialog(){
  syncProjectImageFields();
@@ -617,7 +697,7 @@ function openExportDialog(){
  setImageInfo('exportProjectFaviconInfo',project.favicon,'Usará o favicon salvo no projeto');
  $('#exportHtmlDlg').showModal();
 }
-function updateSaveReview(){$('#saveReview').innerHTML=`<b>Projeto:</b> ${esc($('#saveProjectName').value)}<br><b>Versão:</b> ${esc($('#saveProjectVersion').value)}<br><b>Arquivo:</b> ${esc($('#saveFileName').value)}<br><b>Ícone:</b> ${project.icon?'definido':'não definido'}<br><b>Favicon:</b> ${project.favicon?'definido':'não definido'}`;}
+function updateSaveReview(){$('#saveReview').innerHTML=`<b>Projeto:</b> ${esc($('#saveProjectName').value)}<br><b>Versão:</b> ${esc($('#saveProjectVersion').value)}<br><b>Arquivo:</b> ${esc($('#saveFileName').value)}<br><b>Ícone:</b> ${esc(ffImgBrief(project.icon)||'não definido')}<br><b>Favicon:</b> ${esc(ffImgBrief(project.favicon)||'não definido')}`;}
 ['saveProjectName','saveProjectVersion','saveFileName','saveThemeColor'].forEach(id=>$('#'+id).addEventListener('input',updateSaveReview));
 bindImageField('saveProjectIconFile','saveProjectIconPick','saveProjectIconClear','saveProjectIconInfo','icon');
 bindImageField('saveProjectFaviconFile','saveProjectFaviconPick','saveProjectFaviconClear','saveProjectFaviconInfo','favicon');

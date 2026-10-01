@@ -55,7 +55,7 @@
     setNode('#exportHtmlDlg #exportProjectIconPick','chooseIcon');setNode('#exportHtmlDlg #exportProjectIconAssetPick','useAsset');setNode('#exportHtmlDlg #exportProjectIconClear','remove');setNode('#exportHtmlDlg #exportProjectFaviconPick','chooseFavicon');setNode('#exportHtmlDlg #exportProjectFaviconAssetPick','useAsset');setNode('#exportHtmlDlg #exportProjectFaviconClear','remove');
     setNode('#saveProjectIconInfo','noIcon');setNode('#saveProjectFaviconInfo','noFavicon');setNode('#exportProjectIconInfo','useSavedIcon');setNode('#exportProjectFaviconInfo','useSavedFavicon');
     setOpt('#framework',{none:'customCss'});setOpt('#frameworkTop',{none:'customCss'});setOpt('#designerMode',{framework:'framework',flowforge:'flowforge'});setOpt('#designerModeTop',{framework:'framework',flowforge:'flowforge'});setOpt('#projectType',{app:'appType',site:'siteType',landing:'landingType'});setOpt('#viewport',{390:'mobile',768:'tablet',1200:'desktop'});setOpt('#devicePreset',{'':'free','390':'mobile','768':'tablet','1440':'desktop'});setOpt('#dockSelect',{'':'dockNone',top:'top',bottom:'bottom',left:'left',right:'right',fill:'fill'});
-    document.title='FlowForge WebStudio';
+    window.ffRefreshProjectImageInfos?.();document.title='FlowForge WebStudio';
     if(window.__ffI18nSelect)window.__ffI18nSelect.value=current;
   }
   function addSelector(){
@@ -67,6 +67,6 @@
   function init(){
     const saved=localStorage.getItem(STORAGE_KEY);current=LANGS.includes(saved)?saved:normalize(navigator.language);addSelector();apply();
   }
-  window.FlowForgeI18n={apply,setLanguage(lang){if(LANGS.includes(lang)){current=lang;localStorage.setItem(STORAGE_KEY,lang);apply()}},getLanguage:()=>current};
+  window.FlowForgeI18n={apply,t:key=>dict[current]?.[key],setLanguage(lang){if(LANGS.includes(lang)){current=lang;localStorage.setItem(STORAGE_KEY,lang);apply()}},getLanguage:()=>current};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
