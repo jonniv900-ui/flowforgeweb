@@ -389,3 +389,13 @@ main{overflow:hidden;display:grid;grid-template-rows:40px minmax(0,1fr)}
 /* Toolbox traduzida: nomes mais longos quebram em até 2 linhas (o nome completo fica na dica) */
 .tool{min-width:0;height:auto;min-height:58px;padding:5px 4px}
 .tool .toolLabel{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;max-width:100%;line-height:1.15;text-align:center;overflow-wrap:anywhere}
+.labelWysiwygForm{min-width:min(760px,90vw)}
+.wysiwygToolbar{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;padding:8px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc}
+.wysiwygToolbar button{min-width:38px}
+.labelWysiwygEditor{min-height:260px;max-height:50vh;overflow:auto;padding:14px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#111827;line-height:1.5;text-align:left}
+#pText{min-height:72px;resize:vertical}
+.labelTextTools{display:flex;flex-direction:column;gap:6px;margin:-4px 0 10px;padding:8px;border:1px solid #39414d;border-radius:7px;background:#20252d}
+.labelTextTools[hidden]{display:none!important}
+.wysiwygToolbar select{height:32px;min-width:110px;border:1px solid #94a3b8;border-radius:6px;background:#fff;color:#111827;padding:0 7px}
+.wysiwygToolbar .wysColor{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;color:#111827;font-size:12px}
+.wysiwygToolbar .wysColor input{width:28px;height:24px;padding:0;border:0;background:transparent}
