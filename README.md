@@ -526,3 +526,12 @@ Exportar
 ## Licença
 
 A licença do FlowForge  é a GPL 3.0.
+
+## Site/Landing chrome automático
+Ao selecionar **Site** ou **Landing Page**, o WebStudio cria automaticamente em cada página:
+1. Header
+2. Barra de navegação com botões para todas as páginas
+3. Área de conteúdo
+4. Footer abaixo do conteúdo
+
+Ao selecionar **App HTML5**, esses componentes estruturais de navegação são removidos da estrutura automática; o App mantém apenas a Titlebar como estrutura global. Button e Link continuam disponíveis para navegação via `ffNavigate()`.

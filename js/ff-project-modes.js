@@ -18,7 +18,7 @@
     const type=$('projectType')?.value||'app', info=modeInfo[type]||modeInfo.app;
     const desc=$('ffModeDescription'); if(desc)desc.innerHTML='<strong>'+info.title+'</strong><p>'+info.desc+'</p><ul>'+info.items.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
     const actions=d.querySelector('#ffModePanel .ff-mode-actions');if(!actions)return;
-    const sets=type==='app'?[['container','Container'],['row','Linha responsiva'],['columns','Grid responsivo'],['card','Card']]:type==='landing'?[['navbar','Header / Navbar'],['hero','Hero + CTA'],['section','Seção'],['card','Benefícios'],['footer','Footer']]:[['navbar','Header / Navbar'],['section','Seção'],['card','Card de conteúdo'],['footer','Footer']];
+    const sets=type==='app'?[['container','Container'],['row','Linha responsiva'],['columns','Grid responsivo'],['card','Card']]:[['header','Header'],['navbar','Barra de navegação'],['section','Seção'],['card','Card de conteúdo'],['footer','Footer']];
     actions.innerHTML='';sets.forEach(([kind,label])=>{const b=d.createElement('button');b.type='button';b.textContent='+ '+label;b.onclick=()=>add(kind);actions.appendChild(b)});
   }
   function responsive(){
