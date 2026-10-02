@@ -386,3 +386,6 @@ main{overflow:hidden;display:grid;grid-template-rows:40px minmax(0,1fr)}
 .assetInfoRow .assetFileInfo.hasImage{color:#c5cdd8}
 .assetThumb{width:40px;height:40px;flex:none;object-fit:contain;border:1px solid #46505d;border-radius:6px;background:repeating-conic-gradient(#2a2f37 0 25%,#343a44 0 50%) 50%/10px 10px}
 .assetThumb[hidden]{display:none}
+/* Toolbox traduzida: nomes mais longos quebram em até 2 linhas (o nome completo fica na dica) */
+.tool{min-width:0;height:auto;min-height:58px;padding:5px 4px}
+.tool .toolLabel{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;max-width:100%;line-height:1.15;text-align:center;overflow-wrap:anywhere}

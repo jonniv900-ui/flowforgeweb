@@ -73,6 +73,14 @@ Exemplos:
 - Battery, Thermometer, LED, Sparkline
 - ValueCard, StatusCard, StatCard, GlassPanel
 
+### Toolbox traduzida
+
+Os nomes das ferramentas e dos grupos da Toolbox seguem o idioma escolhido no seletor de idioma (pt-BR, English e Español). Por exemplo, `TextBox` aparece como **Caixa de texto** em português e **Cuadro de texto** em espanhol. Em inglês, os nomes técnicos de sempre são mantidos.
+
+- Só o texto da Toolbox é traduzido. Nomes de componentes (`input1`, `button1`), o tipo (`input`), os eventos e o código gerado não mudam.
+- A busca encontra pelo nome traduzido, pelo nome técnico original (`textbox`) e pelo nome do grupo, ignorando acentos.
+- As traduções ficam em `js/ui-i18n-tools.js`, indexadas pelo tipo da ferramenta. Ao criar uma ferramenta nova no `TOOL_GROUPS`, adicione o nome em pt-BR e es nesse arquivo. O teste `/tests/toolbox_i18n_test.html` avisa se faltar alguma.
+
 ## Páginas e navegação
 
 Um projeto pode possuir várias páginas, cada uma com seus componentes e configurações.
