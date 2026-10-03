@@ -816,7 +816,7 @@ function openExportDialog(){
  syncProjectImageFields();
  setImageInfo('exportProjectIconInfo',project.icon,'Usará o ícone salvo no projeto');
  setImageInfo('exportProjectFaviconInfo',project.favicon,'Usará o favicon salvo no projeto');
- $('#exportHtmlDlg').showModal();
+ $('#exportHtmlFileName').value='index.html';$('#exportHtmlDlg').showModal();
 }
 function updateSaveReview(){$('#saveReview').innerHTML=`<b>Projeto:</b> ${esc($('#saveProjectName').value)}<br><b>Versão:</b> ${esc($('#saveProjectVersion').value)}<br><b>Arquivo:</b> ${esc($('#saveFileName').value)}<br><b>Ícone:</b> ${esc(ffImgBrief(project.icon)||'não definido')}<br><b>Favicon:</b> ${esc(ffImgBrief(project.favicon)||'não definido')}<br><b>Logo do Header:</b> ${esc(ffImgBrief(project.headerLogo)||'não definido')}`;}
 ['saveProjectName','saveProjectVersion','saveFileName','saveThemeColor'].forEach(id=>$('#'+id).addEventListener('input',updateSaveReview));
@@ -839,9 +839,12 @@ function buildExportHtml(){
 }
 $('#confirmExportHtml').onclick=e=>{
   e.preventDefault();
+  const rawName=$('#exportHtmlFileName').value.trim()||'index.html';
+  let n=safeFileName(rawName);
+  if(!n.toLowerCase().endsWith('.html'))n+='.html';
   $('#exportHtmlDlg').close();
   const html=buildExportHtml();
-  download('index.html',html,'text/html;charset=utf-8');
+  saveWithDialog(n,html,'text/html;charset=utf-8');
 };
 $('#wysCancel').onclick=()=>$('#labelWysiwygDlg').close();
 $$('#labelWysiwygDlg [data-cmd]').forEach(b=>b.addEventListener('mousedown',e=>{e.preventDefault();document.execCommand(b.dataset.cmd,false,null)}));
@@ -918,6 +921,27 @@ function setFramework(v){
   applyFrameworkPreview();
 }
 function setDesignerMode(v){snapshot();project.designerMode=v==='flowforge'?'flowforge':'framework'}$('#framework').onchange=e=>setFramework(e.target.value);$('#frameworkTop').onchange=e=>setFramework(e.target.value);$('#designerMode').onchange=e=>setDesignerMode(e.target.value);$('#designerModeTop').onchange=e=>setDesignerMode(e.target.value);$('#projectPageTop').onchange=e=>ffSwitchPage(e.target.value);$('#saveBtn').onclick=()=>{saveEventBodiesFromEditor();openSaveDialog()};$('#exportBtn').onclick=()=>{saveEventBodiesFromEditor();openExportDialog()};function download(n,c,t){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+async function saveWithDialog(n,c,t){
+  const blob=new Blob([c],{type:t});
+  if(typeof window.showSaveFilePicker==='function'){
+    try{
+      const handle=await window.showSaveFilePicker({
+        suggestedName:n,
+        types:[{description:'Arquivo HTML',accept:{'text/html':['.html','.htm']}}],
+        excludeAcceptAllOption:false
+      });
+      const writable=await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    }catch(err){
+      if(err?.name==='AbortError')return false;
+      console.warn('[FlowForge] Save File Picker indisponível:',err);
+    }
+  }
+  download(n,c,t);
+  return false;
+}
 function ideMessage(title,message,type='info'){
  $('#ideMsgTitle').textContent=title||'FlowForge webstudio 0.6 Beta';
  $('#ideMsgText').textContent=message||'';
