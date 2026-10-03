@@ -1014,7 +1014,7 @@ $('#redoBtn').onclick=()=>{
   if(vp)project.viewport=vp;
   selected=null;
   render();
-};$$('#tabs button').forEach(b=>b.onclick=()=>{$$('#tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');let t=b.dataset.tab;activateTab(t);updateCode()});$('#previewBtn').onclick=()=>{let w=open();w.document.write(generated());w.document.close()};$('#startupOpen').onclick=()=>{ $('#newDlg').close(); $('#fileInput').click(); };$('#examplesBtn').onclick=showExamples;$('#startupExamples').onclick=()=>{ $('#newDlg').close(); showExamples(); };
+};$$('#tabs button').forEach(b=>b.onclick=()=>{$$('#tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');let t=b.dataset.tab;activateTab(t);updateCode()});$('#previewBtn').onclick=()=>{let w=open();w.document.write(generated());w.document.close()};$('#helpBtn').onclick=()=>{const w=window.open('ajuda.html','flowforgeHelp','popup=yes,width=1200,height=800,resizable=yes,scrollbars=yes');if(w)w.focus();};$('#startupOpen').onclick=()=>{ $('#newDlg').close(); $('#fileInput').click(); };$('#examplesBtn').onclick=showExamples;$('#startupExamples').onclick=()=>{ $('#newDlg').close(); showExamples(); };
 // -----------------------------------------------------------------------------
 // FlowForge IntelliSense - autocomplete leve, sem bibliotecas externas.
 // Sugere os nomes dos componentes do projeto e, depois de "componente.",
