@@ -36,12 +36,17 @@ async function run(){
   const rw=()=>Math.round(stage().getBoundingClientRect().width);
   const vpState=()=>W.eval('JSON.stringify(project.viewport)');
   const closeDialogs=()=>D.querySelectorAll('dialog[open]').forEach(x=>x.close());
+  async function createProject(type){ /* "Novo" abre o assistente: é preciso clicar em "Criar projeto" */
+    $('[data-new='+type+']').click();await sleep(250);
+    if($('#siteWizardDlg')?.open)$('#wizCreate').click();
+    await sleep(450);closeDialogs();
+  }
   async function setSel(sel,value){const el=$(sel);el.value=value;el.dispatchEvent(new W.Event('change',{bubbles:true}));await sleep(350);}
   async function setNum(sel,value){const el=$(sel);el.value=value;el.dispatchEvent(new W.Event('change',{bubbles:true}));await sleep(350);}
   const st=()=>JSON.parse(vpState());
 
   closeDialogs();
-  $('[data-new=app]').click();await sleep(400);closeDialogs();
+  await createProject('app');
 
   /* 1. Novo App: padrão mobile */
   check('novo App começa em 390',sw()===390,sw());
@@ -100,7 +105,7 @@ async function run(){
   /* 7. Salvar → reabrir restaura o layout */
   await setSel('#viewport','768');
   const saved=W.eval('JSON.stringify(project)');
-  $('[data-new=site]').click();await sleep(400);closeDialogs();
+  await createProject('site');
   check('novo Site começa em 1200',sw()===1200,sw());
   const file=new W.File([saved],'t.flowmobile',{type:'application/json'});
   const dt=new W.DataTransfer();dt.items.add(file);

@@ -40,6 +40,11 @@ async function run(){
   }
   const $=s=>D.querySelector(s);
   const closeDialogs=()=>D.querySelectorAll('dialog[open]').forEach(x=>x.close());
+  async function createProject(type){ /* "Novo" abre o assistente: é preciso clicar em "Criar projeto" */
+    $('[data-new='+type+']').click();await sleep(250);
+    if($('#siteWizardDlg')?.open)$('#wizCreate').click();
+    await sleep(450);closeDialogs();
+  }
   async function pick(inputSel,blobOrFile,name,type){
     const file=new W.File([blobOrFile],name,{type:type??blobOrFile.type});
     const dt=new W.DataTransfer();dt.items.add(file);
@@ -52,10 +57,11 @@ async function run(){
 
   /* capture downloads */
   const downloads=[];
+  W.showSaveFilePicker=undefined; /* force the plain-download fallback of saveWithDialog */
   W.HTMLAnchorElement.prototype.click=function(){downloads.push({name:this.download,href:this.href})};
   const lastText=async()=>{const d=downloads[downloads.length-1];return (await W.fetch(d.href)).text()};
 
-  closeDialogs();$('[data-new=app]').click();await sleep(400);closeDialogs();
+  closeDialogs();await createProject('app');
 
   /* ---------- Salvar: ícone e favicon ---------- */
   W.openSaveDialog();await sleep(200);

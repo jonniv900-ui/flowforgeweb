@@ -298,6 +298,16 @@ O WebStudio possui suporte visual para:
 
 O framework pode ser utilizado para visualização e estilo da aplicação, mantendo a estrutura de componentes do FlowForge.
 
+### Interface traduzida
+
+Além da Toolbox, todo o restante da interface do editor segue o idioma escolhido (pt-BR, English e Español): painel de propriedades e de ações, painel do projeto, gavetas (Árvore, Páginas, Assets), blocos, depurador, assistente de novo projeto, editor WYSIWYG, diálogos de salvar e exportar, dicas (tooltips) e mensagens de aviso.
+
+- O nome do tipo do componente também é traduzido onde aparece: na Árvore (`Caixa de texto: input1`), nos seletores de alvo das ações e no título `Propriedades: Caixa de texto`.
+- **Conteúdo do usuário nunca é traduzido**: nomes de componentes e de páginas, textos digitados nos campos, o conteúdo do editor WYSIWYG, o palco, o preview e o código gerado. Só textos que coincidem exatamente com uma entrada do dicionário são trocados, nunca trechos de frases.
+- O dicionário fica em `js/ui-i18n-dom.js`. Cada entrada tem as três versões, no formato `['português', 'english', 'español']`. Um `{0}` marca uma parte dinâmica (por exemplo `'definir {0}'`), e a opção `scope` limita a entrada a um trecho da tela. O texto reconhecido pode estar em qualquer um dos três idiomas, então voltar ao português restaura tudo.
+- Rótulos desenhados por CSS no palco (`duplo clique → ação`, `HIDDEN`, `DISABLED`) usam variáveis CSS atualizadas a cada troca de idioma.
+- Ao criar um texto novo na interface, adicione a entrada no dicionário. O teste `/tests/ui_i18n_test.html` percorre os 110 componentes, os painéis e os diálogos nos três idiomas e avisa se algum texto conhecido aparecer no idioma errado.
+
 ## Layout e responsividade
 
 O modo App possui recursos para interfaces responsivas e diferentes tamanhos de viewport.

@@ -31,13 +31,18 @@ async function run(){
   }
   const $=s=>D.querySelector(s);
   const closeDialogs=()=>D.querySelectorAll('dialog[open]').forEach(x=>x.close());
+  async function createProject(type){ /* "Novo" abre o assistente: é preciso clicar em "Criar projeto" */
+    $('[data-new='+type+']').click();await sleep(250);
+    if($('#siteWizardDlg')?.open)$('#wizCreate').click();
+    await sleep(450);closeDialogs();
+  }
   const lang=async l=>{W.FlowForgeI18n.setLanguage(l);await sleep(250)};
   const label=kind=>$(`#tools .tool[data-kind="${kind}"] .toolLabel`)?.textContent;
   const groups=()=>[...D.querySelectorAll('#tools .toolGroup')].map(x=>x.textContent);
   const kinds=()=>[...D.querySelectorAll('#tools .tool')].map(x=>x.dataset.kind);
   const search=async v=>{const el=$('#toolSearch');el.value=v;el.dispatchEvent(new W.Event('input',{bubbles:true}));await sleep(150)};
 
-  closeDialogs();$('[data-new=app]').click();await sleep(400);closeDialogs();
+  closeDialogs();await createProject('app');
 
   /* ---------- cobertura: toda ferramenta/grupo tem tradução ---------- */
   const TG=W.eval('TOOL_GROUPS');

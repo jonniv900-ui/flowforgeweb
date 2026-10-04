@@ -28,7 +28,7 @@
       container:'Contêiner',section:'Seção',card:'Cartão',row:'Linha / Flex',columns:'Colunas / Grade',hero:'Destaque (Hero)',
       /* Navegação */
       navbar:'Barra de navegação',bottomnav:'Navegação inferior',tabs:'Abas',tabcontrol:'Controle de abas',drawer:'Gaveta',bottomsheet:'Painel inferior',sidebar:'Barra lateral',
-      toolbar:'Barra de ferramentas',footer:'Rodapé',breadcrumb:'Trilha de navegação',pagination:'Paginação',pagenav:'Navegação de páginas',fab:'Botão flutuante',
+      toolbar:'Barra de ferramentas',header:'Cabeçalho',footer:'Rodapé',breadcrumb:'Trilha de navegação',pagination:'Paginação',pagenav:'Navegação de páginas',fab:'Botão flutuante',
       /* Dados */
       list:'Lista',table:'Tabela',datagrid:'Grade de dados',chart:'Gráfico',calendar:'Calendário',listview:'Exibição em lista',treeview:'Exibição em árvore',statcard:'Cartão de estatística',
       rating:'Avaliação',timeline:'Linha do tempo',stepper:'Passo a passo',badge:'Selo',progress:'Barra de progresso',spinner:'Carregamento',accordion:'Acordeão',
@@ -60,7 +60,7 @@
       container:'Contenedor',section:'Sección',card:'Tarjeta',row:'Fila / Flex',columns:'Columnas / Cuadrícula',hero:'Hero (destacado)',
       /* Navegación */
       navbar:'Barra de navegación',bottomnav:'Navegación inferior',tabs:'Pestañas',tabcontrol:'Control de pestañas',drawer:'Cajón',bottomsheet:'Hoja inferior',sidebar:'Barra lateral',
-      toolbar:'Barra de herramientas',footer:'Pie de página',breadcrumb:'Ruta de navegación',pagination:'Paginación',pagenav:'Navegación de páginas',fab:'Botón flotante',
+      toolbar:'Barra de herramientas',header:'Encabezado',footer:'Pie de página',breadcrumb:'Ruta de navegación',pagination:'Paginación',pagenav:'Navegación de páginas',fab:'Botón flotante',
       /* Datos */
       list:'Lista',table:'Tabla',datagrid:'Cuadrícula de datos',chart:'Gráfico',calendar:'Calendario',listview:'Vista de lista',treeview:'Vista de árbol',statcard:'Tarjeta de estadística',
       rating:'Valoración',timeline:'Línea de tiempo',stepper:'Pasos',badge:'Insignia',progress:'Barra de progreso',spinner:'Carga',accordion:'Acordeón',
@@ -96,5 +96,18 @@
     return norm([name(kind,originalName),originalName,group(groupKey),groupKey].join(' ')).includes(q);
   }
 
-  w.FlowForgeToolI18n={name,group,matches,language,languages:LANGS,dictionary:()=>({tools:TOOLS,groups:GROUPS})};
+  /* Name of a component TYPE in the current language, for the tree, target selectors and the properties header.
+     (falls back to the original tool name, then to the raw kind, e.g. 'titlebar') */
+  let originals=null;
+  function kindLabel(kind){
+    const tr=TOOLS[language()]?.[kind];
+    if(tr)return tr;
+    if(!originals&&typeof TOOL_GROUPS!=='undefined'){
+      originals={};
+      Object.values(TOOL_GROUPS).forEach(list=>list.forEach(x=>{if(!originals[x[0]])originals[x[0]]=x[2]}));
+    }
+    return (originals&&originals[kind])||kind;
+  }
+
+  w.FlowForgeToolI18n={name,group,matches,kindLabel,language,languages:LANGS,dictionary:()=>({tools:TOOLS,groups:GROUPS})};
 })(window);

@@ -10,9 +10,9 @@
     'pt-BR':{
       'framework':'Framework','designer':'Designer','new':'Novo','save':'Salvar','open':'Abrir','examples':'Exemplos','export':'Exportar HTML','preview':'Preview',
       'tree':'Árvore','pages':'Páginas','assets':'Assets','free':'Livre','mobile':'📱 Mobile','tablet':'▯ Tablet','desktop':'▰ Desktop','page':'Página',
-      'toolbox':'Toolbox','search':'Buscar componente...','toolhint':'Clique: adiciona • Arraste: posiciona • Duplo clique no componente: abre ação padrão',
-      'design':'Design','code':'Código','blocks':'Blocos','debug':'Debug','properties':'Propriedades','actions':'Ações','name':'Nome','text':'Texto','background':'Background','color':'Cor',
-      'visible':'Visible','enabled':'Enabled','frameworkStyle':'Usar estilo do framework','project':'Projeto','projectName':'Nome','type':'Tipo','frameworkCss':'Framework CSS','designerMode':'Modo do Designer',
+      'toolbox':'Ferramentas','search':'Buscar componente...','toolhint':'Clique: adiciona • Arraste: posiciona • Duplo clique no componente: abre ação padrão',
+      'design':'Design','code':'Código','blocks':'Blocos','debug':'Debug','properties':'Propriedades','actions':'Ações','name':'Nome','text':'Texto','background':'Fundo','color':'Cor',
+      'visible':'Visível','enabled':'Habilitado','frameworkStyle':'Usar estilo do framework','project':'Projeto','projectName':'Nome','type':'Tipo','frameworkCss':'Framework CSS','designerMode':'Modo do Designer',
       'viewport':'Viewport','widthHeight':'Largura × Altura','snap':'Snap 8px','duplicate':'Duplicar','delete':'Excluir','addAction':'＋ Adicionar ação',
       'actionsEvents':'Ações / Eventos','actionEmpty':'Selecione um componente para configurar suas ações.','addEvent':'Adicionar evento','visualAction':'Ação visual','quickActions':'Ações rápidas',
       'setProperty':'Alterar propriedade','show':'Mostrar','hide':'Ocultar','toggle':'Alternar','goPage':'Ir para página','navigate':'Navegar','openUrl':'Abrir URL','alert':'Mensagem','addClass':'Adicionar classe','play':'Play','pause':'Pause','storageSet':'LocalStorage','httpRequest':'HTTP GET',
@@ -55,7 +55,7 @@
     setNode('#exportHtmlDlg #exportProjectIconPick','chooseIcon');setNode('#exportHtmlDlg #exportProjectIconAssetPick','useAsset');setNode('#exportHtmlDlg #exportProjectIconClear','remove');setNode('#exportHtmlDlg #exportProjectFaviconPick','chooseFavicon');setNode('#exportHtmlDlg #exportProjectFaviconAssetPick','useAsset');setNode('#exportHtmlDlg #exportProjectFaviconClear','remove');
     setNode('#saveProjectIconInfo','noIcon');setNode('#saveProjectFaviconInfo','noFavicon');setNode('#exportProjectIconInfo','useSavedIcon');setNode('#exportProjectFaviconInfo','useSavedFavicon');
     setOpt('#framework',{none:'customCss'});setOpt('#frameworkTop',{none:'customCss'});setOpt('#designerMode',{framework:'framework',flowforge:'flowforge'});setOpt('#designerModeTop',{framework:'framework',flowforge:'flowforge'});setOpt('#projectType',{app:'appType',site:'siteType',landing:'landingType'});setOpt('#viewport',{390:'mobile',768:'tablet',1200:'desktop'});setOpt('#devicePreset',{'':'free','390':'mobile','768':'tablet','1440':'desktop'});setOpt('#dockSelect',{'':'dockNone',top:'top',bottom:'bottom',left:'left',right:'right',fill:'fill'});
-    window.ffRefreshProjectImageInfos?.();window.ffRenderToolsI18n?.();document.title='FlowForge WebStudio';
+    window.ffRefreshProjectImageInfos?.();window.ffRenderToolsI18n?.();window.ffRefreshDynamicI18n?.();window.FlowForgeUIText?.refresh?.();document.title='FlowForge WebStudio';
     if(window.__ffI18nSelect)window.__ffI18nSelect.value=current;
   }
   function addSelector(){

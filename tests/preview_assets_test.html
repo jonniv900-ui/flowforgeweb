@@ -31,9 +31,14 @@ async function run(){
   }
   const $=s=>D.querySelector(s);
   const closeDialogs=()=>D.querySelectorAll('dialog[open]').forEach(x=>x.close());
+  async function createProject(type){ /* "Novo" abre o assistente: é preciso clicar em "Criar projeto" */
+    $('[data-new='+type+']').click();await sleep(250);
+    if($('#siteWizardDlg')?.open)$('#wizCreate').click();
+    await sleep(450);closeDialogs();
+  }
   const previewImgs=()=>[...$('#preview').contentDocument.querySelectorAll('img')].map(i=>i.complete&&i.naturalWidth>0);
 
-  closeDialogs();$('[data-new=app]').click();await sleep(400);closeDialogs();
+  closeDialogs();await createProject('app');
   W.eval(`addItem('image');addItem('picturebox');
     project.assets=[{id:'asset-t1',name:'t.png',type:'image/png',size:1,data:${JSON.stringify(PNG)}}];
     ffItems().slice(-2).forEach(x=>{x.assetId='asset-t1';x.src='asset://asset-t1';x.srcType='asset'});render()`);

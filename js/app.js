@@ -245,7 +245,7 @@ function renderDynamicProps(){
  if(selected.kind==='link') fields=[...fields,{key:'href',label:'Href',type:'text'},{key:'targetPage',label:'Página de destino',type:'page'}];
  if(['select','combobox','listbox'].includes(selected.kind)) fields=[...fields,{key:'items',label:'Itens (JSON)',type:'textarea'}];
  if(!fields.length && selected.kind!=='header'){c.innerHTML='';return}
- c.innerHTML = fields.length ? '<hr><h3>Propriedades: '+esc(selected.kind)+'</h3>'+fields.map(f=>{
+ c.innerHTML = fields.length ? '<hr><h3>Propriedades: '+esc(ffKindLabel(selected.kind))+'</h3>'+fields.map(f=>{
   let val=selected[f.key];
   if(f.type==='checkbox')return `<label class="check"><input type="checkbox" data-key="${f.key}" data-type="checkbox"${val?' checked':''}> ${esc(f.label)}</label>`;
   if(f.type==='page'){let opts='<option value="">Nenhuma</option>'+(project.pages||[]).map(pg=>`<option value="${esc(pg.id)}"${String(val??'')===String(pg.id)?' selected':''}>${ffNavLabel(pg)} (#/${esc(pg.slug||pg.id)})</option>`).join('');return `<label>${esc(f.label)}<select data-key="${f.key}" data-type="page">${opts}</select></label>`}
@@ -752,6 +752,19 @@ function ffRefreshProjectImageInfos(){
  setImageInfo('saveProjectIconInfo',project.icon);setImageInfo('saveProjectFaviconInfo',project.favicon);setImageInfo('headerLogoInfo',project.headerLogo,'Nenhum logo definido');
  setImageInfo('exportProjectIconInfo',project.icon);setImageInfo('exportProjectFaviconInfo',project.favicon);
 }
+function ffKindLabel(kind){return window.FlowForgeToolI18n?.kindLabel?.(kind)||kind}
+function ffRefreshDynamicI18n(){
+  try{if(typeof props==='function'&&typeof project!=='undefined'&&project)props()}catch(e){}
+  /* an open drawer (outline / pages / assets) is rebuilt so its rows use the new language */
+  try{
+    const dr=$('#studioDrawer');
+    if(dr&&!dr.hidden&&typeof openStudioDrawer==='function'){
+      const ttl=window.FlowForgeUIText?.t($('#drawerTitle').textContent,'pt-BR')||'';
+      const mode=ttl==='Árvore do Projeto'?'outline':ttl==='Páginas'?'pages':ttl==='Assets'?'assets':'';
+      if(mode)openStudioDrawer(mode);
+    }
+  }catch(e){}
+}
 function ffLinkType(u){const m=/^data:([^;,]+)/i.exec(String(u||''));return m?` type="${esc(m[1])}"`:''}
 function projectAssetList(){
  return (project.assets||[]).filter(a=>/^image\//i.test(String(a.type||'')) || /\.(png|jpe?g|gif|webp|svg|ico|bmp|avif)$/i.test(String(a.name||'')));
@@ -971,7 +984,7 @@ $('#openBtn').onclick=()=>$('#fileInput').click();$('#fileInput').onchange=async
  const isApp=type==='app';
  $('#siteWizardTitle').textContent=isApp?'Novo App — Configuração inicial':(type==='landing'?'Novo Landing Page — Configuração inicial':'Novo Site — Configuração inicial');
  const desc=dlg.querySelector('.ffWizardHead p');if(desc)desc.textContent=isApp?'Defina a estrutura inicial do aplicativo. As escolhas serão aplicadas automaticamente às páginas.':'Defina a estrutura inicial. As escolhas serão aplicadas automaticamente a todas as páginas.';
- $('#wizPageNames').value=isApp?'Home, Tela 2':'Home, Sobre, Contato';
+ $('#wizPageNames').value=window.FlowForgeUIText?.t(isApp?'Home, Tela 2':'Home, Sobre, Contato')||(isApp?'Home, Tela 2':'Home, Sobre, Contato');
  $('#wizNavigation').value='navbar'; $('#wizHeader').checked=!isApp; $('#wizFooter').checked=!isApp; $('#wizFrameworkStyle').checked=true; $('#wizFramework').value='none';
  const h=$('#wizHeader')?.closest('.ffWizardChoice'),f=$('#wizFooter')?.closest('.ffWizardChoice'),tb=$('#wizTitlebar')?.closest('.ffWizardChoice');
  if(h)h.style.display=isApp?'none':'flex';if(f)f.style.display=isApp?'none':'flex';if(tb)tb.style.display=isApp?'flex':'none';
@@ -1155,7 +1168,7 @@ function ensureIntellisense(){
  $('#codeEditor').append(d);
 }
 function componentSuggestions(){
- return project.pages.flatMap(p=>p.items).map(x=>[x.name,`${x.kind} • ${x.text||''}`]);
+ return project.pages.flatMap(p=>p.items).map(x=>[x.name,`${ffKindLabel(x.kind)} • ${x.text||''}`]);
 }
 function hideIntellisense(){let d=$('#ffIntellisense');if(d)d.hidden=true}
 
@@ -1239,11 +1252,11 @@ function ffRenamePage(id,name){ffEnsurePages();snapshot();if(!FlowForge.modules.
 window.ffRenamePage=ffRenamePage;
 function ffDeletePage(id){if(project.pages.length<=1){alert('O projeto precisa ter ao menos uma página.');return}if(!confirm('Excluir esta página? Essa ação não pode ser desfeita.'))return;snapshot();let ok=FlowForge.modules.pages.remove(project,id);if(!ok){undoStack.pop();return}selected=null;render();if(typeof openStudioDrawer==='function'&&!$('#studioDrawer').hidden&&$('#drawerTitle').textContent==='Páginas')openStudioDrawer('pages')}
 window.ffDeletePage=ffDeletePage;
-function ffTreeRow(x,depth,container){let row=document.createElement('button');row.className='treeItem';row.style.paddingLeft=(10+depth*14)+'px';row.textContent=(x.kind||'')+': '+(x.name||'(sem nome)');if(selected&&selected.id===x.id)row.style.background='#3c414b';row.onclick=()=>{selected=x;render()};container.append(row);ffItems().filter(c=>c.parentId===x.id).forEach(c=>ffTreeRow(c,depth+1,container))}
+function ffTreeRow(x,depth,container){let row=document.createElement('button');row.className='treeItem';row.style.paddingLeft=(10+depth*14)+'px';row.textContent=ffKindLabel(x.kind||'')+': '+(x.name||(window.FlowForgeUIText?.t('(sem nome)')||'(sem nome)'));if(selected&&selected.id===x.id)row.style.background='#3c414b';row.onclick=()=>{selected=x;render()};container.append(row);ffItems().filter(c=>c.parentId===x.id).forEach(c=>ffTreeRow(c,depth+1,container))}
 window.ffTreeRow=ffTreeRow;
-function refreshVisualTargets(){let q=$('#visualActionTarget');if(!q)return;let typ=$('#visualActionType')?.value;if(typ==='goPage')q.innerHTML=(project.pages||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (#/${esc(p.slug||p.id)})</option>`).join('');else q.innerHTML=ffItems().map(x=>`<option value="${x.name}">${x.name} (${x.kind})</option>`).join('')}
+function refreshVisualTargets(){let q=$('#visualActionTarget');if(!q)return;let typ=$('#visualActionType')?.value;if(typ==='goPage')q.innerHTML=(project.pages||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (#/${esc(p.slug||p.id)})</option>`).join('');else q.innerHTML=ffItems().map(x=>`<option value="${x.name}">${x.name} (${esc(ffKindLabel(x.kind))})</option>`).join('')}
 function openStudioDrawer(mode){let d=$('#studioDrawer'),b=$('#drawerBody');d.hidden=false;$('#drawerTitle').textContent=mode==='outline'?'Árvore do Projeto':mode==='pages'?'Páginas':'Assets';b.innerHTML='';
- if(mode==='outline'){let root=document.createElement('div');root.className='treeRoot';root.textContent='▾ '+(project.name||'Projeto');b.append(root);ffItems().forEach(x=>{let r=document.createElement('button');r.className='treeItem';r.textContent=`${x.visible===false?'○':'●'} ${x.name} · ${x.kind}`;r.onclick=()=>{selected=x;render();props()};b.append(r)})}
+ if(mode==='outline'){let root=document.createElement('div');root.className='treeRoot';root.textContent='▾ '+(project.name||'Projeto');b.append(root);ffItems().forEach(x=>{let r=document.createElement('button');r.className='treeItem';r.textContent=`${x.visible===false?'○':'●'} ${x.name} · ${ffKindLabel(x.kind)}`;r.onclick=()=>{selected=x;render();props()};b.append(r)})}
  if(mode==='pages'){let pages=FlowForge.modules.pages.ensure(project);pages.forEach(p=>{let r=document.createElement('button');r.className='treeItem';r.textContent=(p.id===project.activePage?'● ':'○ ')+p.name;r.onclick=()=>{snapshot();project.activePage=p.id;project.active=Math.max(0,pages.findIndex(x=>x.id===p.id));selected=null;render();openStudioDrawer('pages')};b.append(r)});let a=document.createElement('button');a.textContent='＋ Nova página';a.onclick=()=>{let n=prompt('Nome da página','Nova Página');if(n){FlowForge.modules.pages.add(project,n);openStudioDrawer('pages')}};b.append(a)}
  if(mode==='assets'){let assets=FlowForge.modules.assets.ensure(project),inp=document.createElement('input');inp.type='file';inp.multiple=true;inp.onchange=async()=>{for(const f of [...inp.files])await FlowForge.modules.assets.add(project,f);openStudioDrawer('assets')};b.append(inp);assets.forEach(a=>{let r=document.createElement('div');r.className='assetRow';r.textContent=`${a.name} · ${Math.ceil(a.size/1024)} KB`;b.append(r)})}}
 
