@@ -26,21 +26,26 @@ function ensureSiteChrome(p){
  p.pages.forEach((page)=>{
    page.items??=[];
    const hasAuto=k=>page.items.some(x=>x.ffSystem==='siteChrome'&&x.kind===k);
-   // Remove only the automatic chrome when the project type/layout no longer uses it.
+   const hasManual=k=>page.items.some(x=>x.ffSystem!=='siteChrome'&&x.kind===k);
+   // A project WITHOUT a wizard layout (hand-made or older, e.g. the layout examples) whose page already has its own
+   // header/footer manages its own layout: no automatic chrome there (it would overlap the page's own blocks).
+   const selfManaged=!p.siteLayout&&(hasManual('header')||hasManual('footer'));
+   // Remove only the automatic chrome when the project type/layout no longer uses it (or the page manages itself).
    page.items=page.items.filter(x=>{
      if(x.ffSystem!=='siteChrome')return true;
+     if(selfManaged)return false;
      if(x.kind==='header')return isSite && layout.header!==false;
      if(x.kind==='footer')return isSite && layout.footer!==false;
      if(['navbar','bottomnav','tabs','tabcontrol','drawer','sidebar','toolbar','breadcrumb','pagination','pagenav'].includes(x.kind))return nav===x.kind;
      return true;
    });
    const auto={visible:true,enabled:true,ffSystem:'siteChrome',frameworkStyle:layout.frameworkStyle!==false,events:{}};
-   if(isSite && layout.header!==false && !hasAuto('header'))page.items.unshift({id:uid(),kind:'header',name:'siteHeader',text:p.name||'Minha Marca',x:0,y:0,width:'100%',height:'72px',bg:'#111827',color:'#ffffff',...auto});
-   if(nav!=='none' && !hasAuto(nav)){
+   if(isSite && layout.header!==false && !selfManaged && !hasManual('header') && !hasAuto('header'))page.items.unshift({id:uid(),kind:'header',name:'siteHeader',text:p.name||'Minha Marca',x:0,y:0,width:'100%',height:'72px',bg:'#111827',color:'#ffffff',...auto});
+   if(nav!=='none' && !selfManaged && !hasManual(nav) && !hasAuto(nav)){
      const y=isSite?72:52, h=(nav==='bottomnav'||nav==='toolbar')?60:52;
      page.items.splice(Math.min(1,page.items.length),0,{id:uid(),kind:nav,name:'siteNavigation',text:'Navegação',x:0,y,width:'100%',height:h+'px',bg:'#1f2937',color:'#ffffff',...auto});
    }
-   if(isSite && layout.footer!==false && !hasAuto('footer'))page.items.push({id:uid(),kind:'footer',name:'siteFooter',text:'',x:0,y:900,width:'100%',height:'90px',bg:'#111827',color:'#ffffff',...auto});
+   if(isSite && layout.footer!==false && !selfManaged && !hasManual('footer') && !hasAuto('footer'))page.items.push({id:uid(),kind:'footer',name:'siteFooter',text:'',x:0,y:900,width:'100%',height:'90px',bg:'#111827',color:'#ffffff',...auto});
  });
 }
 function snapshot(){undoStack.push(JSON.stringify(project));if(undoStack.length>80)undoStack.shift();future=[]}
@@ -320,7 +325,9 @@ function resolveProjectImageRef(value){
 function generated(){
  const indent=(n)=>'  '.repeat(n);
  const componentHtml=(x,n=0,byParent=null)=>{
-   const events=Object.keys(x.events||{}).map(ev=>` on${ev}="${x.name}_${ev}(event)"`).join('');
+   // load/error can fire while the page is still being parsed (e.g. an about:blank iframe), before the script that
+    // declares the handlers has run. Those two are guarded so they never throw "... is not defined".
+    const events=Object.keys(x.events||{}).map(ev=>(ev==='load'||ev==='error')?` on${ev}="typeof ${x.name}_${ev}==='function'&&${x.name}_${ev}(event)"`:` on${ev}="${x.name}_${ev}(event)"`).join('');
    const targetPage=(project.pages||[]).find(p=>p.id===x.targetPage); const pageNav=x.targetPage?` onclick="FlowForgeNavigate(${JSON.stringify(x.targetPage)})" data-page-target="${esc(x.targetPage)}"`:'';
    // O ID público deve apontar para o elemento interativo real nos controles de formulário/imagem.
    // Assim fileUpload1.files, picturebox1.src, textBox.value etc. funcionam como esperado.

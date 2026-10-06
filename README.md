@@ -102,6 +102,18 @@ ffNavigate("Radios");
 
 A navegação interna também utiliza hash/URL para permitir roteamento entre páginas.
 
+### Header, navegação e footer automáticos
+
+Projetos criados pelo assistente (e Site/Landing sem layout definido) recebem header, navegação e footer automáticos em todas as páginas. Esses blocos são marcados como `siteChrome` e acompanham as páginas e o framework CSS.
+
+- Se a página já tem um **header ou footer próprio** e o projeto não tem layout do assistente (`siteLayout`), ela é tratada como de layout próprio e **não recebe chrome automático**. Chrome automático já gravado nesse tipo de projeto é removido ao abrir.
+- Um header, footer ou navegação **inserido manualmente** impede que o automático do mesmo tipo seja recriado. Se o automático já existe e você acrescenta um manual, os dois permanecem (escolha explícita).
+- Teste: `/tests/site_chrome_test.html`.
+
+### Eventos `load` e `error` no HTML gerado
+
+Os eventos de componentes viram atributos inline (`onclick="button1_click(event)"`). `load` e `error` podem disparar enquanto a página ainda está sendo lida (por exemplo um iframe `about:blank`), antes de o script com os handlers existir. Por isso eles são gerados protegidos: `onload="typeof iframe1_load==='function'&&iframe1_load(event)"`. Os demais eventos não mudam. Teste: `/tests/generated_events_test.html`.
+
 ## Eventos e JavaScript
 
 Componentes possuem eventos que podem executar JavaScript.
