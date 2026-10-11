@@ -47,6 +47,8 @@ async function run(){
     img.src='data:image/png;base64,INVALID';img.events={load:'window.__imgLoad=1;',error:'window.__imgError=(window.__imgError||0)+1;'};
     btn.events={click:'window.__clicks=(window.__clicks||0)+1;'};
     render()`);
+  const plCode='window.__plStr="a$&b$\'c$`d";';
+  W.eval('ffEnsurePages()[0].events={onload:'+JSON.stringify(plCode)+',onshow:""}');
   const html=W.generated();
 
   /* ---------- the generated markup ---------- */
@@ -64,6 +66,7 @@ async function run(){
   await sleep(900);
   const RW=runner.contentWindow;
   check('abrir o HTML gerado não dispara "… is not defined"',RW.__errs.length===0,RW.__errs);
+  check('código do OnLoad da página com $&, $\' e $` chega intacto (replace seguro)',RW.__plStr==='a$&b$\'c$`d',RW.__plStr);
   check('onerror da imagem inválida não quebra a página',!RW.__errs.some(m=>/image1_error|not defined/.test(m)),RW.__errs);
 
   /* the handlers still work once they exist */

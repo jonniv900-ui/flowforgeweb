@@ -9,7 +9,7 @@ window.FlowForgePropertySchema={
  input:['text','placeholder','maxLength','readOnly','visible','enabled'],
  audio:['src','autoplay','loop','controls','muted','volume','visible','enabled'],video:['src','autoplay','loop','controls','muted','volume','poster','visible','enabled'],
  datagrid:['columns','striped','sortable','pageSize','visible'],chart:['chartType','values','legend','visible'],
- calendar:['value','min','max','visible'],camera:['facingMode','autoplay','muted','audio','fit','width','height','visible'],
+ calendar:['value','min','max','visible'],camera:['facingMode','autoplay','hideCameraButton','muted','audio','fit','width','height','visible'],
  rating:['value','max','readOnly'],progress:['min','max','value','showText','barColor'],qrcode:['textContent','qrcodeSize','visible','enabled'],iframe:['src','lazy','visible','enabled'],canvas:['canvasWidth','canvasHeight','canvasBackground','visible','enabled'],map:['src','mapLat','mapLng','mapZoom','visible','enabled'],
  drawer:['open','position','overlay'],bottomsheet:['open','height'],tabcontrol:['activeTab','tabs'],panel:['dock','anchor','overflow'],groupbox:['dock','anchor'],flexpanel:['direction','justify','align','gap','wrap'],gridpanel:['columns','rows','gap'],stackpanel:['direction','gap'],scrollpanel:['overflow'],timer:['interval','enabled','oneShot'],http:['url','method','headers'],websocket:['url','protocol'],storage:['key'],modal:['open','closeOnBackdrop'],carousel:['activeIndex','autoplay','interval']
 };

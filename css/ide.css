@@ -401,3 +401,10 @@ main{overflow:hidden;display:grid;grid-template-rows:40px minmax(0,1fr)}
 .wysiwygToolbar .wysColor input{width:28px;height:24px;padding:0;border:0;background:transparent}
 
 #helpBtn{width:30px;min-width:30px;padding:6px 0;font-weight:600;font-size:15px;line-height:1;opacity:.78}#helpBtn:hover{opacity:1}
+/* switch com <input type=checkbox> real */
+.sw{position:relative}
+.sw input{position:absolute;opacity:0;width:0;height:0;margin:0;pointer-events:none}
+.sw i{flex:none;transition:background .15s}
+.sw i:after{transition:left .15s}
+.sw input:checked + i{background:#22c55e}
+.sw input:checked + i:after{left:18px}

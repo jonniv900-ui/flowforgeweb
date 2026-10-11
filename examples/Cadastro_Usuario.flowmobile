@@ -116,7 +116,8 @@
           "color": "#222222",
           "events": {
             "click": "// status1\n"
-          }
+          },
+          "value": ""
         }
       ]
     }

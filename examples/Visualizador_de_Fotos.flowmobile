@@ -73,7 +73,8 @@
           "color": "#222222",
           "events": {
             "click": "// status1\n"
-          }
+          },
+          "value": ""
         },
         {
           "id": "b59f84d7-4a5e-4a3c-9208-4e08b1c6e754",

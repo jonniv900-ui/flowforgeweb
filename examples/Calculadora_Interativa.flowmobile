@@ -71,7 +71,13 @@
           "color": "#222222",
           "events": {
             "change": "// op1\n"
-          }
+          },
+          "items": [
+            "Somar",
+            "Subtrair",
+            "Multiplicar",
+            "Dividir"
+          ]
         },
         {
           "id": "1ed4286d-52ac-401d-80db-44da15f4fe5b",
@@ -86,7 +92,8 @@
           "color": "#222222",
           "events": {
             "click": "// result1\n"
-          }
+          },
+          "value": ""
         },
         {
           "id": "3decb554-413b-438b-bc62-4dc78804d126",

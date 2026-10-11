@@ -71,7 +71,8 @@
           "color": "#222222",
           "events": {
             "click": "// volumeCard\n"
-          }
+          },
+          "value": ""
         },
         {
           "id": "eacd674f-0545-455b-a9c1-dc0521838fdb",
@@ -101,7 +102,8 @@
           "color": "#222222",
           "events": {
             "click": "// status1\n"
-          }
+          },
+          "value": ""
         }
       ]
     }

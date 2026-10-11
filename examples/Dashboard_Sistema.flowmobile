@@ -41,7 +41,8 @@
           "color": "#222222",
           "events": {
             "click": "// Card de CPU\n"
-          }
+          },
+          "value": ""
         },
         {
           "id": "a3a14436-368e-48fd-95f7-7f0c3635e26a",
@@ -56,7 +57,8 @@
           "color": "#222222",
           "events": {
             "click": "// Card de RAM\n"
-          }
+          },
+          "value": ""
         },
         {
           "id": "0f851785-1f50-4a82-be4f-f01602f8e6d9",
@@ -115,7 +117,7 @@
           "bg": "#ffffff",
           "color": "#222222",
           "events": {
-            "input": "cpuCard.textContent = 'CPU: ' + event.target.value + '%';\nsparkline1.dataset.values = event.target.value;"
+            "input": "cpuCard.textContent = 'CPU: ' + event.target.value + '%';\nwindow.ffCpuHistory = (window.ffCpuHistory || [20, 35, 30, 45, 40, 55, 50]).concat(Number(event.target.value)).slice(-12);\nsparkline1.dataset.values = window.ffCpuHistory.join(',');"
           }
         },
         {
@@ -131,7 +133,8 @@
           "color": "#222222",
           "events": {
             "click": "// Histórico visual\n"
-          }
+          },
+          "values": "20,35,30,45,40,55,50"
         },
         {
           "id": "5761e387-9246-4e0b-867a-ef2d225d6604",
@@ -145,7 +148,7 @@
           "bg": "#ffffff",
           "color": "#222222",
           "events": {
-            "click": "const v = Math.floor(Math.random()*101);\nrange1.value = v;\ncpuCard.textContent = 'CPU: ' + v + '%';\nramCard.textContent = 'RAM: ' + Math.floor(Math.random()*101) + '%';"
+            "click": "const v = Math.floor(Math.random()*101);\nrange1.value = v;\ncpuCard.textContent = 'CPU: ' + v + '%';\nramCard.textContent = 'RAM: ' + Math.floor(Math.random()*101) + '%';\nwindow.ffCpuHistory = (window.ffCpuHistory || [20, 35, 30, 45, 40, 55, 50]).concat(Number(v)).slice(-12);\nsparkline1.dataset.values = window.ffCpuHistory.join(',');"
           }
         }
       ]

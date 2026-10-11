@@ -557,3 +557,38 @@ Ao selecionar **Site** ou **Landing Page**, o WebStudio cria automaticamente em 
 4. Footer abaixo do conteúdo
 
 Ao selecionar **App HTML5**, esses componentes estruturais de navegação são removidos da estrutura automática; o App mantém apenas a Titlebar como estrutura global. Button e Link continuam disponíveis para navegação via `ffNavigate()`.
+
+
+## Revisão dos exemplos
+
+- Corrigidos: Adivinhe_o_Numero (campo não era limpo ao iniciar), Pong_IA (índice da raquete da CPU), Jogo_da_Memoria (seletor pegava outros componentes), Calculadora_Interativa (itens do combo), Dashboard_Sistema (histórico do sparkline) e cards usados como texto (sem o valor padrão "1.284").
+- Gerador: cards atualizam o texto do rótulo, botões respeitam cores personalizadas, `switch` é um input real (funciona no modo escuro) e `sparkline` lê `data-values`.
+
+### Exemplos novos
+
+- **Lista_de_Tarefas**: criação de elementos pela página, filtro, contador e persistência em `localStorage`; carrega tudo no evento `OnLoad` da página.
+- **Conversor_de_Unidades**: comprimento, massa, volume e temperatura; os combos De/Para são recriados ao trocar a categoria.
+- **Quiz_de_Conhecimentos**: perguntas embaralhadas, ProgressBar, feedback de acerto/erro e recorde salvo.
+- **Calculadoras_Multipagina**: IMC, gorjeta com divisão e juros compostos, com navegação por `ffNavigate`.
+- **Pomodoro**: temporizador com pausa, reinício, três modos e contagem de sessões.
+- **Jogo_da_Forca**: teclado A–Z, dicas por categoria e fim de jogo.
+
+- **Editor_de_Texto**: Novo/Abrir/Salvar (.txt), localizar e substituir, ABC/abc/Aa, contagem de linhas/palavras/caracteres, tamanho da fonte, modo escuro e rascunho automático.
+
+- **Editor_de_Texto_Blocos**: editor feito só com programação por blocos (definir propriedade, juntar texto, somar variável, repetir, se/senão, ir para página); sem código digitado.
+Correção no gerador: o código do `OnLoad`/`OnShow` da página que contivesse `$&`, `$'` ou `` $` `` era corrompido na exportação (uso de `String.replace` com texto). Agora a inserção usa função. Teste: `/tests/generated_events_test.html`.
+
+Observação: em projetos tipo app a TitleBar ocupa os primeiros 52 px da página, então os exemplos novos começam em y ≥ 56 e usam largura máxima de 390 px.
+
+## Correção do componente Câmera
+
+Por que a câmera "não funcionava" mesmo com o app publicado:
+
+- Nada iniciava a câmera: o componente só abria o fluxo quando o código chamava `start`. Agora há um botão **Ativar câmera** no próprio componente (oculte com a propriedade *Ocultar botão Ativar câmera*) e a propriedade **autoplay** inicia a câmera automaticamente.
+- Os erros eram silenciosos. Agora aparecem mensagens claras (permissão negada, sem câmera, câmera em uso, HTTPS ausente) e o evento `cameraerror` traz `error` e `message`.
+- Se `facingMode` (frontal/traseira) for recusado, há fallback para qualquer câmera disponível.
+- A câmera exige **HTTPS** (ou `localhost`). Em `http://` de um servidor, o navegador bloqueia `getUserMedia`.
+- Se o app for embutido em um `iframe` de outra origem, use `allow="camera; microphone"`. O preview do IDE já faz isso.
+- Se o servidor enviar o cabeçalho `Permissions-Policy: camera=()`, a câmera é bloqueada; use `camera=(self)`.
+
+Testes: `tests/camera_test.html` (18 verificações).
