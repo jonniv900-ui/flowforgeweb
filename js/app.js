@@ -538,8 +538,8 @@ const FlowForgeCamera=(()=>{const streams=new Map();
 const vid=id=>{const e=typeof id==='string'?document.getElementById(id):id;if(!e)return null;return e.tagName==='VIDEO'?e:((e.querySelector&&e.querySelector('video'))||e)};
 function support(){if(!window.isSecureContext)return "A câmera só funciona em páginas HTTPS (ou localhost). Publique o app com https://.";if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return "Este navegador não oferece acesso à câmera.";return ""}
 function explain(err){const n=(err&&err.name)||"";if(n==="NotAllowedError"||n==="SecurityError")return "Permissão da câmera negada. Libere o acesso à câmera nas configurações do navegador para este site.";if(n==="NotFoundError"||n==="DevicesNotFoundError")return "Nenhuma câmera foi encontrada neste dispositivo.";if(n==="NotReadableError"||n==="TrackStartError")return "A câmera está em uso por outro aplicativo ou aba.";if(n==="NotSupportedError")return (err&&err.message)||"Câmera não suportada.";return (err&&err.message)||"Não foi possível iniciar a câmera."}
-function stop(id){const v=vid(id);if(!v)return;const s=streams.get(v)||v.srcObject;if(s&&s.getTracks)s.getTracks().forEach(t=>t.stop());streams.delete(v);v.srcObject=null;v.dispatchEvent(new Event("camerastop"))}
-async function start(id,o){o=o||{};const v=vid(id);if(!v)throw new Error("Camera não encontrada");const bad=support();if(bad){const e=new Error(bad);e.name="NotSupportedError";v.dispatchEvent(new CustomEvent("cameraerror",{detail:{error:e,message:bad}}));throw e}stop(v);
+function stop(id,quiet){const v=vid(id);if(!v)return;const s=streams.get(v)||v.srcObject;if(s&&s.getTracks)s.getTracks().forEach(t=>t.stop());streams.delete(v);v.srcObject=null;if(s&&!quiet)v.dispatchEvent(new Event("camerastop"))}
+async function start(id,o){o=o||{};const v=vid(id);if(!v)throw new Error("Camera não encontrada");const bad=support();if(bad){const e=new Error(bad);e.name="NotSupportedError";v.dispatchEvent(new CustomEvent("cameraerror",{detail:{error:e,message:bad}}));throw e}stop(v,true);
 const size={};if(o.width)size.width={ideal:+o.width};if(o.height)size.height={ideal:+o.height};
 const facing=o.facingMode||v.dataset.ffFacing||"environment";const tries=[Object.assign({facingMode:facing},size),size];let last=null;
 for(const video of tries){try{const s=await navigator.mediaDevices.getUserMedia({audio:!!o.audio,video:Object.keys(video).length?video:true});streams.set(v,s);v.srcObject=s;v.playsInline=true;v.muted=o.muted!==false;await v.play().catch(()=>{});v.dispatchEvent(new CustomEvent("camerastart",{detail:{stream:s}}));return s}catch(error){last=error;const n=error&&error.name;if(n==="NotAllowedError"||n==="SecurityError"||n==="NotFoundError"||n==="NotReadableError")break}}
@@ -553,7 +553,8 @@ const msg=document.createElement("small");msg.style.cssText="max-width:92%;line-
 const bad=support();if(bad)msg.textContent=bad;
 btn.onclick=()=>{msg.textContent="Solicitando acesso à câmera...";start(v).catch(()=>{})};
 v.addEventListener("camerastart",()=>{box.style.display="none";msg.textContent=""});v.addEventListener("camerastop",()=>{box.style.display="flex"});v.addEventListener("cameraerror",e=>{box.style.display="flex";msg.textContent=(e.detail&&e.detail.message)||"Não foi possível iniciar a câmera."})}
-function init(){document.querySelectorAll("video[data-ff-camera]").forEach(v=>{ui(v);if(v.dataset.ffAutostart==="true"&&!support())start(v).catch(()=>{})})}
+function wire(v){if(v.dataset.ffCamEv)return;v.dataset.ffCamEv="1";["camerastart","camerastop","cameraerror"].forEach(n=>{const code=v.getAttribute("on"+n);if(!code)return;v.removeAttribute("on"+n);v.addEventListener(n,function(event){try{new Function("event",code).call(v,event)}catch(e){console.error("Camera "+n,e)}})})}
+function init(){document.querySelectorAll("video[data-ff-camera]").forEach(v=>{wire(v);ui(v);if(v.dataset.ffAutostart==="true"&&!support())start(v).catch(()=>{})})}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
 return{start,stop,capture,devices,init,support}})();window.FlowForgeCamera=FlowForgeCamera;
 

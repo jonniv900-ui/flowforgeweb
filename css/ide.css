@@ -408,3 +408,7 @@ main{overflow:hidden;display:grid;grid-template-rows:40px minmax(0,1fr)}
 .sw i:after{transition:left .15s}
 .sw input:checked + i{background:#22c55e}
 .sw input:checked + i:after{left:18px}
+
+/* Depurador: ocupa uma linha própria em vez de cobrir a parte de baixo do Preview/Design (a barra de rolagem do projeto ficava escondida). */
+main:has(#debuggerPanel:not([hidden])){grid-template-rows:40px minmax(0,1fr) 260px}
+#debuggerPanel:not([hidden]){position:relative;grid-row:3;grid-column:1;left:auto;right:auto;bottom:auto;width:100%;min-height:0;overflow:hidden}

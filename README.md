@@ -592,3 +592,15 @@ Por que a câmera "não funcionava" mesmo com o app publicado:
 - Se o servidor enviar o cabeçalho `Permissions-Policy: camera=()`, a câmera é bloqueada; use `camera=(self)`.
 
 Testes: `tests/camera_test.html` (18 verificações).
+
+Correções adicionais na câmera:
+
+- Os eventos `camerastart`, `camerastop` e `cameraerror` agora executam as ações definidas pelo usuário (antes o atributo `oncamera…` era gerado, mas o navegador não o executava).
+- `camerastop` só dispara quando havia uma câmera ligada; reiniciar a câmera (por exemplo, trocar frontal/traseira) não dispara `camerastop`.
+- O bloco "iniciar câmera" não gera mais erro não tratado quando o acesso é negado; a mensagem aparece pelo evento `cameraerror`.
+- Novo exemplo: `examples/Estudio_de_Camera.flowmobile` (ligar, desligar, trocar câmera, tirar foto, baixar, listar câmeras).
+
+Depurador e exemplo da câmera:
+
+- O painel do Depurador deixou de cobrir a parte de baixo do Preview/Design: agora ocupa uma linha própria abaixo da área de trabalho, e a barra de rolagem do projeto fica totalmente visível e utilizável com o Debug aberto.
+- No exemplo `Estudio_de_Camera`, os botões Tirar foto e Trocar ficam sempre visíveis (antes só apareciam depois de a câmera ligar); o indicador "● AO VIVO" mostra/oculta pelos eventos `camerastart`/`camerastop`.

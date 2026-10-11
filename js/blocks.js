@@ -41,7 +41,7 @@
    case'play':return `document.getElementById(${q(b.target)})?.play();`;case'pause':return `document.getElementById(${q(b.target)})?.pause();`;
    case'timerStart':return `FlowForgeTimer.start(${q(b.target)});`;case'timerStop':return `FlowForgeTimer.stop(${q(b.target)});`;
    case'progressSet':return `FlowForgeProgress.set(${q(b.target)},${Number(b.value)||0});`;case'progressInc':return `FlowForgeProgress.increment(${q(b.target)},${Number(b.value)||1});`;
-   case'cameraStart':return `FlowForgeCamera.start(${q(b.target)});`;case'cameraStop':return `FlowForgeCamera.stop(${q(b.target)});`;case'cameraCapture':return `FlowForgeCamera.capture(${q(b.target)});`;
+   case'cameraStart':return `FlowForgeCamera.start(${q(b.target)}).catch(()=>{});`;case'cameraStop':return `FlowForgeCamera.stop(${q(b.target)});`;case'cameraCapture':return `FlowForgeCamera.capture(${q(b.target)});`;
    case'alert':return `alert(${q(b.value||'Olá!')});`;case'delay':return `await new Promise(ffResolve=>setTimeout(ffResolve,${Math.max(0,Number(b.value)||1000)}));`;
    case'navigate':return `FlowForgeNavigate(${q(b.value)});`;case'setvar':return `window[${q(b.target||'variavel')}]=${q(b.value)};`;case'inc':return `window[${q(b.target||'contador')}]=(Number(window[${q(b.target||'contador')}])||0)+${Number(b.value)||1};`;
    case'if':return `if(${b.left||'true'} ${b.op||'=='} ${expr(b.right,b.source)}){\n${(b.body||[]).map(compile).join('\n')}\n}${b.elseBody?.length?`else{\n${b.elseBody.map(compile).join('\n')}\n}`:''}`;

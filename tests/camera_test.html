@@ -75,6 +75,12 @@ async function run(){
   R.__mode='overfacing';R.__calls.length=0;ov(R,'camManual').querySelector('button').click();await sleep(500);
   check('facingMode recusado: tenta de novo sem ele e funciona',!!M.srcObject && R.__calls.length===2 && !/facingMode/.test(R.__calls[1]),R.__calls);
 
+  R=await load('<script>document.addEventListener("DOMContentLoaded",function(){var v=document.getElementById("camManual");v.setAttribute("oncamerastart","window.__evt=(window.__evt||0)+1");v.setAttribute("oncamerastop","window.__stop=(window.__stop||0)+1")})<\/script>');
+  ov(R,'camManual').querySelector('button').click();await sleep(500);
+  check('evento camerastart executa a ação do usuário (oncamerastart)',R.__evt===1,R.__evt);
+  R.FlowForgeCamera.stop('camManual');
+  check('evento camerastop executa a ação do usuário (oncamerastop)',R.__stop===1,R.__stop);
+
   R=await load('<script>Object.defineProperty(window,"isSecureContext",{value:false,configurable:true})<\/script>');
   check('página sem HTTPS: mensagem pede HTTPS',/HTTPS/.test(ov(R,'camManual')?.textContent||''),ov(R,'camManual')?.textContent);
   check('página sem HTTPS: início automático não dispara getUserMedia',R.__calls.length===0,R.__calls);
