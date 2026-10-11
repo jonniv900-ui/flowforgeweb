@@ -1,43 +1,91 @@
-// FlowForge WebStudio v0.13.0 — Integrated Debugger
+// FlowForge WebStudio — Debugger aprimorado
 (function(){
- const $=s=>document.querySelector(s), state={logs:[],errors:[],events:[],paused:false};
- function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
- function row(kind,args){return `<div class="dbgRow dbg-${kind}"><small>${new Date().toLocaleTimeString()}</small><span>${args.map(x=>esc(typeof x==='object'?JSON.stringify(x):x)).join(' ')}</span></div>`}
+ 'use strict';
+ const $=s=>document.querySelector(s);
+ const LIMIT=1500;
+ const state={logs:[],errors:[],events:[],network:[],paused:false,startedAt:null,projectName:'',lastHtml:''};
+ const now=()=>new Date().toISOString();
+ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+ function safe(v,seen=new WeakSet()){
+  if(v===null||v===undefined)return String(v);
+  if(typeof v==='string')return v;
+  if(typeof v==='function')return `[Function ${v.name||'anonymous'}]`;
+  if(v instanceof Error)return {name:v.name,message:v.message,stack:v.stack||''};
+  if(typeof Element!=='undefined'&&v instanceof Element)return `<${v.tagName.toLowerCase()}${v.id?'#'+v.id:''}${v.classList?.length?'.'+[...v.classList].slice(0,3).join('.'):''}>`;
+  if(typeof v==='object'){
+   if(seen.has(v))return '[Circular]';seen.add(v);
+   if(Array.isArray(v))return v.slice(0,100).map(x=>safe(x,seen));
+   const out={};Object.keys(v).slice(0,80).forEach(k=>{try{out[k]=safe(v[k],seen)}catch(e){out[k]='[unavailable]'}});return out;
+  }
+  return String(v);
+ }
+ function printable(v){try{return typeof v==='string'?v:JSON.stringify(v)}catch(_){return String(v)}}
+ function add(bucket,item){state[bucket].push(item);if(state[bucket].length>LIMIT)state[bucket].splice(0,state[bucket].length-LIMIT);render()}
+ function row(kind,args,time=now(),meta=''){
+  const details=args.map(printable).join(' ');
+  return `<div class="dbgRow dbg-${esc(kind)}"><small>${esc(new Date(time).toLocaleTimeString())}</small><span class="dbgMessage">${esc(details)}${meta?`<details><summary>Detalhes</summary><pre>${esc(meta)}</pre></details>`:''}</span></div>`;
+ }
+ function matches(item){const q=($('#dbgSearch')?.value||'').trim().toLowerCase();return !q||JSON.stringify(item).toLowerCase().includes(q)}
  function render(){
-  $('#dbgConsole').innerHTML=state.logs.map(x=>row(x.kind,x.args)).join('')||'<em>Sem mensagens.</em>';
-  $('#dbgErrors').innerHTML=state.errors.map(x=>row('error',x.args)).join('')||'<em>Sem erros.</em>';
-  $('#dbgEvents').innerHTML=state.events.map(x=>row('event',x.args)).join('')||'<em>Nenhum evento disparado.</em>';
-  $('#dbgErrorCount').textContent=state.errors.length;$('#dbgState').textContent=state.paused?'Pausado':'Executando';
+  if(!$('#dbgConsole'))return;
+  $('#dbgConsole').innerHTML=state.logs.filter(matches).map(x=>row(x.kind,x.args,x.time,x.stack||'')).join('')||'<em>Sem mensagens correspondentes.</em>';
+  $('#dbgErrors').innerHTML=state.errors.filter(matches).map(x=>row('error',x.args,x.time,x.stack||'')).join('')||'<em>Sem erros correspondentes.</em>';
+  $('#dbgEvents').innerHTML=state.events.filter(matches).map(x=>row('event',x.args,x.time)).join('')||'<em>Nenhum evento correspondente.</em>';
+  $('#dbgNetwork').innerHTML=state.network.filter(matches).map(x=>row(x.ok?'info':'error',[`${x.method} ${x.url} → ${x.status}`,x.duration+' ms'],x.time,x.error||'')).join('')||'<em>Nenhuma requisição registrada.</em>';
+  $('#dbgErrorCount').textContent=state.errors.length;
+  $('#dbgState').textContent=state.paused?'Pausado':(state.startedAt?'Monitorando':'Parado');
+  $('#dbgLogCount').textContent=state.logs.length;
+  $('#dbgEventCount').textContent=state.events.length;
+  $('#dbgNetworkCount').textContent=state.network.length;
  }
  function inspect(){
   const w=$('#preview')?.contentWindow;if(!w)return;
   try{
-   const vars={};Object.keys(w).filter(k=>/^ff|contador|score|nome|ativo/i.test(k)).slice(0,100).forEach(k=>{try{let v=w[k];if(['string','number','boolean'].includes(typeof v))vars[k]=v}catch(_){}});
-   $('#dbgVars').innerHTML=Object.entries(vars).map(([k,v])=>`<div class="dbgKV"><b>${esc(k)}</b><span>${esc(v)}</span></div>`).join('')||'<em>Nenhuma variável pública detectada.</em>';
-   const comps=[...w.document.querySelectorAll('.ff-component')].map(el=>{let c=el.querySelector('[data-ff-control],input,button,textarea,select,img,video')||el;return {name:c.id||el.id||el.dataset.flowId||'(sem nome)',value:'value'in c?c.value:(c.textContent||'').trim().slice(0,100),visible:getComputedStyle(el).display!=='none'}});
-   $('#dbgComponents').innerHTML=comps.map(c=>`<div class="dbgKV"><b>${esc(c.name)}</b><span>${esc(c.value)} ${c.visible?'':'(oculto)'}</span></div>`).join('')||'<em>Sem componentes.</em>';
-  }catch(e){state.errors.push({args:['Falha ao inspecionar:',e.message]});render()}
+   const vars={};Object.keys(w).filter(k=>/^ff|contador|score|nome|ativo|total|valor|resultado/i.test(k)).slice(0,200).forEach(k=>{try{const v=w[k];if(['string','number','boolean'].includes(typeof v))vars[k]=v}catch(_){}});
+   $('#dbgVars').innerHTML=Object.entries(vars).map(([k,v])=>`<div class="dbgKV"><b>${esc(k)}</b><span>${esc(v)}</span></div>`).join('')||'<em>Nenhuma variável global pública detectada. Use window.minhaVariavel para expor valores.</em>';
+   const doc=w.document;
+   const comps=[...doc.querySelectorAll('.ff-component')].map(el=>{const c=el.querySelector('[data-ff-control],input,button,textarea,select,img,video,audio,canvas')||el;const style=w.getComputedStyle(el);return {name:c.id||el.id||el.dataset.flowId||'(sem nome)',kind:el.className?.toString().match(/ff-kind-([\w-]+)/)?.[1]||el.tagName.toLowerCase(),value:('value'in c?c.value:(c.textContent||'').trim()).toString().slice(0,180),visible:style.display!=='none'&&style.visibility!=='hidden'&&el.getClientRects().length>0,enabled:!('disabled'in c)||!c.disabled}});
+   $('#dbgComponents').innerHTML=comps.map(c=>`<div class="dbgKV"><b>${esc(c.name)} <small>${esc(c.kind)}</small></b><span>${esc(c.value)} ${c.visible?'':'· oculto'} ${c.enabled?'':'· desabilitado'}</span></div>`).join('')||'<em>O preview não contém componentes .ff-component.</em>';
+   const pages=[...doc.querySelectorAll('[data-page-id],.ff-page')].map(p=>({id:p.dataset.pageId||p.id,visible:w.getComputedStyle(p).display!=='none'&&!p.hidden}));
+   $('#dbgPageInfo').textContent=pages.length?pages.map(p=>`${p.id}${p.visible?' (ativa)':''}`).join(' · '):'Sem páginas detectadas';
+  }catch(e){add('errors',{time:now(),args:['Falha ao inspecionar o preview',e.message],stack:e.stack||''})}
  }
- function inject(){
-  const f=$('#preview'),w=f?.contentWindow;if(!w)return;
+ function bridgeScript(){
+  // Executa antes do código gerado, capturando erros de inicialização e console do OnLoad.
+  return `<script>(function(){if(window.__ffDebuggerInstalled)return;window.__ffDebuggerInstalled=true;var send=function(type,data){try{parent.postMessage(Object.assign({__ffdbg:1,type:type,time:new Date().toISOString()},data||{}),'*')}catch(_){}};var repr=function(v){try{if(v instanceof Error)return {name:v.name,message:v.message,stack:v.stack||''};if(v&&v.nodeType===1)return '<'+v.tagName.toLowerCase()+(v.id?'#'+v.id:'')+'>';if(typeof v==='object'&&v!==null){var seen=new WeakSet();return JSON.parse(JSON.stringify(v,function(k,x){if(x instanceof Error)return {name:x.name,message:x.message,stack:x.stack};if(typeof x==='object'&&x!==null){if(seen.has(x))return '[Circular]';seen.add(x)}return x}))}return String(v)}catch(_){return String(v)}};['log','info','warn','error','debug','table','assert'].forEach(function(k){var orig=console[k];if(typeof orig!=='function')return;console[k]=function(){var args=[].slice.call(arguments).map(repr);send('console',{kind:k,args:args,stack:(new Error()).stack});try{return orig.apply(console,arguments)}catch(_){}}});window.addEventListener('error',function(e){send('error',{args:[e.message||'Erro de recurso',e.filename||'',(e.lineno||0)+':'+(e.colno||0)],stack:e.error&&e.error.stack||''})},true);window.addEventListener('unhandledrejection',function(e){send('error',{args:['Promise rejeitada',repr(e.reason)],stack:e.reason&&e.reason.stack||''})});window.addEventListener('rejectionhandled',function(e){send('console',{kind:'info',args:['Promise rejeitada tratada posteriormente',repr(e.reason)]})});['click','input','change','submit','keydown'].forEach(function(type){document.addEventListener(type,function(e){var el=e.target,tag=el&&el.tagName?el.tagName.toLowerCase():'',id=el&&(el.id||el.dataset&&el.dataset.flowId)||'';if(type==='keydown'&&!['Enter','Escape',' '].includes(e.key))return;send('event',{args:[type,tag+(id?'#'+id:''),type==='keydown'?e.key:'']})},true)});var origFetch=window.fetch;if(origFetch)window.fetch=function(){var args=arguments,url=String(args[0]&&args[0].url||args[0]),method=(args[1]&&args[1].method)||'GET',start=performance.now();return origFetch.apply(this,args).then(function(r){send('network',{method:method,url:url,status:r.status,ok:r.ok,duration:Math.round(performance.now()-start)});return r},function(err){send('network',{method:method,url:url,status:'NETWORK ERROR',ok:false,duration:Math.round(performance.now()-start),error:repr(err)});throw err})};var X=window.XMLHttpRequest;if(X&&!X.prototype.__ffWrapped){var open=X.prototype.open,sendX=X.prototype.send;X.prototype.open=function(m,u){this.__ffreq={method:m,url:String(u)};return open.apply(this,arguments)};X.prototype.send=function(){var x=this,start=performance.now();x.addEventListener('loadend',function(){send('network',{method:x.__ffreq&&x.__ffreq.method||'XHR',url:x.__ffreq&&x.__ffreq.url||'',status:x.status,ok:x.status>=200&&x.status<400,duration:Math.round(performance.now()-start)})},{once:true});return sendX.apply(this,arguments)};X.prototype.__ffWrapped=true}send('console',{kind:'info',args:['Debugger conectado antes da execução do app']})})();</script>`;
+ }
+ function instrument(html){const bridge=bridgeScript();if(/<head(?:\s[^>]*)?>/i.test(html))return html.replace(/<head(?:\s[^>]*)?>/i,m=>m+bridge);return bridge+html}
+ function start(){
+  if(typeof window.generated!=='function'){add('errors',{time:now(),args:['Não foi possível gerar o preview: window.generated não está disponível.']});return}
   try{
-   if(w.__ffDebuggerInstalled)return;w.__ffDebuggerInstalled=true;
-   ['log','info','warn','error'].forEach(k=>{const orig=w.console[k].bind(w.console);w.console[k]=(...a)=>{orig(...a);parent.postMessage({__ffdbg:1,type:'console',kind:k,args:a.map(safe)},'*')}});
-   w.addEventListener('error',e=>parent.postMessage({__ffdbg:1,type:'error',args:[e.message,`${e.filename||''}:${e.lineno||0}:${e.colno||0}`]},'*'));
-   w.addEventListener('unhandledrejection',e=>parent.postMessage({__ffdbg:1,type:'error',args:['Promise rejeitada',safe(e.reason)]},'*'));
-   w.document.addEventListener('click',e=>trace('click',e),true);w.document.addEventListener('input',e=>trace('input',e),true);w.document.addEventListener('change',e=>trace('change',e),true);
-   function trace(type,e){let el=e.target.closest?.('[id],.ff-component');parent.postMessage({__ffdbg:1,type:'event',args:[type,el?.id||el?.dataset?.flowId||el?.tagName||'']},'*')}
-   function safe(v){try{return typeof v==='object'?JSON.parse(JSON.stringify(v)):String(v)}catch(_){return String(v)}}
-   w.console.info('[FlowForge Debugger] conectado');
-  }catch(e){state.errors.push({args:['Falha ao conectar debugger:',e.message]});render()}
+   state.startedAt=now();state.projectName=window.project?.name||'Projeto sem nome';
+   const raw=window.generated();state.lastHtml=raw;
+   const html=window.FlowForgeImageAssets?.resolveHtml?.(raw)??raw;
+   const f=$('#preview');f.srcdoc=instrument(html);
+   $('#debuggerPanel').hidden=false;render();
+  }catch(e){add('errors',{time:now(),args:['Falha ao iniciar o preview depurado',e.message],stack:e.stack||''})}
  }
- addEventListener('message',e=>{let d=e.data;if(!d?.__ffdbg)return;if(state.paused&&d.type!=='error')return;if(d.type==='console')state.logs.push({kind:d.kind,args:d.args});else if(d.type==='error')state.errors.push({args:d.args});else if(d.type==='event')state.events.push({args:d.args});if(state.logs.length>500)state.logs.shift();if(state.events.length>500)state.events.shift();render()});
- addEventListener('DOMContentLoaded',()=>{
-  $('#debugBtn').onclick=()=>{document.querySelector('[data-tab="preview"]').click();$('#debuggerPanel').hidden=false;$('#preview').srcdoc=window.FlowForgeImageAssets?.resolveHtml?.(window.generated())??window.generated();$('#dbgState').textContent='Iniciando...'};
-  $('#preview').addEventListener('load',()=>{if(!$('#debuggerPanel').hidden){inject();inspect();render()}});
-  $('#dbgClose').onclick=()=>$('#debuggerPanel').hidden=true;$('#dbgClear').onclick=()=>{state.logs=[];state.errors=[];state.events=[];render()};
-  $('#dbgRefresh').onclick=inspect;$('#dbgPause').onclick=()=>{state.paused=true;render()};$('#dbgResume').onclick=()=>{state.paused=false;render()};
-  document.querySelectorAll('[data-dbg-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-dbg-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.dbgView').forEach(x=>x.hidden=true);$('#dbg'+b.dataset.dbgTab[0].toUpperCase()+b.dataset.dbgTab.slice(1)).hidden=false;if(['vars','components'].includes(b.dataset.dbgTab))inspect()});
+ function exportReport(){
+  const report={tool:'FlowForge WebStudio Debugger',version:'1.1',createdAt:now(),project:state.projectName,startedAt:state.startedAt,counts:{logs:state.logs.length,errors:state.errors.length,events:state.events.length,network:state.network.length},logs:state.logs,errors:state.errors,events:state.events,network:state.network};
+  const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='flowforge-debug-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+ }
+ addEventListener('message',e=>{
+  const d=e.data;if(!d?.__ffdbg)return;
+  if(state.paused&&d.type!=='error'&&!(d.type==='network'&&!d.ok))return;
+  const time=d.time||now();
+  if(d.type==='console')add('logs',{time,kind:d.kind||'log',args:d.args||[],stack:d.stack||''});
+  else if(d.type==='error')add('errors',{time,args:d.args||['Erro desconhecido'],stack:d.stack||''});
+  else if(d.type==='event')add('events',{time,args:d.args||[]});
+  else if(d.type==='network')add('network',{time,method:d.method||'GET',url:d.url||'',status:d.status??'',ok:!!d.ok,duration:d.duration??0,error:d.error||''});
  });
- window.FlowForgeDebugger={state,inspect,render};
+ addEventListener('DOMContentLoaded',()=>{
+  $('#debugBtn').onclick=start;
+  $('#preview').addEventListener('load',()=>{if(!$('#debuggerPanel').hidden){inspect();render()}});
+  $('#dbgClose').onclick=()=>$('#debuggerPanel').hidden=true;
+  $('#dbgClear').onclick=()=>{state.logs=[];state.errors=[];state.events=[];state.network=[];render()};
+  $('#dbgRefresh').onclick=inspect;$('#dbgPause').onclick=()=>{state.paused=true;render()};$('#dbgResume').onclick=()=>{state.paused=false;render()};
+  $('#dbgExport').onclick=exportReport;$('#dbgSearch').addEventListener('input',render);
+  document.querySelectorAll('[data-dbg-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-dbg-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.dbgView').forEach(x=>x.hidden=true);const id=b.dataset.dbgTab;$('#dbg'+id[0].toUpperCase()+id.slice(1)).hidden=false;if(['vars','components'].includes(id))inspect()});
+ });
+ window.FlowForgeDebugger={state,inspect,render,start,exportReport};
 })();

@@ -604,3 +604,13 @@ Depurador e exemplo da câmera:
 
 - O painel do Depurador deixou de cobrir a parte de baixo do Preview/Design: agora ocupa uma linha própria abaixo da área de trabalho, e a barra de rolagem do projeto fica totalmente visível e utilizável com o Debug aberto.
 - No exemplo `Estudio_de_Camera`, os botões Tirar foto e Trocar ficam sempre visíveis (antes só apareciam depois de a câmera ligar); o indicador "● AO VIVO" mostra/oculta pelos eventos `camerastart`/`camerastop`.
+
+Permissões do Preview/Debug:
+
+- O iframe do Preview e do Debug só recebe permissão de câmera (e microfone, se o componente usar áudio) quando o projeto possui um componente Câmera; permissão de localização só com componente Geolocalização. Sem esses componentes, nada é delegado nem solicitado.
+- O navegador só pede acesso à câmera quando existe um componente Câmera no projeto e a câmera é iniciada (autoplay, botão Ativar câmera ou ação). Adicionar o componente no Design não pede permissão.
+
+
+## Depurador aprimorado (v0.13.1)
+
+A tela de depuração foi reorganizada para facilitar o diagnóstico: cabeçalho com ações agrupadas, indicadores de logs/erros/eventos/rede, campo de filtro, abas com hierarquia visual e layout adaptável. O depurador instrumenta o HTML do preview antes da execução do código do aplicativo, registra mensagens do console e erros de JavaScript, rejeições de Promise, eventos de interface e requisições Fetch/XHR. A inspeção apresenta variáveis globais simples e o estado dos componentes; o relatório JSON pode ser compartilhado para análise. Revise o relatório antes de compartilhar, pois pode conter URLs, mensagens e dados do aplicativo.

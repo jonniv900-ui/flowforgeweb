@@ -592,7 +592,11 @@ function syntaxHighlight(code){
 }
 function syncCodeHighlight(){let ta=$('#code'),pre=$('#codeHighlight'),nums=$('#codeLines');pre.innerHTML=syntaxHighlight(ta.value);pre.scrollTop=ta.scrollTop;pre.scrollLeft=ta.scrollLeft;if(nums){let n=ta.value.split('\n').length;nums.textContent=Array.from({length:n},(_,i)=>i+1).join('\n');nums.scrollTop=ta.scrollTop}}
 function saveEventBodiesFromEditor(){let code=$('#code').value;project.pages.flatMap(p=>p.items).forEach(x=>Object.keys(x.events||{}).forEach(ev=>{let a=code.indexOf(eventMarker(x,ev));if(a<0)return;let fn=code.indexOf('function ',a),brace=code.indexOf('{',fn),endMark=`// @flow-event-end:${x.id}:${ev}`,end=code.indexOf(endMark,brace);if(brace<0||end<0)return;let body=code.slice(brace+1,end).replace(/^\s*\n/,'').replace(/\n\s*}\s*$/,'').split('\n').map(line=>line.startsWith('    ')?line.slice(4):line).join('\n');x.events[ev]=body.replace(/\s+$/,'')+'\n'}))}
-function updateCode(){let c=generated();$('#code').value=c;syncCodeHighlight();const pv=$('#preview');if(getComputedStyle(pv).display!=='none')pv.srcdoc=window.FlowForgeImageAssets?.resolveHtml?.(c)??c}
+function previewPermissions(){const it=(project.pages||[]).flatMap(p=>p.items||[]);const a=['clipboard-write','fullscreen'];if(it.some(x=>x.kind==='geolocation'))a.push('geolocation');const cams=it.filter(x=>x.kind==='camera');if(cams.length){a.push('camera');if(cams.some(x=>x.audio))a.push('microphone')}return a.join('; ')}
+window.ffPreviewPermissions=previewPermissions;
+function applyPreviewPermissions(pv){const v=previewPermissions();if(pv.getAttribute('allow')!==v)pv.setAttribute('allow',v)}
+window.ffApplyPreviewPermissions=applyPreviewPermissions;
+function updateCode(){let c=generated();$('#code').value=c;syncCodeHighlight();const pv=$('#preview');if(getComputedStyle(pv).display!=='none'){applyPreviewPermissions(pv);pv.srcdoc=window.FlowForgeImageAssets?.resolveHtml?.(c)??c}}
 function duplicate(){if(!selected)return;snapshot();let x=JSON.parse(JSON.stringify(selected));x.id=uid();x.name=uniqueName(x.kind,(x.name||x.kind)+'_copy');x.x=(Number(x.x)||0)+16;x.y=(Number(x.y)||0)+16;project.pages[project.active].items.push(x);selected=x;render()}function del(){if(!selected)return;snapshot();let a=project.pages[project.active].items;a.splice(a.findIndex(x=>x.id===selected.id),1);selected=null;render()}
 
 
