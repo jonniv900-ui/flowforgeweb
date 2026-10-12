@@ -610,7 +610,18 @@ Permissões do Preview/Debug:
 - O iframe do Preview e do Debug só recebe permissão de câmera (e microfone, se o componente usar áudio) quando o projeto possui um componente Câmera; permissão de localização só com componente Geolocalização. Sem esses componentes, nada é delegado nem solicitado.
 - O navegador só pede acesso à câmera quando existe um componente Câmera no projeto e a câmera é iniciada (autoplay, botão Ativar câmera ou ação). Adicionar o componente no Design não pede permissão.
 
+## Depurador melhorado
 
-## Depurador aprimorado (v0.13.1)
+- **Captura desde o início:** o código de captura é injetado no começo do app em execução, então mensagens e erros do carregamento (onload etc.) também aparecem. Antes só eram registrados depois do carregamento.
+- **Console:** hora real de cada mensagem (antes mostrava a hora da renderização), filtro por nível (Todos/Informações/Avisos/Erros), filtro de texto, botão **Copiar** e linha para **executar expressões JavaScript no app** (setas ↑↓ percorrem o histórico).
+- **Erros:** mostram a origem quando vêm de um evento (ex.: `btnBad · click ↗`; clique para selecionar o componente no Design), detalhes da pilha, falhas de carregamento de recursos e Promises rejeitadas. A aba fica em vermelho com o contador.
+- **Eventos:** click, dblclick, input (com o valor), change, submit e camerastart/camerastop/cameraerror; clique no nome do componente para destacá-lo no app.
+- **Variáveis:** lista todas as variáveis globais criadas pelo projeto (não só nomes pré-definidos), atualiza sozinha e permite **editar o valor** (Enter).
+- **Componentes:** nome, tipo, valor e visibilidade; clique para destacar no app ou selecionar no Design.
+- **Rede (nova):** registra `fetch` e `XMLHttpRequest` com método, URL, status e tempo.
+- **Painel:** redimensionável arrastando a borda superior; traduzido em português, inglês e espanhol.
 
-A tela de depuração foi reorganizada para facilitar o diagnóstico: cabeçalho com ações agrupadas, indicadores de logs/erros/eventos/rede, campo de filtro, abas com hierarquia visual e layout adaptável. O depurador instrumenta o HTML do preview antes da execução do código do aplicativo, registra mensagens do console e erros de JavaScript, rejeições de Promise, eventos de interface em verde, descritos em linguagem direta (por exemplo: “Botão Salvar pressionado; evento click disparado no componente btnSalvar”), e requisições Fetch/XHR. A inspeção apresenta variáveis globais simples e o estado dos componentes; o relatório JSON pode ser compartilhado para análise. Revise o relatório antes de compartilhar, pois pode conter URLs, mensagens e dados do aplicativo.
+## Novos exemplos e ferramentas Python
+
+- Exemplos novos em `examples/`: **Cronometro_Voltas** (Iniciar/Pausar/Volta/Zerar, melhor e pior volta), **Controle_de_Gastos** (lançamentos por categoria, total e percentuais, salvos no navegador), **Foto_de_Perfil** (câmera + recorte quadrado + cartão em outra página, salvo no navegador) e **Laboratorio_do_Depurador** (botões que geram logs, avisos, erros, requisições e variáveis para explorar o Depurador).
+- Pasta `tools/` (opcional, só para desenvolvimento): testes automatizados em Python/Playwright e os geradores dos exemplos. Veja `tools/README.md`. Rodar tudo: `python tools/run_all.py`.

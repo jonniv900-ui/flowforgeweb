@@ -358,7 +358,7 @@ main{overflow:hidden;display:grid;grid-template-rows:40px minmax(0,1fr)}
 #debuggerPanel{position:absolute;left:0;right:0;bottom:0;height:260px;z-index:80;background:#111827;color:#dbeafe;border-top:2px solid #334155;box-shadow:0 -5px 20px #0004;font:12px ui-monospace,Consolas,monospace}
 #debuggerHead{height:38px;display:flex;align-items:center;gap:6px;padding:5px 9px;background:#1f2937}#debuggerHead b{margin-right:auto}#debuggerHead button,#debuggerTabs button{border:1px solid #475569;background:#273449;color:#e5e7eb;border-radius:4px;padding:4px 8px}#dbgState{padding:3px 8px;border-radius:10px;background:#0f766e}
 #debuggerTabs{height:34px;display:flex;gap:3px;padding:4px 8px;background:#182235;border-bottom:1px solid #334155}#debuggerTabs button.active{background:#2563eb}
-.dbgView{height:186px;overflow:auto;padding:7px 10px}.dbgRow{display:flex;gap:12px;padding:4px;border-bottom:1px solid #ffffff12}.dbgRow small{color:#64748b;min-width:70px}.dbg-error{color:#fca5a5}.dbg-warn{color:#fde68a}.dbg-info{color:#93c5fd}.dbg-event{color:#86efac;background:#052e1b!important;border-left:3px solid #22c55e;padding-left:10px!important}.dbg-event .dbgMessage{color:#bbf7d0}.dbg-event small{color:#4ade80!important}.dbgKV{display:grid;grid-template-columns:220px 1fr;gap:10px;padding:4px;border-bottom:1px solid #ffffff12}.dbgKV b{color:#93c5fd}
+.dbgView{height:186px;overflow:auto;padding:7px 10px}.dbgRow{display:flex;gap:12px;padding:4px;border-bottom:1px solid #ffffff12}.dbgRow small{color:#64748b;min-width:70px}.dbg-error{color:#fca5a5}.dbg-warn{color:#fde68a}.dbg-info{color:#93c5fd}.dbg-event{color:#86efac}.dbgKV{display:grid;grid-template-columns:220px 1fr;gap:10px;padding:4px;border-bottom:1px solid #ffffff12}.dbgKV b{color:#93c5fd}
 #debugBtn{margin-left:3px}
 /* Designer framework preview mode: never styles the FlowForge chrome. */
 #stage[data-designer-mode="flowforge"] .component{font-family:inherit;}
@@ -410,19 +410,26 @@ main{overflow:hidden;display:grid;grid-template-rows:40px minmax(0,1fr)}
 .sw input:checked + i:after{left:18px}
 
 /* Depurador: ocupa uma linha própria em vez de cobrir a parte de baixo do Preview/Design (a barra de rolagem do projeto ficava escondida). */
-main:has(#debuggerPanel:not([hidden])){grid-template-rows:40px minmax(0,1fr) 260px}
-#debuggerPanel:not([hidden]){position:relative;grid-row:3;grid-column:1;left:auto;right:auto;bottom:auto;width:100%;min-height:0;overflow:hidden}
-
-/* v0.13.1 — Depurador: hierarquia visual, filtros e layout adaptável */
-#debuggerPanel{display:flex;flex-direction:column;height:clamp(300px,38vh,470px);min-height:0;border-top:2px solid #3b82f6;background:#0b1220;color:#dbe7f5;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;box-shadow:0 -8px 24px #02061724}
-#debuggerPanel[hidden]{display:none!important}
-#debuggerHead{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;height:auto;box-sizing:border-box;padding:7px 12px;background:linear-gradient(110deg,#17243a,#111827);border-bottom:1px solid #334155;flex-shrink:0}
-.dbgTitle{display:flex;align-items:center;gap:9px;min-width:140px}.dbgBugIcon{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#2563eb25;font-size:18px}.dbgTitle b{display:block;color:#f8fafc;font:600 13px/1.2 system-ui,sans-serif}.dbgTitle small{display:block;margin-top:3px;color:#94a3b8;font:11px system-ui,sans-serif}
-.dbgToolbar{display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap}.dbgToolbar button{border:1px solid #3b4a60!important;background:#202d41!important;color:#dbeafe!important;border-radius:6px!important;padding:6px 9px!important;cursor:pointer}.dbgToolbar button:hover{background:#30425d!important;border-color:#64748b!important}.dbgToolbar #dbgExport{border-color:#2563eb!important;background:#1d4ed8!important}.dbgToolbar #dbgClose{font-size:18px;padding:3px 9px!important}
-#dbgState{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:20px;background:#334155;color:#cbd5e1;font:600 11px system-ui,sans-serif;white-space:nowrap}#dbgState:before{content:"";width:6px;height:6px;border-radius:50%;background:#94a3b8}#debuggerSummary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;background:#0f1a2b;border-bottom:1px solid #243247;flex-shrink:0}#debuggerSummary>span:not(#dbgPageInfo){display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border:1px solid #2b3a50;border-radius:5px;background:#152237;color:#a9bad0;font:11px system-ui,sans-serif}#debuggerSummary b{color:#e2e8f0;font-variant-numeric:tabular-nums}#debuggerSummary #dbgErrorCount{color:#fca5a5}#dbgPageInfo{margin-left:auto;color:#8295ad;font:11px system-ui,sans-serif;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#debuggerControls{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#0b1423;flex-shrink:0}#debuggerControls label{color:#94a3b8;font-size:17px}#dbgSearch{flex:1;min-width:80px;max-width:480px;box-sizing:border-box;border:1px solid #334155;border-radius:6px;background:#111d2f;color:#e2e8f0;padding:7px 10px;outline:none;font:12px system-ui,sans-serif}#dbgSearch:focus{border-color:#3b82f6;box-shadow:0 0 0 2px #3b82f626}#debuggerControls>span{color:#64748b;font:11px system-ui,sans-serif}
-#debuggerTabs{display:flex;align-items:stretch;gap:4px;height:auto;min-height:38px;box-sizing:border-box;padding:5px 9px 0;background:#111b2c;border-bottom:1px solid #2b3a50;flex-shrink:0;overflow-x:auto}#debuggerTabs button{display:flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid transparent!important;border-bottom:0!important;border-radius:6px 6px 0 0!important;background:transparent!important;color:#9fb0c7!important;padding:7px 11px!important;font:12px system-ui,sans-serif;cursor:pointer}#debuggerTabs button:hover{background:#1e2c41!important;color:#e2e8f0!important}#debuggerTabs button.active{background:#1d2b40!important;color:#f8fafc!important;border-color:#334155!important;box-shadow:inset 0 2px #60a5fa}#debuggerTabs button small{font:10px ui-monospace,monospace;color:#7186a2}
-.dbgView{flex:1;min-height:0;height:auto;overflow:auto;padding:8px 12px;background:#0b1220;overscroll-behavior:contain}.dbgView[hidden]{display:none!important}.dbgView>em{display:block;padding:18px;color:#64748b;font:12px system-ui,sans-serif}.dbgRow{display:grid;grid-template-columns:82px minmax(0,1fr);gap:10px;padding:6px 7px;border-bottom:1px solid #ffffff0a;align-items:start}.dbgRow:hover{background:#172338}.dbgRow small{color:#7186a2;font-size:10px;padding-top:2px}.dbgMessage{min-width:0;overflow-wrap:anywhere;color:#d4deeb}.dbg-error{color:#fca5a5;background:#7f1d1d12}.dbg-warn{color:#fcd34d}.dbg-info{color:#93c5fd}.dbg-debug{color:#a5b4fc}.dbg-event{color:#86efac;background:#052e1b!important;border-left:3px solid #22c55e;padding-left:10px!important}.dbg-event .dbgMessage{color:#bbf7d0}.dbg-event small{color:#4ade80!important}.dbgRow details{margin-top:5px;color:#9fb0c7}.dbgRow summary{cursor:pointer;font:11px system-ui,sans-serif}.dbgRow pre{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;color:#cbd5e1;background:#111b2b;border:1px solid #26364b;border-radius:5px;padding:8px;margin:6px 0}.dbgKV{display:grid;grid-template-columns:minmax(140px,230px) minmax(0,1fr);gap:10px;padding:7px 8px;border-bottom:1px solid #ffffff10}.dbgKV b{color:#93c5fd;overflow-wrap:anywhere}.dbgKV b small{display:block;color:#64748b;font-weight:400;margin-top:2px}.dbgKV span{overflow-wrap:anywhere;color:#d2dbe8}
-@media(max-width:760px){#debuggerPanel{height:42vh;min-height:260px}#debuggerHead{align-items:flex-start;flex-direction:column;gap:7px}.dbgToolbar{justify-content:flex-start;width:100%}.dbgToolbar button{padding:5px 7px!important}#debuggerSummary{gap:5px}#dbgPageInfo{margin-left:0;max-width:100%;width:100%}#debuggerControls>span{display:none}.dbgRow{grid-template-columns:64px minmax(0,1fr)}.dbgKV{grid-template-columns:minmax(100px,38%) minmax(0,1fr)}}
-main:has(#debuggerPanel:not([hidden])){grid-template-rows:40px minmax(0,1fr) clamp(300px,38vh,470px)}
-@media(max-width:760px){main:has(#debuggerPanel:not([hidden])){grid-template-rows:40px minmax(0,1fr) 42vh}}
+main:has(#debuggerPanel:not([hidden])){grid-template-rows:40px minmax(0,1fr) var(--dbg-h,280px)}
+#debuggerPanel:not([hidden]){position:relative;grid-row:3;grid-column:1;left:auto;right:auto;bottom:auto;width:100%;height:auto;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+#debuggerPanel .dbgView{flex:1 1 0;min-height:0;height:auto}
+#debuggerPanel .dbgView[hidden],#dbgRepl[hidden],#dbgLevel[hidden]{display:none}
+#dbgResize{flex:none;height:6px;margin-top:-3px;cursor:ns-resize;background:transparent;position:relative;z-index:2}#dbgResize:hover{background:#3b82f666}
+#debuggerHead,#debuggerTabs{flex:none}
+#debuggerTabs{align-items:center;overflow-x:auto;white-space:nowrap}
+#debuggerTabs .dbgSpacer{flex:1}
+#debuggerTabs button.hasErr{color:#fca5a5;border-color:#7f1d1d}
+#debuggerTabs button span{background:#334155;border-radius:9px;padding:0 6px;margin-left:3px}
+#debuggerTabs button.hasErr span{background:#b91c1c;color:#fff}
+#dbgFilter,#dbgLevel,#dbgExpr{background:#0f172a;color:#e5e7eb;border:1px solid #475569;border-radius:4px;padding:3px 7px;font:inherit}
+#dbgFilter{width:150px}
+#dbgRepl{flex:none;display:flex;align-items:center;gap:6px;padding:4px 10px;background:#182235;border-top:1px solid #334155}#dbgRepl span{color:#60a5fa;font-weight:bold}#dbgExpr{flex:1;min-width:0}
+#dbgCopy.copied::after{content:" ✓";color:#4ade80}
+.dbgRow span{white-space:pre-wrap;word-break:break-word;min-width:0}
+.dbgRow small{flex:none}
+.dbgRow i{color:#94a3b8;font-style:normal}
+.dbgRow details{margin-top:3px}.dbgRow summary{cursor:pointer;color:#94a3b8}.dbgRow pre{margin:4px 0 0;white-space:pre-wrap;color:#cbd5e1;font:inherit;opacity:.85}
+.dbgGo{color:#7dd3fc;cursor:pointer;text-decoration:underline dotted}.dbgGo:hover{color:#bae6fd}
+.dbgKV input{background:#0f172a;color:#fde68a;border:1px solid #334155;border-radius:3px;padding:2px 6px;font:inherit;min-width:0;width:100%}
+.dbgKV.off{opacity:.55}.dbgKV i{color:#94a3b8;font-style:normal;margin-right:6px}
+.dbg-log{color:#dbeafe}
