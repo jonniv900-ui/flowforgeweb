@@ -162,7 +162,7 @@ main{overflow:hidden;display:grid;grid-template-rows:40px minmax(0,1fr)}
 .ffIntelItem{align-items:flex-start}.ffIntelItem small{white-space:normal;line-height:1.35}.ffIntelItem b{flex:0 0 135px}
 
 /* v0.6.5 - diálogo de salvamento */
-#saveProjectDlg,#exportHtmlDlg{width:min(760px,calc(100vw - 28px));max-height:calc(100dvh - 40px);overflow:auto}.saveGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}.assetField{display:flex;flex-direction:column;gap:5px}.assetPickerRow{display:flex;gap:6px}.assetPickerRow button{flex:1;min-width:0}.assetFileInfo{font-size:10px;color:#8f98a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:4px 2px}.assetField label{display:block}.saveGrid label{display:flex;flex-direction:column;gap:5px}.exportFileNameField{grid-column:1/-1}.saveGrid input{min-width:0;width:100%}.saveReview{margin:14px 0;padding:12px;border:1px solid #46505d;border-radius:7px;background:#20242a;line-height:1.6;overflow-wrap:anywhere}.saveActions{display:flex;justify-content:flex-end;gap:8px}@media(max-width:600px){.saveGrid{grid-template-columns:1fr}}
+#saveProjectDlg,#exportHtmlDlg,#androidDlg{width:min(760px,calc(100vw - 28px));max-height:calc(100dvh - 40px);overflow:auto}.saveGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}.assetField{display:flex;flex-direction:column;gap:5px}.assetPickerRow{display:flex;gap:6px}.assetPickerRow button{flex:1;min-width:0}.assetFileInfo{font-size:10px;color:#8f98a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:4px 2px}.assetField label{display:block}.saveGrid label{display:flex;flex-direction:column;gap:5px}.exportFileNameField{grid-column:1/-1}.saveGrid input{min-width:0;width:100%}.saveReview{margin:14px 0;padding:12px;border:1px solid #46505d;border-radius:7px;background:#20242a;line-height:1.6;overflow-wrap:anywhere}.saveActions{display:flex;justify-content:flex-end;gap:8px}@media(max-width:600px){.saveGrid{grid-template-columns:1fr}}
 
 /* v0.6.6 IntelliSense ancorado ao cursor */
 #ffIntellisense{bottom:auto}
@@ -433,3 +433,20 @@ main:has(#debuggerPanel:not([hidden])){grid-template-rows:40px minmax(0,1fr) var
 .dbgKV input{background:#0f172a;color:#fde68a;border:1px solid #334155;border-radius:3px;padding:2px 6px;font:inherit;min-width:0;width:100%}
 .dbgKV.off{opacity:.55}.dbgKV i{color:#94a3b8;font-style:normal;margin-right:6px}
 .dbg-log{color:#dbeafe}
+/* Empacotar para Android */
+.ffAndGrid .ffAndFormats{grid-column:1/-1;display:grid;gap:8px;border:0;margin:0;padding:0;min-width:0}
+.ffAndFmt{flex-direction:row!important;align-items:flex-start;gap:10px!important;padding:9px 11px;border:1px solid #46505d;border-radius:7px;background:#20242a;cursor:pointer}
+.ffAndFmt:has(input:checked){border-color:#2f81f7;background:#1d2a3d}
+.ffAndFmt input{width:auto!important;margin-top:3px}
+.ffAndFmt span{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ffAndFmt small{color:#9aa4b2;line-height:1.35}
+.ffAndFull{grid-column:1/-1;flex-direction:row!important;align-items:center}
+.ffAndFull input{width:auto!important}
+.ffAndInfo,.ffAndWarn,.ffAndStatus{grid-column:1/-1;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.ffAndInfo{padding:8px 10px;border:1px solid #46505d;border-radius:7px;background:#20242a;color:#c9d1d9}
+.ffAndInfo code{font-size:11px;color:#8fb4ff}
+.ffAndWarn{color:#e3b341}
+.ffAndStatus{min-height:18px;color:#7ee787}
+.ffAndErr{color:#ff7b72}
+#androidBtn{white-space:nowrap}
+

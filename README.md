@@ -625,3 +625,39 @@ Permissões do Preview/Debug:
 
 - Exemplos novos em `examples/`: **Cronometro_Voltas** (Iniciar/Pausar/Volta/Zerar, melhor e pior volta), **Controle_de_Gastos** (lançamentos por categoria, total e percentuais, salvos no navegador), **Foto_de_Perfil** (câmera + recorte quadrado + cartão em outra página, salvo no navegador) e **Laboratorio_do_Depurador** (botões que geram logs, avisos, erros, requisições e variáveis para explorar o Depurador).
 - Pasta `tools/` (opcional, só para desenvolvimento): testes automatizados em Python/Playwright e os geradores dos exemplos. Veja `tools/README.md`. Rodar tudo: `python tools/run_all.py`.
+
+## Exemplo Chess_Landing_Page funcional
+
+- O tabuleiro demonstrativo virou um **jogo de xadrez completo**: regras oficiais (roque, en passant, promoção com escolha da peça, xeque, xeque-mate, afogamento, material insuficiente, regra dos 50 lances e repetição tripla), destaque do último lance e das casas possíveis, notação algébrica em português (R, D, T, B, C), peças capturadas, desfazer, girar o tabuleiro e salvamento automático da partida no navegador.
+- Modos: contra o computador (fácil ou médio) ou dois jogadores.
+- O motor foi validado por *perft* em 5 posições de referência (inicial, Kiwipete, posições 3, 4 e 5); os cenários estão em `tools/test_exemplos.py`. O código do jogo fica em `tools/gerar_exemplos/xadrez.js` e é gerado por `exemplo_11.py`.
+- O conteúdo da landing page agora começa abaixo do cabeçalho/menu (antes o hero ficava por cima do cabeçalho).
+
+Xadrez: modo Computador x Computador e relógio analógico:
+
+- **Computador x Computador:** duas máquinas jogam sozinhas, com ritmo lento/normal/rápido, botão **Pausar/Continuar**, placar acumulado (brancas/empates/pretas) e opção de **nova partida automática** para um torneio contínuo. Há limite de 150 jogadas (empate).
+- **Relógio de xadrez analógico:** um mostrador para cada lado, com ponteiros de hora e minuto, ponteiro de segundos, bandeirinha que sobe no último minuto e cai quando o tempo acaba. Tempos: 1, 3+2, 5, 5+3, 10, 15+10 e 30 minutos, ou *Sem limite (cronômetro)*, em que os ponteiros contam o tempo gasto. O lado da vez fica com o aro verde; clique em um relógio para pausar/continuar. O relógio começa a correr após o primeiro lance, aplica o incremento a cada lance, e Desfazer devolve o tempo anterior. Tempo esgotado = derrota (ou empate se o adversário não tem material para dar mate).
+- Correção: a notação dos lances do computador mostrava desambiguação desnecessária (`Cb1c3`, `Ta1a8#`); agora aparece `Cc3`, `Ta8#`.
+- O exemplo passou a ter cabeçalho e rodapé próprios (o rodapé automático ficava por cima do relógio).
+
+Xadrez 3D com WebGL (`Xadrez_3D.flowmobile`):
+
+- Mesmo jogo, motor, relógios analógicos e modo Computador x Computador do exemplo de xadrez, mas com **tabuleiro e peças em 3D desenhados com WebGL puro** (sem Three.js, sem imagens). O renderizador é `tools/gerar_exemplos/xadrez3d.js` e se encaixa no motor `xadrez.js` trocando `ffChess.draw` e `ffChess.click`.
+- Peças torneadas (peão, torre, bispo, dama, rei) e cavalo extrudado; iluminação com brilho, sombras suaves, tabuleiro texturizado com coordenadas, destaque do último lance, da peça selecionada, dos destinos e do rei em xeque.
+- Câmera orbital: **arraste** para girar, **roda do mouse** para o zoom; o botão Girar vira o tabuleiro suavemente para o lado das pretas. Clique nas peças ou casas (seleção por raio, correta em qualquer ângulo).
+- Os lances são animados: a peça sobe e atravessa o tabuleiro, as capturas afundam, e o roque move rei e torre.
+- Sem WebGL no navegador, o exemplo volta sozinho ao desenho 2D. Gere de novo com `python tools/gerar_exemplos/exemplo_11.py && python tools/gerar_exemplos/exemplo_12.py`.
+
+## Empacotar para Android (APK)
+
+O FlowForge roda só no navegador e não consegue compilar um APK sozinho (isso exige o Android SDK). Por isso o botão **APK**, na barra superior, gera no próprio navegador um pacote `.zip` pronto para virar APK, em três formatos:
+
+- **Capacitor + build na nuvem:** projeto Capacitor com o app em `www/`, ícones, permissões, versão e orientação já configurados (`scripts/prepare-android.js`) e um workflow do GitHub Actions (`.github/workflows/build-apk.yml`) que compila o APK de teste sozinho. Inclui assinatura opcional (APK e AAB de release) por *secrets*. Também compila localmente com `npm install && npm run android:apk` (Node 22+, JDK 21 e Android SDK).
+- **PWA + PWABuilder:** `index.html` com manifest, `sw.js` (funciona offline) e ícones (192, 512, *maskable* e Apple). Publique em HTTPS e gere o APK/AAB em pwabuilder.com.
+- **Projeto Android Studio:** projeto nativo (Java) com um `WebView` que serve o app em `https://appassets.androidplatform.net`, para câmera, microfone e localização funcionarem como no navegador. Trata permissões em tempo de execução, envio de arquivos, botão voltar, links externos e tela cheia. Também traz o workflow do GitHub Actions.
+
+Opções do diálogo: nome do app, ID do pacote (validado), versão e código da versão, orientação, tela cheia. As **permissões** são deduzidas dos componentes do projeto (câmera → `CAMERA`, e `RECORD_AUDIO` se a câmera captura áudio; localização → `ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION`). O **ícone** vem do ícone do projeto (ou é gerado a partir do nome) e é convertido para todas as densidades, inclusive o ícone adaptativo. As opções ficam salvas no projeto (`project.android`). Cada pacote traz um `LEIA-ME.md` com o passo a passo.
+
+Arquivos: `js/ff-android-export.js` (diálogo, ícones e gerador de `.zip` sem bibliotecas), `js/ff-android-templates.js` (modelos de texto, **gerado**) e os modelos editáveis em `tools/android_templates/`; depois de editar um modelo rode `python tools/gerar_android_templates.py`. Teste: `python tools/test_android.py`.
+
+Importante: o FlowForge entrega o projeto, e o build do APK acontece no GitHub, no PWABuilder ou no Android Studio. A estrutura foi validada (XML, JSON, YAML, PNG, sintaxe do Java, `npx cap add android` + `prepare-android.js` + `cap sync`), mas a compilação final com o Android SDK não pôde ser executada no ambiente de desenvolvimento.

@@ -20,6 +20,33 @@
   const IDX={'pt-BR':0,en:1,es:2};
 
   const E=[
+    /* ---------- empacotar para Android ---------- */
+    ['Empacotar para Android','Package for Android','Empaquetar para Android'],
+    ['O FlowForge gera um pacote (.zip) pronto para virar APK. A compilação em si acontece no GitHub, no PWABuilder ou no Android Studio, conforme o formato escolhido.','FlowForge creates a package (.zip) ready to become an APK. The build itself happens on GitHub, in PWABuilder or in Android Studio, depending on the chosen format.','FlowForge genera un paquete (.zip) listo para convertirse en APK. La compilación ocurre en GitHub, en PWABuilder o en Android Studio, según el formato elegido.'],
+    ['Capacitor + build na nuvem','Capacitor + cloud build','Capacitor + compilación en la nube'],
+    ['Projeto Capacitor com um workflow do GitHub Actions que compila o APK sozinho. Não precisa instalar nada.','Capacitor project with a GitHub Actions workflow that builds the APK by itself. Nothing to install.','Proyecto Capacitor con un workflow de GitHub Actions que compila el APK solo. No hay que instalar nada.'],
+    ['PWA + PWABuilder','PWA + PWABuilder','PWA + PWABuilder'],
+    ['App web instalável (manifest, service worker, ícones). Gere o APK/AAB no pwabuilder.com. Precisa de hospedagem HTTPS.','Installable web app (manifest, service worker, icons). Create the APK/AAB at pwabuilder.com. Needs HTTPS hosting.','App web instalable (manifest, service worker, iconos). Genera el APK/AAB en pwabuilder.com. Requiere hosting HTTPS.'],
+    ['Projeto Android Studio','Android Studio project','Proyecto Android Studio'],
+    ['Projeto Android nativo (WebView) para abrir no Android Studio e compilar no seu computador.','Native Android project (WebView) to open in Android Studio and build on your computer.','Proyecto Android nativo (WebView) para abrir en Android Studio y compilar en tu computadora.'],
+    ['Nome do app','App name','Nombre de la app'],
+    ['Versão','Version','Versión'],
+    ['ID do pacote','Package ID','ID del paquete'],
+    ['Código da versão','Version code','Código de versión'],
+    ['Orientação','Orientation','Orientación'],
+    ['Automática','Automatic','Automática'],
+    ['Retrato','Portrait','Vertical'],
+    ['Paisagem','Landscape','Horizontal'],
+    ['Tela cheia (oculta as barras do sistema)','Fullscreen (hides the system bars)','Pantalla completa (oculta las barras del sistema)'],
+    ['Gerar pacote (.zip)','Create package (.zip)','Generar paquete (.zip)'],
+    ['Permissões','Permissions','Permisos'],
+    ['ícone do projeto','project icon','icono del proyecto'],
+    ['gerado automaticamente a partir do nome','generated automatically from the name','generado automáticamente a partir del nombre'],
+    ['Gerando o pacote…','Creating the package…','Generando el paquete…'],
+    ['Pacote gerado:','Package created:','Paquete generado:'],
+    ['Este projeto usa um framework CSS carregado por CDN: o app precisa de internet.','This project uses a CSS framework loaded from a CDN: the app needs internet access.','Este proyecto usa un framework CSS cargado por CDN: la app necesita internet.'],
+    ['Use letras minúsculas, números e pontos, por exemplo com.empresa.app','Use lowercase letters, numbers and dots, for example com.company.app','Usa minúsculas, números y puntos, por ejemplo com.empresa.app'],
+    ['Empacotar o app como APK (Android)','Package the app as an APK (Android)','Empaquetar la app como APK (Android)'],
     /* ---------- generic ---------- */
     ['Nome','Name','Nombre'],['Texto','Text','Texto'],['Largura','Width','Ancho'],['Altura','Height','Alto'],
     ['Fundo','Background','Fondo'],['Cor','Color','Color'],['Visível','Visible','Visible'],['Habilitado','Enabled','Habilitado'],

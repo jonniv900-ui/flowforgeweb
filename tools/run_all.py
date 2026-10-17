@@ -1,10 +1,10 @@
-"""Roda tudo: suítes HTML, exemplos, câmera, permissões e depurador.   Uso: python tools/run_all.py"""
+"""Roda tudo: suítes HTML, exemplos, câmera, permissões, depurador e empacotamento Android.   Uso: python tools/run_all.py"""
 import subprocess, sys
 from pathlib import Path
 here = Path(__file__).resolve().parent
 steps = [("Suítes HTML", ["run_suites.py"]), ("Exportar exemplos", ["export_examples.py"]),
          ("Cenários dos exemplos", ["test_exemplos.py"]), ("Câmera (Estúdio de Câmera)", ["test_camera.py"]),
-         ("Permissão de câmera", ["test_permissoes.py"]), ("Depurador", ["test_depurador.py"])]
+         ("Permissão de câmera", ["test_permissoes.py"]), ("Depurador", ["test_depurador.py"]), ("Empacotar para Android", ["test_android.py"])]
 fail = []
 for title, cmd in steps:
     print(f"\n=== {title} ==="); sys.stdout.flush()

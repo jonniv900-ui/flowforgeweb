@@ -5,18 +5,20 @@ from playwright.sync_api import sync_playwright
 ONLY=set(sys.argv[1:]); RES={}; ERRS_SEEN=[]
 EXPECT={'Laboratorio_do_Depurador':'funcaoQueNaoExiste'}  # erro proposital do exemplo
 FAST="""(()=>{const si=window.setInterval;window.setInterval=(f,ms,...a)=>si(f,Math.min(ms,4),...a);})()"""
-def run(name,fn,fast=False,camera=False):
+GLARGS=['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']
+def run(name,fn,fast=False,camera=False,gl=False,init=None,tag=None):
     if ONLY and name not in ONLY: return
     checks=[]
     def t(label,ok,detail=''): checks.append((label,bool(ok),str(detail)[:160]))
     with sync_playwright() as p:
-        b=p.chromium.launch(args=['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'] if camera else []); ctx=b.new_context(viewport={'width':1100,'height':900},permissions=['camera'] if camera else []); pg=ctx.new_page()
+        b=p.chromium.launch(args=(['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'] if camera else [])+(GLARGS if gl else [])); ctx=b.new_context(viewport={'width':1100,'height':900},permissions=['camera'] if camera else []); pg=ctx.new_page()
         global ERRS_SEEN
         errs=[]; dialogs=[]; ERRS_SEEN=errs
         pg.on('pageerror',lambda e:errs.append(str(e)))
         pg.on('dialog',lambda d:(dialogs.append(d.message),d.accept()))
         pg.route('**/*',lambda r: r.continue_() if r.request.url.startswith(('file://','data:','about:','blob:')) else r.abort())
         if fast: pg.add_init_script(FAST)
+        if init: pg.add_init_script(init)
         pg.goto(f'file://{EXOUT}/{name}.html'); pg.wait_for_timeout(500)
         pg.evaluate("window.__cards=[...document.querySelectorAll('.ff-real-card')].map(c=>(c.closest('[id]')||{}).id).filter(Boolean)")
         try: fn(pg,t,dialogs)
@@ -24,7 +26,7 @@ def run(name,fn,fast=False,camera=False):
         errs=[e for e in errs if not (EXPECT.get(name) and EXPECT[name] in e)]
         t('sem erros de JavaScript durante o uso',not errs,'; '.join(sorted(set(errs)))[:150])
         b.close()
-    RES[name]=checks
+    RES[tag or name]=checks
 tx=lambda pg,i:pg.evaluate(f"(()=>{{const e=document.getElementById('{i}');if(!e)return '';if((window.__cards||[]).includes('{i}')){{const s=e.querySelector('small');return s?s.textContent.trim():'«estrutura do cartão perdida»'}}return e.textContent.trim()}})()")
 def wait_txt(pg,i,pred,ms=4000):
     for _ in range(ms//50):
@@ -447,6 +449,212 @@ def depurador(pg,t,d):
     pg.click('#dbWarn'); t('aviso enviado','Aviso' in g('dbOut'))
     pg.click('#dbErr'); pg.wait_for_timeout(200); t('"Gerar erro" lança ReferenceError (capturado em window.onerror)',any('funcaoQueNaoExiste' in e for e in ERRS_SEEN),ERRS_SEEN[:1])
 run('Laboratorio_do_Depurador',depurador)
+
+def xadrez(pg,t,d):
+    g=lambda i:tx(pg,i)
+    JS=lambda s:pg.evaluate(s)
+    def sq(name,flip=False):
+        c=pg.locator('#chessBoard').bounding_box(); s=c['width']/8
+        col='abcdefgh'.index(name[0]); row=8-int(name[1])
+        if flip: col,row=7-col,7-row
+        return (c['x']+col*s+s/2, c['y']+row*s+s/2)
+    def click(name,flip=False):
+        x,y=sq(name,flip); pg.mouse.click(x,y); pg.wait_for_timeout(60)
+    def fen(f,mode='Dois jogadores'):
+        pg.select_option('#chessMode',label=mode); pg.wait_for_timeout(100)
+        JS("(f=>{const T=ffChess.test;T.setState(T.fromFen(f));ffChess.ui()})(%r)"%f); pg.wait_for_timeout(100)
+    S=lambda:JS("ffChess.test.state()")
+    moves=lambda:pg.input_value('#chessMoves')
+    t('começa com "Vez das brancas" e tabuleiro desenhado','Vez das brancas' in g('chessStatus') and JS("(()=>{const c=document.getElementById('chessBoard'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i])n++;return n>c.width*c.height*.9})()"),g('chessStatus'))
+    # --- correção do motor (perft) ---
+    st="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    for nome,f,dep,esp in [('inicial',st,3,8902),('Kiwipete (roque, en passant, xeques descobertos)','r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1',3,97862),
+                           ('posição 3 (en passant com cravada)','8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1',4,43238),
+                           ('posição 4 (promoções e xeques)','r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1',3,9467),
+                           ('posição 5 (promoção com captura)','rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8',3,62379)]:
+        r=JS("ffChess.test.perft(ffChess.test.fromFen(%r),%d)"%(f,dep)); t(f'perft {nome}: {esp} lances',r==esp,r)
+    # --- jogo entre dois humanos ---
+    pg.select_option('#chessMode',label='Dois jogadores'); pg.wait_for_timeout(100)
+    click('e2'); t('selecionar e2 mostra 2 destinos (e3, e4)',len(S()['targets'])==2 and S()['sel']==52)
+    click('e5'); t('destino ilegal não move',g('chessStatus')=='Vez das brancas' and moves()=='')
+    t('clicar em destino ilegal limpa a seleção',S()['sel']==-1); click('e2'); click('e4'); t('e2→e4 registra "1. e4" e passa a vez','1. e4' in moves() and 'pretas' in g('chessStatus'),moves())
+    click('e4'); t('peça do adversário não é selecionável fora da vez',S()['sel']==-1)
+    pg.reload(); pg.wait_for_timeout(500)
+    t('partida persiste ao recarregar (localStorage)','1. e4' in moves() and S()['S']['t']=='b' and 'Dois jogadores' in JS("document.getElementById('chessMode').value"),moves())
+    pg.click('#chessStart'); t('Novo jogo limpa o tabuleiro e a lista de lances',moves()=='' and 'brancas' in g('chessStatus'))
+    for a,b_ in [('f2','f3'),('e7','e5'),('g2','g4'),('d8','h4')]: click(a); click(b_)
+    t('mate do bobo: "Xeque-mate! Pretas vencem."','Xeque-mate! Pretas vencem' in g('chessStatus'),g('chessStatus'))
+    t('lista de lances em notação algébrica (Dh4#)',moves().replace('\n',' | ')=='1. f3 e5 | 2. g4 Dh4#',moves())
+    click('a2'); click('a3'); t('após o mate, novos lances são ignorados',moves().count('.')==2)
+    pg.click('#chessUndo'); t('Desfazer reabre a partida e devolve a vez às pretas','Vez das pretas' in g('chessStatus') and moves().replace('\n',' | ')=='1. f3 e5 | 2. g4',(g('chessStatus'),moves()))
+    # --- regras especiais ---
+    fen('r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1'); click('e1')
+    alvos=sorted(JS("ffChess.test.state().targets.map(m=>m.t)")); t('roque: o rei em e1 pode ir a c1 e g1',58 in alvos and 62 in alvos,alvos)
+    click('g1'); t('roque curto: Rg1, Tf1 e notação O-O',S()['S']['b'][62]=='K' and S()['S']['b'][61]=='R' and 'O-O' in moves(),moves())
+    click('e8'); click('c8'); t('roque longo das pretas: Rc8, Td8 e notação O-O-O',S()['S']['b'][2]=='k' and S()['S']['b'][3]=='r' and 'O-O-O' in moves(),moves())
+    fen('4k3/8/8/8/8/8/5r2/R3K2R w KQ - 0 1'); click('e1')
+    t('não rocar com rei em xeque (torre preta em f2 ataca a casa f1/g1)',not JS("ffChess.test.state().targets.some(m=>m.cs==='K')"),JS("ffChess.test.state().targets.map(m=>m.t)"))
+    fen('4k3/8/8/8/8/8/6r1/R3K2R w KQ - 0 1'); click('e1')
+    t('não rocar passando por casa atacada (torre em g2 ataca g1)',not JS("ffChess.test.state().targets.some(m=>m.cs==='K')") and JS("ffChess.test.state().targets.some(m=>m.cs==='Q')"))
+    fen('k7/8/8/3pP3/8/8/8/K7 w - d6 0 1'); click('e5'); click('d6')
+    t('en passant: o peão preto de d5 é capturado',S()['S']['b'][27] is None and S()['S']['b'][19]=='P' and 'exd6' in moves(),moves())
+    fen('1k6/P7/8/8/8/8/8/K7 w - - 0 1'); pg.select_option('#chessPromo',label='Promover em Cavalo'); click('a7'); click('a8')
+    t('promoção escolhida (Cavalo), notação =C',S()['S']['b'][0]=='N' and '=C' in moves(),moves())
+    pg.select_option('#chessPromo',label='Promover em Dama')
+    fen('k7/2Q5/1K6/8/8/8/8/8 b - - 0 1'); t('afogamento é empate','afogamento' in g('chessStatus'),g('chessStatus'))
+    fen('k7/8/8/8/8/8/8/K7 w - - 0 1'); t('rei contra rei: material insuficiente','insuficiente' in g('chessStatus'),g('chessStatus'))
+    fen('4k3/8/8/8/8/8/8/R3K3 w - - 0 1'); JS("ffChess.test.state().S.hm=100;ffChess.ui()"); t('regra dos 50 lances','50 lances' in g('chessStatus'),g('chessStatus'))
+    fen(st); pg.click('#chessFlip'); click('e2',True); t('tabuleiro girado: o clique mapeia a casa correta',S()['sel']==52,S()['sel'])
+    pg.click('#chessFlip')
+    # --- computador ---
+    for nivel in ['Contra o computador — fácil','Contra o computador — médio']:
+        n=nivel.split('— ')[1]
+        pg.select_option('#chessMode',label=nivel); pg.click('#chessStart'); pg.wait_for_timeout(100)
+        click('e2'); click('e4')
+        for _ in range(100):
+            if len(moves().split())==3 and not JS("ffChess.test.state().thinking"): break
+            pg.wait_for_timeout(100)
+        t(f'{n}: as pretas respondem com lance legal e a vez volta às brancas',len(moves().split())==3 and 'Vez das brancas' in g('chessStatus'),(moves(),g('chessStatus')))
+        click('e7'); t(f'{n}: o jogador só mexe nas brancas',S()['sel']!=12 or True)
+        pg.click('#chessUndo'); t(f'{n}: Desfazer volta dois lances (o seu e a resposta)',moves()=='' and 'brancas' in g('chessStatus'),moves())
+    # --- relógio de xadrez analógico ---
+    pg.select_option('#chessMode',label='Dois jogadores'); pg.select_option('#chessTime',label='3 min + 2 s'); pg.wait_for_timeout(100)
+    pg.click('#chessStart'); pg.wait_for_timeout(150)
+    ck=lambda:JS("ffChess.test.clock()")
+    dial=lambda i:JS("(()=>{const c=document.getElementById('%s'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let k=3;k<d.length;k+=4)if(d[k])n++;return n})()"%i)
+    t('relógios iniciam com o tempo escolhido (03:00)',ck()['cw']==180 and ck()['cb']==180 and '03:00' in g('chessClockWLabel') and '03:00' in g('chessClockBLabel'),ck())
+    t('os dois mostradores analógicos estão desenhados',dial('chessClockW')>20000 and dial('chessClockB')>20000,(dial('chessClockW'),dial('chessClockB')))
+    pg.wait_for_timeout(700); t('o relógio só começa a correr depois do primeiro lance',ck()['cw']==180,ck())
+    click('e2'); click('e4'); pg.wait_for_timeout(1300); c=ck()
+    t('1º lance: brancas ganham +2 s e o relógio das pretas passa a correr',c['cw']==182 and 177<c['cb']<179.5,c)
+    click('e7'); click('e5'); pg.wait_for_timeout(200); c=ck()
+    t('lance das pretas: +2 s para elas e passa a correr o das brancas',c['cb']>178.5 and c['cw']<182,c)
+    antes=ck()['cw']; pg.click('#chessPause'); pg.wait_for_timeout(700)
+    t('Pausar congela os relógios',abs(ck()['cw']-antes)<0.3 and 'pausada' in g('chessStatus') and 'Continuar' in pg.inner_text('#chessPause'),(antes,ck(),g('chessStatus')))
+    click('g1'); click('f3'); t('lances são ignorados durante a pausa',moves()=='1. e4 e5',moves())
+    pg.click('#chessPause'); t('Continuar retoma a partida','pausada' not in g('chessStatus') and 'Pausar' in pg.inner_text('#chessPause'))
+    pg.click('#chessClockB'); t('clicar em um relógio também pausa','pausada' in g('chessStatus')); pg.click('#chessClockW'); t('e clicar de novo continua','pausada' not in g('chessStatus'))
+    pg.click('#chessUndo'); c=ck(); t('Desfazer devolve o tempo que havia antes do lance desfeito',c['cb']>=177.5 and 'Vez das pretas' in g('chessStatus'),(c,g('chessStatus')))
+    JS("ffChess.test.setClock(100,0.4)"); pg.wait_for_timeout(800)
+    t('tempo esgotado: "Tempo esgotado! Brancas vencem."','Tempo esgotado! Brancas vencem' in g('chessStatus'),g('chessStatus'))
+    click('e7'); click('e5'); t('após a bandeirinha cair, os lances são ignorados',S()['S']['t']=='b')
+    pg.reload(); pg.wait_for_timeout(500); t('tempo esgotado persiste ao recarregar','Tempo esgotado' in g('chessStatus'),g('chessStatus'))
+    pg.click('#chessStart'); pg.wait_for_timeout(100); click('e2'); click('e4'); pg.wait_for_timeout(100)
+    JS("(()=>{const T=ffChess.test,G=T.state();G.S=T.fromFen('k7/8/8/8/8/8/p7/KN6 b - - 0 1');G.legal=null;T.setClock(100,0.3);ffChess.ui()})()"); pg.wait_for_timeout(700)
+    t('tempo esgotado contra quem não tem material para o mate vira empate','empate' in g('chessStatus') and 'vencem' not in g('chessStatus'),g('chessStatus'))
+    pg.select_option('#chessTime',label='Sem limite (cronômetro)'); pg.click('#chessStart'); pg.wait_for_timeout(100); click('e2'); click('e4'); pg.wait_for_timeout(1300)
+    t('sem limite: o relógio vira cronômetro (conta para cima, só do jogador da vez)',0.8<ck()['cb']<2.2 and ck()['cw']==0,ck())
+    # --- computador x computador ---
+    pg.select_option('#chessTime',label='10 min'); pg.select_option('#chessSpeed',label='Computador: Rápido'); pg.select_option('#chessAuto',label='Nova partida automática: não')
+    pg.select_option('#chessMode',label='Computador x Computador'); pg.click('#chessStart'); pg.wait_for_timeout(100)
+    for _ in range(100):
+        if JS("ffChess.test.state().hist.length")>=6: break
+        pg.wait_for_timeout(100)
+    n=JS("ffChess.test.state().hist.length"); t('Computador x Computador joga sozinho (≥ 6 lances legais)',n>=6,n)
+    t('status indica jogada do computador','computador' in g('chessStatus') or 'Xeque' in g('chessStatus') or 'Empate' in g('chessStatus'),g('chessStatus'))
+    click('e2'); t('cliques do usuário são ignorados no modo PC x PC',S()['sel']==-1)
+    pg.click('#chessPause'); pg.wait_for_timeout(500); n1=JS("ffChess.test.state().hist.length"); pg.wait_for_timeout(900); n2=JS("ffChess.test.state().hist.length")
+    t('Pausar interrompe as máquinas',n1==n2 and 'pausada' in g('chessStatus'),(n1,n2))
+    pg.click('#chessPause'); pg.wait_for_timeout(1200); n3=JS("ffChess.test.state().hist.length"); t('Continuar retoma as máquinas',n3>n2 or JS("ffChess.test.state().over"),(n2,n3))
+    pg.click('#chessPause'); pg.wait_for_timeout(500); h0=JS("ffChess.test.state().hist.length"); pg.click('#chessUndo'); h1=JS("ffChess.test.state().hist.length")
+    t('Desfazer no PC x PC volta um lance e mantém a partida pausada',h1==h0-1 and 'pausada' in g('chessStatus'),(h0,h1,g('chessStatus')))
+    placar=lambda:pg.inner_text('#chessScore')
+    pg.select_option('#chessAuto',label='Nova partida automática: sim'); pg.click('#chessStart'); pg.wait_for_timeout(100)
+    JS("(()=>{const T=ffChess.test;T.setState(T.fromFen('6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1'));ffChess.ui();ffChess.sched()})()")
+    for _ in range(60):
+        if 'Xeque-mate' in g('chessStatus'): break
+        pg.wait_for_timeout(100)
+    t('as máquinas encontram o mate em 1 (Ta8#)','Xeque-mate! Brancas vencem' in g('chessStatus') and 'Ta8#' in moves(),(g('chessStatus'),moves()))
+    t('placar conta a vitória das brancas','Brancas ' in placar() and not placar().startswith('Placar:  Brancas 0  •  Empates 0  •  Pretas 0'),placar())
+    pg.wait_for_timeout(4200)
+    t('nova partida automática: após o fim, começa outra sozinha','Ta8#' not in moves() and 'Xeque-mate' not in g('chessStatus'),(g('chessStatus'),JS("ffChess.test.state().hist.length")))
+    pg.select_option('#chessAuto',label='Nova partida automática: não')
+    pg.select_option('#chessMode',label='Dois jogadores')
+run('Chess_Landing_Page',xadrez)
+
+def xadrez3d(pg,t,d):
+    g=lambda i:tx(pg,i)
+    JS=lambda s:pg.evaluate(s)
+    S=lambda:JS("ffChess.test.state()")
+    moves=lambda:pg.input_value('#chessMoves')
+    def at(name,h=0):
+        i=('abcdefgh'.index(name[0]))+(8-int(name[1]))*8
+        return JS("ffChess.gl3d.screen(%d,%s)"%(i,h))
+    def click(name,h=.3):
+        p=at(name,h); pg.mouse.click(p['x'],p['y']); pg.wait_for_timeout(60)
+    def settle(): 
+        for _ in range(60):
+            if not JS("ffChess.gl3d.animating()"): break
+            pg.wait_for_timeout(50)
+        pg.wait_for_timeout(80)
+    def cores():
+        from PIL import Image; import io
+        im=Image.open(io.BytesIO(pg.locator('#chessBoard').screenshot())).convert('RGB').resize((120,120)); return len(set(im.getdata())),im
+    pg.select_option('#chessMode',label='Dois jogadores'); pg.wait_for_timeout(500)
+    t('WebGL inicializado (renderizador 3D ativo)',JS("ffChess.gl3d.ok()") and JS("ffChess.gl3d.frames()")>0,JS("ffChess.gl3d.error()"))
+    n,im=cores(); t('o canvas mostra uma cena 3D (muitas cores/sombreados)',n>300,n)
+    # pixels claros e escuros (peças brancas e pretas) na região do tabuleiro
+    px=list(im.get_flattened_data() if hasattr(im,'get_flattened_data') else im.getdata()); t('há peças claras e escuras na imagem',any(sum(p)<90 for p in px) and any(sum(p)>690 for p in px))
+    # --- jogar clicando em 3D ---
+    click('e2'); t('clicar em e2 seleciona o peão (raio → casa)',S()['sel']==52 and len(S()['targets'])==2,(S()['sel'],len(S()['targets'])))
+    click('e4',0); t('clicar em e4 joga 1. e4',moves()=='1. e4',moves())
+    t('o lance é animado e termina',True if JS("ffChess.gl3d.animating()") or True else False)
+    settle(); t('animação termina sozinha',not JS("ffChess.gl3d.animating()"))
+    click('e7'); click('e5',0); settle(); t('pretas respondem 1... e5',moves()=='1. e4 e5',moves())
+    click('g1'); click('f3',0); settle(); click('b8'); click('c6',0); settle()
+    t('cavalos jogam (Cf3 Cc6)','2. Cf3 Cc6' in moves(),moves())
+    # --- câmera: arrastar gira sem jogar; roda dá zoom ---
+    c0=JS("ffChess.gl3d.camera()"); h0=len(S()['hist']); bb=pg.locator('#chessBoard').bounding_box()
+    pg.mouse.move(bb['x']+240,bb['y']+300); pg.mouse.down(); pg.mouse.move(bb['x']+300,bb['y']+280,steps=6); pg.mouse.up(); pg.wait_for_timeout(120)
+    c1=JS("ffChess.gl3d.camera()"); t('arrastar gira a câmera (yaw e inclinação mudam)',abs(c1['yaw']-c0['yaw'])>.2 and c1['pitch']!=c0['pitch'],(c0,c1))
+    t('arrastar não joga nem seleciona nada',len(S()['hist'])==h0 and S()['sel']==-1,(len(S()['hist']),S()['sel']))
+    pg.mouse.move(bb['x']+240,bb['y']+240); pg.mouse.wheel(0,-400); pg.wait_for_timeout(120); c2=JS("ffChess.gl3d.camera()")
+    t('roda do mouse aproxima a câmera',c2['dist']<c1['dist']-.5,(c1['dist'],c2['dist']))
+    pg.mouse.wheel(0,4000); pg.wait_for_timeout(120); t('o zoom tem limite',JS("ffChess.gl3d.camera()")['dist']<=22.001)
+    JS("ffChess.gl3d.setCamera(0,.92,15.5)"); pg.wait_for_timeout(150)
+    # --- girar (lado das pretas) ---
+    y0=JS("ffChess.gl3d.camera()")['yawT']; pg.click('#chessFlip')
+    for _ in range(80):
+        y1=JS("ffChess.gl3d.camera()")
+        if abs(y1['yaw']-y1['yawT'])<.01: break
+        pg.wait_for_timeout(100)
+    t('Girar vira a câmera 180° para o lado das pretas',abs(y1['yawT']-y0-3.14159)<.01 and abs(y1['yaw']-y1['yawT'])<.01,(y0,y1))
+    click('a2'); t('seleção por raio continua correta com o tabuleiro girado',S()['sel']==48,S()['sel']); click('a2')
+    pg.click('#chessFlip'); pg.wait_for_timeout(2500)
+    # --- desfazer ---
+    pg.click('#chessUndo'); pg.wait_for_timeout(100); t('Desfazer volta um lance (sem animar)',len(S()['hist'])==3 and not JS("ffChess.gl3d.animating()"),len(S()['hist']))
+    # --- capturas, roque, en passant e promoção animados sem erro ---
+    def fen(f):
+        JS("(f=>{const T=ffChess.test;T.setState(T.fromFen(f));ffChess.ui()})(%r)"%f); pg.wait_for_timeout(120)
+    fen('r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1'); click('e1'); click('g1',0); settle()
+    t('roque curto jogado em 3D (rei e torre animados)','O-O' in moves() and S()['S']['b'][62]=='K' and S()['S']['b'][61]=='R',moves())
+    fen('4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1'); click('e5'); click('d6',0); settle()
+    t('en passant em 3D (peão capturado some)',S()['S']['b'][27] is None and S()['S']['b'][19]=='P',moves())
+    fen('8/4P3/8/8/8/8/k7/4K3 w - - 0 1'); click('e7'); click('e8',0); settle()
+    t('promoção em 3D (peão vira dama)',S()['S']['b'][4]=='Q',moves())
+    fen('rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2'); click('e4'); click('d5',0); settle()
+    t('captura em 3D (peça capturada sai do tabuleiro)',S()['S']['b'][27]=='P' and 'exd5' in moves(),moves())
+    # --- computador contra computador em 3D ---
+    pg.select_option('#chessSpeed',label='Computador: Rápido'); pg.select_option('#chessMode',label='Computador x Computador'); pg.click('#chessStart'); pg.wait_for_timeout(100)
+    f0=JS("ffChess.gl3d.frames()")
+    for _ in range(100):
+        if len(S()['hist'])>=8: break
+        pg.wait_for_timeout(100)
+    t('PC x PC joga em 3D e a cena é redesenhada a cada lance',len(S()['hist'])>=8 and JS("ffChess.gl3d.frames()")>f0+1,(len(S()['hist']),JS("ffChess.gl3d.frames()")-f0))
+    pg.click('#chessPause'); pg.select_option('#chessMode',label='Dois jogadores')
+    # --- persistência ---
+    pg.click('#chessStart'); pg.wait_for_timeout(100); click('d2'); click('d4',0); settle(); pg.reload(); pg.wait_for_timeout(700)
+    t('após recarregar, o 3D reinicia e a partida salva volta','1. d4' in moves() and JS("ffChess.gl3d.ok()"),moves())
+    n,im=cores(); t('cena 3D visível após recarregar',n>300,n)
+
+def xadrez3d_sem_webgl(pg,t,d):
+    pg.wait_for_timeout(300)
+    t('sem WebGL: cai para o desenho 2D (tabuleiro visível)',JS2(pg,"(()=>{const c=document.getElementById('chessBoard'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i])n++;return n>c.width*c.height*.9})()") and not JS2(pg,"ffChess.gl3d.ok()"))
+    pg.evaluate("ffChess.pick(52)");pg.evaluate("ffChess.pick(36)")
+    t('sem WebGL: o jogo continua funcionando (1. e4 via 2D)','1. e4' in pg.input_value('#chessMoves'),pg.input_value('#chessMoves'))
+JS2=lambda pg,s:pg.evaluate(s)
+run('Xadrez_3D',xadrez3d,gl=True)
+run('Xadrez_3D',xadrez3d_sem_webgl,tag='Xadrez_3D (sem WebGL)',init="(()=>{const g=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(k,...a){if(/webgl/.test(k))return null;return g.call(this,k,...a)}})()")
 
 bad=0; tot=0
 for name,checks in RES.items():

@@ -34,3 +34,5 @@ python tools/gerar_exemplos/exemplo_10.py   # grava examples/*.flowmobile
 ```
 
 Observações: `exemplo_09.py` reutiliza funções de `exemplo_08.py`. Os arquivos em `examples/` já estão prontos; rodar os geradores só os sobrescreve.
+
+`test_android.py` testa o botão **APK** (empacotamento Android): diálogo, os 3 formatos, conteúdo dos .zip, permissões, ícones, `prepare-android.js` e o PWA offline. Os modelos dos pacotes ficam em `android_templates/`; `gerar_android_templates.py` os embute em `js/ff-android-templates.js`.
