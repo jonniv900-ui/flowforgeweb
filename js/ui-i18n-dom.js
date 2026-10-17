@@ -29,6 +29,7 @@
     ['App web instalável (manifest, service worker, ícones). Gere o APK/AAB no pwabuilder.com. Precisa de hospedagem HTTPS.','Installable web app (manifest, service worker, icons). Create the APK/AAB at pwabuilder.com. Needs HTTPS hosting.','App web instalable (manifest, service worker, iconos). Genera el APK/AAB en pwabuilder.com. Requiere hosting HTTPS.'],
     ['Projeto Android Studio','Android Studio project','Proyecto Android Studio'],
     ['Projeto Android nativo (WebView) para abrir no Android Studio e compilar no seu computador.','Native Android project (WebView) to open in Android Studio and build on your computer.','Proyecto Android nativo (WebView) para abrir en Android Studio y compilar en tu computadora.'],
+    ['Exportar','Export','Exportar'],
     ['Nome do app','App name','Nombre de la app'],
     ['Versão','Version','Versión'],
     ['ID do pacote','Package ID','ID del paquete'],

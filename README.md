@@ -650,13 +650,13 @@ Xadrez 3D com WebGL (`Xadrez_3D.flowmobile`):
 
 ## Empacotar para Android (APK)
 
-O FlowForge roda só no navegador e não consegue compilar um APK sozinho (isso exige o Android SDK). Por isso o botão **APK**, na barra superior, gera no próprio navegador um pacote `.zip` pronto para virar APK, em três formatos:
+O FlowForge roda só no navegador e não consegue compilar um APK sozinho (isso exige o Android SDK). Por isso o menu **Exportar → Android (APK)** (o antigo botão Exportar HTML virou o menu **Exportar**, com os itens *Exportar HTML* e *Android (APK)*) gera no próprio navegador um pacote `.zip` pronto para virar APK, em três formatos:
 
 - **Capacitor + build na nuvem:** projeto Capacitor com o app em `www/`, ícones, permissões, versão e orientação já configurados (`scripts/prepare-android.js`) e um workflow do GitHub Actions (`.github/workflows/build-apk.yml`) que compila o APK de teste sozinho. Inclui assinatura opcional (APK e AAB de release) por *secrets*. Também compila localmente com `npm install && npm run android:apk` (Node 22+, JDK 21 e Android SDK).
 - **PWA + PWABuilder:** `index.html` com manifest, `sw.js` (funciona offline) e ícones (192, 512, *maskable* e Apple). Publique em HTTPS e gere o APK/AAB em pwabuilder.com.
 - **Projeto Android Studio:** projeto nativo (Java) com um `WebView` que serve o app em `https://appassets.androidplatform.net`, para câmera, microfone e localização funcionarem como no navegador. Trata permissões em tempo de execução, envio de arquivos, botão voltar, links externos e tela cheia. Também traz o workflow do GitHub Actions.
 
-Opções do diálogo: nome do app, ID do pacote (validado), versão e código da versão, orientação, tela cheia. As **permissões** são deduzidas dos componentes do projeto (câmera → `CAMERA`, e `RECORD_AUDIO` se a câmera captura áudio; localização → `ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION`). O **ícone** vem do ícone do projeto (ou é gerado a partir do nome) e é convertido para todas as densidades, inclusive o ícone adaptativo. As opções ficam salvas no projeto (`project.android`). Cada pacote traz um `LEIA-ME.md` com o passo a passo.
+O item *Android (APK)* só aparece em projetos do tipo **App mobile**; em Site e Landing Page o botão Exportar abre direto a exportação de HTML. Opções do diálogo: nome do app, ID do pacote (validado), versão e código da versão, orientação, tela cheia. As **permissões** são deduzidas dos componentes do projeto (câmera → `CAMERA`, e `RECORD_AUDIO` se a câmera captura áudio; localização → `ACCESS_FINE_LOCATION`/`ACCESS_COARSE_LOCATION`). O **ícone** vem do ícone do projeto (ou é gerado a partir do nome) e é convertido para todas as densidades, inclusive o ícone adaptativo. As opções ficam salvas no projeto (`project.android`). Cada pacote traz um `LEIA-ME.md` com o passo a passo.
 
 Arquivos: `js/ff-android-export.js` (diálogo, ícones e gerador de `.zip` sem bibliotecas), `js/ff-android-templates.js` (modelos de texto, **gerado**) e os modelos editáveis em `tools/android_templates/`; depois de editar um modelo rode `python tools/gerar_android_templates.py`. Teste: `python tools/test_android.py`.
 

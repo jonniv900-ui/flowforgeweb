@@ -18,10 +18,15 @@ def load(pg, name):
     pg.set_input_files('#fileInput', f'{common.ROOT}/examples/{name}.flowmobile'); pg.wait_for_timeout(700)
     pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
 
+def apk(pg):
+    """abre o menu Exportar e escolhe Android (APK)"""
+    pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
+    pg.click('#exportMenuBtn'); pg.click('#androidBtn')
+
 def pack(pg, fmt, **o):
     """gera o pacote pelo diálogo e devolve (nome, bytes)"""
     pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
-    pg.click('#androidBtn'); pg.wait_for_timeout(150)
+    apk(pg); pg.wait_for_timeout(150)
     pg.check(f'input[name=andFormat][value={fmt}]')
     for k, v in o.items():
         el = {'name': '#andName', 'appId': '#andId', 'ver': '#andVer', 'code': '#andCode'}.get(k)
@@ -56,8 +61,30 @@ with sync_playwright() as p:
 
     # ---- diálogo ----
     pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
-    t('botão APK na barra superior', pg.locator('#androidBtn').count() == 1 and pg.inner_text('#androidBtn') == 'APK')
-    pg.click('#androidBtn'); pg.wait_for_timeout(150)
+    t('menu "Exportar" na barra superior (substitui o botão Exportar HTML)', pg.inner_text('#exportMenuBtn').strip().startswith('Exportar') and pg.locator('#exportBtn').count() == 1 and pg.locator('#androidBtn').count() == 1)
+    pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
+    t('menu começa fechado', pg.is_hidden('#exportMenuList') and pg.get_attribute('#exportMenuBtn', 'aria-expanded') == 'false')
+    pg.click('#exportMenuBtn'); itens = pg.eval_on_selector_all('#exportMenuList button:not([hidden])', 'els=>els.map(e=>e.textContent.trim())')
+    t('projeto App mobile: o menu tem Exportar HTML e Android (APK)', itens == ['Exportar HTML', 'Android (APK)'] and pg.get_attribute('#exportMenuBtn', 'aria-expanded') == 'true', itens)
+    pg.keyboard.press('Escape'); t('Escape fecha o menu', pg.is_hidden('#exportMenuList'))
+    pg.click('#exportMenuBtn'); pg.click('#flowTitle' if False else 'header > b'); t('clicar fora fecha o menu', pg.is_hidden('#exportMenuList'))
+    pg.click('#exportMenuBtn'); pg.click('#exportBtn'); pg.wait_for_timeout(200)
+    t('item "Exportar HTML" abre o diálogo de exportação e fecha o menu', pg.locator('#exportHtmlDlg[open]').count() == 1 and pg.is_hidden('#exportMenuList'))
+    pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
+    # tipo do projeto: o APK só existe para App mobile
+    for tipo in ('site', 'landing'):
+        pg.evaluate("t=>{project.type=t}", tipo); pg.wait_for_timeout(900)
+        t(f'projeto {tipo}: sem opção de APK; o botão Exportar abre direto o HTML', pg.is_hidden('#androidBtn') and pg.evaluate("document.getElementById('exportMenu').classList.contains('single')"))
+        pg.click('#exportMenuBtn'); pg.wait_for_timeout(200)
+        t(f'projeto {tipo}: clique em Exportar abre o diálogo de HTML (sem dropdown)', pg.locator('#exportHtmlDlg[open]').count() == 1 and pg.is_hidden('#exportMenuList') and pg.locator('#androidDlg[open]').count() == 0)
+        pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
+    pg.evaluate("project.type='app'"); pg.wait_for_timeout(900)
+    t('voltando para App mobile o item de APK reaparece', not pg.is_hidden('#exportMenuBtn') and pg.evaluate("!document.getElementById('androidBtn').hidden"))
+    pg.select_option('#projectType', 'landing'); pg.wait_for_timeout(300)
+    t('trocar o tipo pelo painel Projeto esconde o APK na hora', pg.evaluate("document.getElementById('androidBtn').hidden"))
+    pg.select_option('#projectType', 'app'); pg.wait_for_timeout(300)
+    t('e mostrar de novo ao voltar para App', pg.evaluate("!document.getElementById('androidBtn').hidden"))
+    apk(pg); pg.wait_for_timeout(150)
     t('diálogo abre com os 3 formatos', pg.locator('input[name=andFormat]').count() == 3 and pg.locator('#androidDlg[open]').count() == 1)
     t('campos preenchidos com os dados do projeto', pg.input_value('#andName') == 'Estúdio de Câmera' and pg.input_value('#andId') == 'com.flowforge.estudiodecamera' and pg.input_value('#andVer') == '1.0.0' and pg.input_value('#andCode') == '10000',
       (pg.input_value('#andName'), pg.input_value('#andId')))
@@ -117,7 +144,7 @@ with sync_playwright() as p:
     saved = saved_android
     t('opções do último pacote ficam salvas no projeto', saved and saved.get('format') == 'studio' and saved.get('appId') == 'br.com.meuapp' and saved.get('fullscreen') is True, saved)
     pg.evaluate("project.android={format:'pwa',appId:'org.teste.app',versionCode:77,orientation:'landscape',fullscreen:true}")
-    pg.click('#androidBtn'); pg.wait_for_timeout(100)
+    apk(pg); pg.wait_for_timeout(100)
     t('diálogo reabre com as opções salvas', pg.input_value('#andId') == 'org.teste.app' and pg.input_value('#andCode') == '77' and pg.input_value('#andOri') == 'landscape' and pg.is_checked('input[name=andFormat][value=pwa]') and pg.is_checked('#andFull'))
     pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close()); delete project.android")
 
@@ -184,16 +211,16 @@ with sync_playwright() as p:
     foto = base64.b64encode(open(f'{common.TOOLS}/test_photo.png', 'rb').read()).decode()
     pg.evaluate("p=>{project.icon=p}", 'data:image/png;base64,' + foto)
     pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
-    pg.click('#androidBtn'); pg.wait_for_timeout(100); t('diálogo informa o ícone do projeto', 'ícone do projeto' in pg.inner_text('#andInfo'), pg.inner_text('#andInfo')); pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
+    apk(pg); pg.wait_for_timeout(100); t('diálogo informa o ícone do projeto', 'ícone do projeto' in pg.inner_text('#andInfo'), pg.inner_text('#andInfo')); pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
     custom = zipfile.ZipFile(io.BytesIO(pack(pg, 'studio')[1])).read('app/src/main/res/mipmap-xxxhdpi/ic_launcher.png')
     t('ícone do projeto vira ic_launcher (≠ ícone automático) e mantém 192×192', custom != padrao and png_size(custom) == (192, 192))
     pg.evaluate("project.icon=''")
 
     # ---- idiomas ----
-    pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close());FlowForgeI18n.setLanguage('en')"); pg.click('#androidBtn'); pg.wait_for_timeout(250)
+    pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close());FlowForgeI18n.setLanguage('en')"); apk(pg); pg.wait_for_timeout(250)
     tx = pg.inner_text('#androidDlg')
     t('diálogo traduzido para inglês', 'Package for Android' in tx and 'Package ID' in tx and 'Create package (.zip)' in tx and 'Permissions' in tx and 'Version code' in tx and 'Orientation' in tx, tx)
-    pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close());FlowForgeI18n.setLanguage('es')"); pg.click('#androidBtn'); pg.wait_for_timeout(250)
+    pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close());FlowForgeI18n.setLanguage('es')"); apk(pg); pg.wait_for_timeout(250)
     tx = pg.inner_text('#androidDlg'); t('diálogo traduzido para espanhol', 'Empaquetar para Android' in tx and 'ID del paquete' in tx and 'Generar paquete (.zip)' in tx, tx[:150])
     pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close());FlowForgeI18n.setLanguage('pt-BR')")
     t('sem erros de JavaScript', not errs, errs)

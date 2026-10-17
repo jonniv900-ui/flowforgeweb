@@ -448,5 +448,14 @@ main:has(#debuggerPanel:not([hidden])){grid-template-rows:40px minmax(0,1fr) var
 .ffAndWarn{color:#e3b341}
 .ffAndStatus{min-height:18px;color:#7ee787}
 .ffAndErr{color:#ff7b72}
-#androidBtn{white-space:nowrap}
+/* Menu Exportar */
+.exportMenu{position:relative;display:inline-block}
+.exportMenu #exportMenuBtn{display:inline-flex;align-items:center;gap:6px}
+.exportMenu .exportCaret{font-size:10px;opacity:.8;margin-left:2px}
+.exportMenu.single .exportCaret{display:none}
+.exportMenuList{position:fixed;top:48px;left:0;z-index:100000;min-width:190px;display:flex;flex-direction:column;gap:2px;padding:5px;background:#20242a;border:1px solid #46505d;border-radius:8px;box-shadow:0 10px 28px rgba(0,0,0,.45)}
+.exportMenuList[hidden]{display:none}
+.exportMenuList button{width:100%;text-align:left;justify-content:flex-start;white-space:nowrap;border:0;background:transparent}
+.exportMenuList button[hidden]{display:none}
+.exportMenuList button:hover,.exportMenuList button:focus-visible{background:#2f81f7;color:#fff}
 

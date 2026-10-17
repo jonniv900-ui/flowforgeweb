@@ -281,13 +281,31 @@ async function generate(){
   }catch(e){st.textContent='';const s=document.createElement('span');s.className='ffAndErr';s.textContent=(e&&e.message)||String(e);st.appendChild(s)}
   btn.disabled=false;refresh();
 }
+/* Menu "Exportar": HTML (sempre) e Android/APK (só em projetos do tipo App mobile). */
+const isApp=()=>!!(window.project&&project.type==='app');
+function menuState(){
+  const m=$('exportMenu'),b=$('exportMenuBtn'),a=$('androidBtn'),l=$('exportMenuList');if(!m||!b||!a||!l)return false;
+  const app=isApp();a.hidden=!app;m.classList.toggle('single',!app);
+  if(!app){l.hidden=true;b.setAttribute('aria-expanded','false');b.title='Exportar HTML'}else b.title='';
+  return app;
+}
+function closeMenu(){const l=$('exportMenuList'),b=$('exportMenuBtn');if(l&&!l.hidden){l.hidden=true;b.setAttribute('aria-expanded','false')}}
 function boot(){
-  const nav=document.querySelector('header nav'),ex=$('exportBtn');
-  if(nav&&!$('androidBtn')){
-    const b=document.createElement('button');b.id='androidBtn';b.type='button';b.title='Empacotar o app como APK (Android)';b.textContent='APK';
-    b.addEventListener('click',openDialog);
-    if(ex&&ex.nextSibling)nav.insertBefore(b,ex.nextSibling);else nav.appendChild(b);
-  }
+  const m=$('exportMenu'),b=$('exportMenuBtn'),a=$('androidBtn'),l=$('exportMenuList'),h=$('exportBtn');
+  if(!m||!b||!a||!l||b.__ffMenu)return;b.__ffMenu=true;
+  b.addEventListener('click',e=>{
+    e.stopPropagation();
+    if(!menuState()){h.click();return}              // sem opção de APK: o botão já exporta o HTML direto
+    const open=l.hidden;l.hidden=!open;b.setAttribute('aria-expanded',String(open));
+    if(open){const r=b.getBoundingClientRect();l.style.top=Math.round(r.bottom+4)+'px';l.style.left=Math.round(Math.min(r.left,innerWidth-l.offsetWidth-8))+'px'}
+  });
+  l.addEventListener('click',()=>closeMenu());      // qualquer item fecha o menu (o clique continua até o item)
+  a.addEventListener('click',openDialog);
+  document.addEventListener('click',e=>{if(!m.contains(e.target))closeMenu()});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu()}});
+  addEventListener('resize',closeMenu);
+  const pt=$('projectType');if(pt)pt.addEventListener('change',()=>setTimeout(menuState,0));
+  menuState();setInterval(menuState,700);           // acompanha troca de projeto (Novo, Abrir, exemplos)
 }
 window.FlowForgeAndroid={build,zip,crc32,detect,defaultAppId,validAppId,versionCodeOf,sourceIcon,open:openDialog,normalize};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
