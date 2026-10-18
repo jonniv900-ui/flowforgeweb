@@ -596,7 +596,7 @@ function previewPermissions(){const it=(project.pages||[]).flatMap(p=>p.items||[
 window.ffPreviewPermissions=previewPermissions;
 function applyPreviewPermissions(pv){const v=previewPermissions();if(pv.getAttribute('allow')!==v)pv.setAttribute('allow',v)}
 window.ffApplyPreviewPermissions=applyPreviewPermissions;
-function updateCode(){let c=generated();$('#code').value=c;syncCodeHighlight();const pv=$('#preview');if(getComputedStyle(pv).display!=='none'){applyPreviewPermissions(pv);{const h=window.FlowForgeImageAssets?.resolveHtml?.(c)??c;pv.srcdoc=window.ffDebugWrap?window.ffDebugWrap(h):h}}}
+function updateCode(){let c=generated();$('#code').value=c;syncCodeHighlight();const pv=$('#preview');if(getComputedStyle(pv).display!=='none'){applyPreviewPermissions(pv);{const h=window.FlowForgeImageAssets?.resolveHtml?.(c)??c;pv.onload=()=>{try{pv.contentWindow.focus()}catch(_){}};pv.srcdoc=window.ffDebugWrap?window.ffDebugWrap(h):h}}}
 function duplicate(){if(!selected)return;snapshot();let x=JSON.parse(JSON.stringify(selected));x.id=uid();x.name=uniqueName(x.kind,(x.name||x.kind)+'_copy');x.x=(Number(x.x)||0)+16;x.y=(Number(x.y)||0)+16;project.pages[project.active].items.push(x);selected=x;render()}function del(){if(!selected)return;snapshot();let a=project.pages[project.active].items;a.splice(a.findIndex(x=>x.id===selected.id),1);selected=null;render()}
 
 

@@ -1,4 +1,4 @@
-import sys,re,os
+import sys,re,os,json
 import common
 EXOUT=os.environ.get('EXOUT',common.OUT+'/exemplos_html')
 from playwright.sync_api import sync_playwright
@@ -655,6 +655,102 @@ def xadrez3d_sem_webgl(pg,t,d):
 JS2=lambda pg,s:pg.evaluate(s)
 run('Xadrez_3D',xadrez3d,gl=True)
 run('Xadrez_3D',xadrez3d_sem_webgl,tag='Xadrez_3D (sem WebGL)',init="(()=>{const g=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(k,...a){if(/webgl/.test(k))return null;return g.call(this,k,...a)}})()")
+
+def blocos(pg,t,d):
+    JS=lambda s:pg.evaluate(s)
+    g=lambda i:tx(pg,i)
+    S=lambda:JS("(()=>{const G=ffBlocos.test.state();return {st:G.state,score:G.score,lines:G.lines,level:G.level,p:G.p&&{t:G.p.t,r:G.p.r,x:G.p.x,y:G.p.y},next:G.next,best:G.best,b:G.b.map(r=>r.map(c=>c||'.').join(''))}})()")
+    setb=lambda rows:JS("ffBlocos.test.setBoard(%s)"%json.dumps(rows))
+    setp=lambda ty,r,x,y:JS("ffBlocos.test.setPiece(%r,%d,%d,%d)"%(ty,r,x,y))
+    pg.wait_for_timeout(300)
+    s=S()
+    t('o jogo começa jogando, com peça e próxima peça',s['st']=='play' and s['p'] and s['next'] and 'Jogando' in g('bStatus'),s)
+    t('placar inicial',g('bScore').replace('\n','').replace(' ','')=='PONTOS0' and 'NÍVEL' in g('bLevel') and 'LINHAS' in g('bLines'),(g('bScore'),g('bLevel')))
+    cnt=lambda i:JS("(()=>{const c=document.getElementById('%s'),d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;const s=new Set();for(let k=0;k<d.length;k+=40)s.add(d[k]+','+d[k+1]+','+d[k+2]);return s.size})()"%i)
+    t('tabuleiro e próxima peça são desenhados (várias cores)',cnt('bBoard')>4 and cnt('bNext')>2,(cnt('bBoard'),cnt('bNext')))
+    # --- sacola de 7 peças ---
+    JS("ffBlocos.test.setQueue(null)")
+    bag=JS("ffBlocos.test.bag(14)"); t('sorteio em sacola: cada grupo de 7 traz as 7 peças',sorted(bag[:7])==sorted('IOTSZJL') and sorted(bag[7:])==sorted('IOTSZJL'),bag)
+    # --- movimento e paredes ---
+    JS("ffBlocos.reset()"); JS("ffBlocos.test.setQueue(['T','I','O','S','Z','J','L','T','I','O'])"); JS("ffBlocos.reset()")
+    setp('T',0,3,5); x0=S()['p']['x']
+    pg.click('#bLeft'); t('botão ◀ move a peça uma casa',S()['p']['x']==x0-1,S()['p'])
+    pg.click('#bRight'); pg.click('#bRight'); t('botão ▶ move a peça',S()['p']['x']==x0+1,S()['p'])
+    for _ in range(14): pg.click('#bRight')
+    t('a parede direita bloqueia o movimento',S()['p']['x']==7,S()['p'])
+    for _ in range(14): pg.click('#bLeft')
+    t('a parede esquerda bloqueia o movimento',S()['p']['x']==0,S()['p'])
+    r0=S()['p']['r']; pg.click('#bRot'); t('botão Girar gira a peça (90°)',S()['p']['r']==(r0+1)%4)
+    # rotação junto da parede usa o ajuste (wall kick)
+    setp('I',1,-1,5); JS("ffBlocos.rotate()"); ok=S()['p']; cells=JS("ffBlocos.test.cells(ffBlocos.test.state().p)")
+    t('girar encostado na parede ajusta a posição (peça continua dentro do tabuleiro)',all(0<=c[0]<10 for c in cells),cells)
+    # --- soma de pontos: descida suave e queda direta ---
+    JS("ffBlocos.reset()"); setb([]); setp('O',0,4,0); sc=S()['score']; pg.click('#bDown'); t('Descer: +1 ponto e uma casa',S()['p']['y']==1 and S()['score']==sc+1,S())
+    nx=S()['next']; pg.click('#bDrop'); s=S()
+    t('Queda direta trava a peça no fundo e pontua 2 por casa',s['b'][19].count('O')==2 and s['b'][18].count('O')==2 and s['score']>=1+2*17,s['b'][17:])
+    t('nova peça nasce no topo depois da queda',s['p']['y']<=0 and s['p']['t']==nx,(s['p'],nx))
+    # --- fantasma ---
+    JS("ffBlocos.reset()"); setb(['LLLLLLLL..','LLLLLLLL..']); setp('O',0,8,0); gy=JS("ffBlocos.test.ghostY()")
+    t('peça-fantasma: calcula onde a peça vai parar (descendo até o fundo)',gy==18,gy)
+    setp('O',0,0,0); t('fantasma sobre pilha para em cima dela',JS("ffBlocos.test.ghostY()")==16)
+    # --- linhas: 1, 4 (tetris), nível e pontuação ---
+    JS("ffBlocos.reset()"); setb(['LLLLLLLLL.']); JS("ffBlocos.test.setQueue(['T'])"); setp('I',1,6,0); JS("ffBlocos.rotate()")
+    JS("(()=>{const G=ffBlocos.test.state();G.p.x=7;})()"); 
+    # coloca um I vertical na coluna 9
+    setb(['LLLLLLLLL.']*4); setp('I',1,3,0)  # I horizontal -> gira para vertical
+    JS("ffBlocos.test.setPiece('I',1,7,0)"); 
+    for _ in range(3):
+        if len(set(c[0] for c in JS("ffBlocos.test.cells(ffBlocos.test.state().p)")))>1: JS("ffBlocos.rotate()")
+    xs=sorted(set(c[0] for c in JS("ffBlocos.test.cells(ffBlocos.test.state().p)")))
+    JS("(()=>{const G=ffBlocos.test.state();const dx=9-%d;G.p.x+=dx;})()"%xs[0])
+    xs=sorted(set(c[0] for c in JS("ffBlocos.test.cells(ffBlocos.test.state().p)")))
+    sc0=S()['score']; JS("ffBlocos.drop()"); s=S()
+    t('4 linhas de uma vez (tetris): +800 × nível, 4 linhas contadas',s['lines']==4 and s['score']-sc0>=800,(xs,s['lines'],s['score']-sc0))
+    t('animação de linha: estado "flash" antes de remover',s['st']=='flash',s['st'])
+    pg.wait_for_timeout(500); s=S()
+    t('depois do flash as linhas somem e o jogo continua',s['st']=='play' and all(r=='.'*10 for r in s['b']) and s['p'],s['b'][-5:])
+    JS("ffBlocos.reset()"); JS("ffBlocos.test.setStats(0,9)"); setb(['LLLLLLLLL.']); setp('I',1,3,0)
+    for _ in range(3):
+        if len(set(c[0] for c in JS("ffBlocos.test.cells(ffBlocos.test.state().p)")))>1: JS("ffBlocos.rotate()")
+    JS("(()=>{const G=ffBlocos.test.state();const xs=ffBlocos.test.cells(G.p).map(c=>c[0]);G.p.x+=9-xs[0]})()"); JS("ffBlocos.drop()"); pg.wait_for_timeout(500); s=S()
+    t('10 linhas sobem o nível e aceleram a gravidade',s['level']==2 and JS("ffBlocos.test.interval()")<820,(s['level'],JS("ffBlocos.test.interval()")))
+    JS("ffBlocos.test.setStats(0,200)"); t('a velocidade tem limite mínimo',JS("ffBlocos.test.interval()")==90)
+    # --- gravidade ---
+    JS("ffBlocos.reset()"); y0=S()['p']['y']; pg.wait_for_timeout(1900); t('a gravidade desce a peça sozinha',S()['p']['y']>y0 or S()['b'][19]!='.'*10,(y0,S()['p']))
+    # --- pausa ---
+    pg.click('#bPause'); st=S(); y1=st['p']['y']; pg.wait_for_timeout(1100)
+    t('Pausar congela a peça e mostra "Pausado"',S()['st']=='pause' and S()['p']['y']==y1 and 'Pausado' in g('bStatus') and 'Continuar' in tx(pg,'bPause'),(S()['st'],g('bStatus')))
+    pg.click('#bLeft'); t('movimentos são ignorados durante a pausa',S()['p']['x']==st['p']['x'])
+    pg.click('#bPause'); t('Continuar retoma',S()['st']=='play')
+    # --- teclado ---
+    JS("ffBlocos.reset()"); setb([]); setp('T',0,4,3); pg.evaluate("document.activeElement&&document.activeElement.blur()"); x0=S()['p']['x']
+    pg.keyboard.press('ArrowLeft'); t('teclado ←',S()['p']['x']==x0-1)
+    pg.keyboard.press('ArrowRight'); pg.keyboard.press('ArrowRight'); t('teclado →',S()['p']['x']==x0+1)
+    r0=S()['p']['r']; pg.keyboard.press('ArrowUp'); t('teclado ↑ gira',S()['p']['r']==(r0+1)%4)
+    y0=S()['p']['y']; pg.keyboard.press('ArrowDown'); t('teclado ↓ desce uma casa',S()['p']['y']==y0+1)
+    pg.keyboard.press(' '); t('teclado Espaço = queda direta',S()['b'][19]!='.'*10)
+    pg.keyboard.press('p'); t('teclado P pausa',S()['st']=='pause'); pg.keyboard.press('p'); t('teclado P continua',S()['st']=='play')
+    t('a página não rola com as setas/espaço (evento cancelado)',JS("(()=>{const e=new KeyboardEvent('keydown',{key:' ',cancelable:true});document.dispatchEvent(e);return e.defaultPrevented})()"))
+    # --- toque no tabuleiro ---
+    JS("ffBlocos.reset()"); setb([]); setp('T',0,4,3); bb=pg.locator('#bBoard').bounding_box(); cw=bb['width']/10
+    r0=S()['p']['r']; pg.mouse.click(bb['x']+bb['width']/2,bb['y']+bb['height']/2); t('toque no tabuleiro gira a peça',S()['p']['r']==(r0+1)%4)
+    x0=S()['p']['x']; pg.mouse.move(bb['x']+100,bb['y']+300); pg.mouse.down(); pg.mouse.move(bb['x']+100+cw*2.2,bb['y']+300,steps=6); pg.mouse.up()
+    t('arrastar horizontalmente move a peça (2 casas)',S()['p']['x']==x0+2,(x0,S()['p']['x']))
+    pg.mouse.move(bb['x']+100,bb['y']+100); pg.mouse.down(); pg.mouse.move(bb['x']+100,bb['y']+260,steps=3); pg.mouse.up(); pg.wait_for_timeout(80)
+    t('deslizar rápido para baixo faz a queda direta',S()['b'][19]!='.'*10,S()['b'][-2:])
+    # --- fim de jogo ---
+    JS("ffBlocos.reset()"); setb(['LLLLLLLLL.']*19+['LLLLLLLLL.']); JS("(()=>{const G=ffBlocos.test.state();G.b[0]=G.b[0].map(()=>'L')})()")
+    JS("ffBlocos.test.setQueue(['O','O'])"); setp('O',0,4,-1); JS("ffBlocos.drop()"); s=S()
+    t('pilha até o topo: "Fim de jogo"',s['st']=='over' and 'Fim de jogo' in g('bStatus'),(s['st'],g('bStatus')))
+    sc=s['score']; pg.keyboard.press('ArrowLeft'); pg.keyboard.press(' '); t('depois do fim, os comandos são ignorados',S()['score']==sc and S()['st']=='over')
+    t('botão Pausar fica desabilitado no fim de jogo',JS("document.getElementById('bPause').disabled"))
+    # --- recorde persiste ---
+    JS("ffBlocos.reset()"); JS("ffBlocos.test.setStats(4321,0)"); pg.reload(); pg.wait_for_timeout(600)
+    t('recorde fica salvo e aparece após recarregar','4321' in g('bBest'),g('bBest'))
+    pg.click('#bNew'); t('Novo jogo zera a partida mas mantém o recorde',S()['score']==0 and S()['lines']==0 and '4321' in g('bBest') and S()['st']=='play')
+    pg.set_viewport_size({'width':430,'height':900}); pg.wait_for_timeout(200)
+    t('o tabuleiro mantém a proporção 1:2 (sem distorcer)',abs(JS("(()=>{const r=document.getElementById('bBoard').getBoundingClientRect();return r.height/r.width})()")-2)<.02)
+run('Blocos_Empilhados',blocos)
 
 bad=0; tot=0
 for name,checks in RES.items():

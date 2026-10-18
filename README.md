@@ -661,3 +661,12 @@ O item *Android (APK)* só aparece em projetos do tipo **App mobile**; em Site e
 Arquivos: `js/ff-android-export.js` (diálogo, ícones e gerador de `.zip` sem bibliotecas), `js/ff-android-templates.js` (modelos de texto, **gerado**) e os modelos editáveis em `tools/android_templates/`; depois de editar um modelo rode `python tools/gerar_android_templates.py`. Teste: `python tools/test_android.py`.
 
 Importante: o FlowForge entrega o projeto, e o build do APK acontece no GitHub, no PWABuilder ou no Android Studio. A estrutura foi validada (XML, JSON, YAML, PNG, sintaxe do Java, `npx cap add android` + `prepare-android.js` + `cap sync`), mas a compilação final com o Android SDK não pôde ser executada no ambiente de desenvolvimento.
+
+## Exemplo Blocos_Empilhados (jogo novo)
+
+Quebra-cabeça de peças que caem, escrito inteiro no FlowForge (canvas 2D + JavaScript no `onload`, motor em `tools/gerar_exemplos/blocos.js`):
+
+- 7 formas, sorteio em **sacola** (cada grupo de 7 traz todas as peças), rotação com ajuste na parede, **peça-fantasma** tracejada e prévia da próxima peça.
+- Pontuação por linhas (100/300/500/800 × nível), +1 por casa na descida e +2 na queda direta; a cada 10 linhas sobe o nível e a gravidade acelera; animação de limpeza de linhas; **recorde** salvo no aparelho.
+- Controles: botões, **teclado** (setas, Espaço, P) e **toque** no tabuleiro (arraste para mover, toque para girar, deslize para baixo para a queda direta). Pausa automática ao sair da aba.
+- Testado com 42 verificações (movimento, paredes, rotação, linhas, níveis, pausa, teclado, toque, fim de jogo, recorde e proporção do canvas). Gere de novo com `python tools/gerar_exemplos/exemplo_13.py`.
