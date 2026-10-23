@@ -670,3 +670,59 @@ Quebra-cabeça de peças que caem, escrito inteiro no FlowForge (canvas 2D + Jav
 - Pontuação por linhas (100/300/500/800 × nível), +1 por casa na descida e +2 na queda direta; a cada 10 linhas sobe o nível e a gravidade acelera; animação de limpeza de linhas; **recorde** salvo no aparelho.
 - Controles: botões, **teclado** (setas, Espaço, P) e **toque** no tabuleiro (arraste para mover, toque para girar, deslize para baixo para a queda direta). Pausa automática ao sair da aba.
 - Testado com 42 verificações (movimento, paredes, rotação, linhas, níveis, pausa, teclado, toque, fim de jogo, recorde e proporção do canvas). Gere de novo com `python tools/gerar_exemplos/exemplo_13.py`.
+
+## Exemplo Corrida_Neon_3D (jogo 3D)
+
+Corredor infinito em **3D com WebGL puro** (sem bibliotecas), escrito no FlowForge (motor em `tools/gerar_exemplos/corrida3d.js`, embutido no `onload`):
+
+- Cidade neon com sol, grade e neblina; nave com sombra; câmera que acompanha a faixa. Se o navegador não tiver WebGL, o jogo avisa em vez de travar.
+- Três faixas, **muros** (troque de faixa), **barreiras baixas** (pule), **portais** (deslize por baixo) e **moedas** (algumas no alto, só pegas pulando). A geração nunca bloqueia as três faixas ao mesmo tempo.
+- **3 vidas** com invulnerabilidade curta após a batida, velocidade crescente (limite 36), pontuação por distância e moedas e **recorde** salvo no aparelho.
+- Controles: botões, **teclado** (← → faixas, ↑/Espaço pula, ↓ desliza, P pausa, Enter reinicia) e **toque** (arraste para os lados/cima/baixo; um toque pula). Pausa automática ao sair da aba.
+- Testado com 56 verificações (renderização real, faixas, pulo, deslize, colisões, moedas, velocidade, geração justa, pausa, fim de jogo, recorde, toque e fallback sem WebGL). Gere de novo com `python tools/gerar_exemplos/exemplo_14.py`.
+
+## Exemplo Invasores_do_Espaco (jogo novo)
+
+Jogo de tiro clássico em canvas 2D, escrito no FlowForge (motor em `tools/gerar_exemplos/invasores.js`, embutido no `onload`):
+
+- Onda de 32 invasores (4 fileiras × 8) que andam de lado, descem ao tocar a borda e **aceleram conforme sobram menos**; 3 tipos com 10, 20 e 30 pontos; a partir da onda 3 há 5 fileiras e as ondas começam mais baixas.
+- 4 **abrigos destrutíveis** (desgastam com os tiros dos dois lados), **disco voador** bônus (50 a 300 pontos), no máximo 3 tiros seus ao mesmo tempo e tiros inimigos que sobem de dificuldade.
+- 3 vidas com invulnerabilidade curta, +100 por onda concluída, fim de jogo se os invasores chegam à Terra e **recorde** salvo no aparelho.
+- Controles: botões, **teclado** (← → segure para mover, Espaço/↑ atira, P pausa, Enter reinicia) e **toque** (arraste para mover, toque para atirar). Pausa automática ao sair da aba.
+- Testado com 51 verificações. Gere de novo com `python tools/gerar_exemplos/exemplo_15.py`.
+
+## Exemplo Labirinto_3D (jogo 3D)
+
+Labirinto em **primeira pessoa com WebGL puro** (sem bibliotecas), escrito no FlowForge (motor em `tools/gerar_exemplos/labirinto3d.js`):
+
+- Um labirinto novo a cada nível (5x5 e cresce até 12x12, sempre com solução e alguns atalhos), com **tocha** (luz perto de você) e neblina, paredes com neon, chão xadrez e **farol verde** na saída.
+- **Gemas** para coletar (+100), **tempo limitado** que cresce com o tamanho, bônus ao achar a saída (tempo restante × 5 + 200 × nível) e **recorde** salvo no aparelho.
+- Colisão com deslize nas paredes (nunca atravessa nem sai do labirinto) e **minimapa** que revela só as células já visitadas.
+- Controles: **teclado** (↑ ↓ andam, ← → giram, A D andam de lado, P pausa, Enter começa), **toque** (arraste: para os lados gira, para cima/baixo anda) e botões que podem ser **segurados**. Pausa automática ao sair da aba; se o navegador não tiver WebGL, o jogo avisa em vez de travar.
+- Testado com 53 verificações (36 labirintos gerados, movimento, giro, colisões, gemas, minimapa, tempo, pausa, níveis, fim de jogo, recorde, toque e fallback). Gere de novo com `python tools/gerar_exemplos/exemplo_16.py`.
+
+## Exemplo Memoria_Avancada e vídeo-tutorial
+
+`Memoria_Avancada` é o app construído no vídeo-tutorial: Jogo da Memória com **3 níveis** (4x3, 4x4 e 6x4), tabuleiro **criado por código** (uma grade de botões gerada com JavaScript), contagem de jogadas, **cronômetro** e **recorde por nível** salvo no aparelho. Os eventos usados são `click()` do botão, `change()` da lista de níveis e o **OnLoad** da página. O código está dividido em 6 blocos explicáveis em `tools/gerar_exemplos/memoria_codigo.py`; gere de novo com `python tools/gerar_exemplos/exemplo_17.py`. Testado com 25 verificações.
+
+O tutorial em vídeo é gravado por `python tools/gravar_tutorial.py [pasta]`: 6 capítulos (projeto, interface, lógica, eventos, teste no Preview e publicação) com cartões de título, legendas, cursor visível e o código digitado ao vivo, bloco a bloco. Gera `tutorial_memoria.mp4`, o projeto resultante e `capitulos.txt` com os tempos de cada capítulo. `FF_RAPIDO=1` faz um ensaio sem esperas, com capturas de tela por capítulo. Requer Playwright e ffmpeg.
+
+## Exemplo Rastreador_de_Habitos
+
+App de 3 páginas (Hoje, Semana, Hábitos) para acompanhar hábitos diários. **Hoje**: lista com marcação por toque, barra de progresso e sequência 🔥; **Semana**: grade dos últimos 7 dias (toque corrige um dia), taxa semanal e melhor hábito; **Hábitos**: adicionar (validação, sem duplicados, limite de 10), remover e restaurar o padrão. Dados salvos no navegador (localStorage). Todo o código fica dentro do próprio .flowmobile (eventos das páginas; gerador `tools/gerar_exemplos/exemplo_18.py`) e é carregado no OnLoad de cada página, então recarregar (F5) em qualquer página funciona.
+
+## Exemplo Divisor_de_Conta
+
+App de 1 página para dividir a conta do restaurante: valor (aceita `1.234,50`, `45.90`, `R$ 80`), gorjeta (0 a 20%), número de pessoas (1 a 30, botões − e +) e arredondamento opcional para reais inteiros, mostrando gorjeta, total e quanto cada pessoa paga (cálculo em centavos, sem erro de ponto flutuante). Todo o código fica dentro do .flowmobile (OnLoad da página e eventos dos componentes); gerador em `tools/gerar_exemplos/exemplo_19.py`. Testado com 23 verificações.
+
+## Exemplo Jogo_2048
+
+O clássico 2048 em 1 página: grade 4x4, controle por **setas do teclado** (ou WASD), **botões na tela** e **deslizar** (toque/mouse), pontuação, **recorde**, **desfazer** a última jogada, aviso ao chegar em 2048 (dá para continuar) e fim de jogo quando não há mais movimentos. O jogo é salvo no aparelho e volta ao recarregar (dados inválidos são ignorados). Todo o código fica dentro do .flowmobile (OnLoad da página e eventos dos botões); gerador em `tools/gerar_exemplos/exemplo_20.py`. Testado com 36 verificações.
+
+## Exemplo Campo_Minado
+
+O clássico Campo Minado em 1 página: 3 níveis (8x8/10 minas, 10x10/18, 12x12/30), **primeira jogada sempre segura**, abertura em cascata, bandeiras (clique direito, **toque longo** ou botão **Modo: Bandeira** no celular), **acorde** (tocar num número com as bandeiras certas abre as vizinhas), contador de minas, cronômetro e **recorde por nível** salvo no aparelho. Todo o código fica dentro do .flowmobile; gerador em `tools/gerar_exemplos/exemplo_21.py`. Testado com 34 verificações.
+
+## Menu de exemplos (todos os arquivos da pasta `examples/`)
+
+O menu **Exemplos** mostra os 24 exemplos embutidos no `app.js` e, em seguida, todos os `.flowmobile` da pasta `examples/` (36 hoje), como Campo Minado, Xadrez 3D, Corrida Neon 3D, Labirinto 3D, Invasores do Espaço, 2048, Rastreador de Hábitos, Divisor de Conta, Memória Avançada, sites e landing pages. Para funcionar abrindo o `index.html` direto do disco (sem servidor), uma cópia dos arquivos é empacotada em `js/examples-pack.js`. **Ao criar ou alterar um exemplo, rode `python tools/gerar_menu_exemplos.py`** (o teste `tools/test_menu_exemplos.py` avisa se o menu ficou desatualizado).

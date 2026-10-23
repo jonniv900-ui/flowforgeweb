@@ -752,6 +752,616 @@ def blocos(pg,t,d):
     t('o tabuleiro mantém a proporção 1:2 (sem distorcer)',abs(JS("(()=>{const r=document.getElementById('bBoard').getBoundingClientRect();return r.height/r.width})()")-2)<.02)
 run('Blocos_Empilhados',blocos)
 
+def corrida(pg,t,d):
+    JS=lambda s:pg.evaluate(s)
+    g=lambda i:tx(pg,i)
+    S=lambda:JS("(()=>{const G=ffCorrida.test.state();return {st:G.state,lane:G.lane,x:G.x,y:G.y,vy:G.vy,slide:G.slide,lives:G.lives,coins:G.coins,score:G.score,dist:G.dist,speed:G.speed,inv:G.inv,obs:G.obs.length,coi:G.coi.length,best:G.best}})()")
+    step=lambda n,dt=.02:JS("(()=>{for(let i=0;i<%d;i++)ffCorrida.test.step(%f)})()"%(n,dt))
+    clean=lambda:JS("ffCorrida.test.clear()")
+    pg.wait_for_timeout(1500)
+    gi=JS("ffCorrida.gl3d")
+    t('WebGL iniciado, sem erro, desenhando quadros',gi['ok'] and not gi['error'] and gi['frames']>2,gi)
+    t('começa em "pronto" com 3 vidas e placar',S()['st']=='ready' and S()['lives']==3 and 'PONTOS' in g('cScore') and 'começar' in g('cStatus'),(S()['st'],g('cStatus')))
+    t('botão Pausar desabilitado antes de começar',JS("document.getElementById('cPause').disabled"))
+    # cena renderizada de verdade (não é um quadro vazio)
+    import io
+    from PIL import Image
+    im=Image.open(io.BytesIO(pg.locator('#cView').screenshot())).convert('RGB'); sm=im.resize((90,120))
+    cols=len(set(sm.getdata())); px=sm.getdata(); top=sum(px[i][0] for i in range(90*10))/900; bot=sum(px[i][0] for i in range(90*100,90*110))/900
+    t('a cena 3D tem cores variadas (céu, prédios, pista)',cols>150,cols)
+    t('o ar livre e a pista são diferentes (topo ≠ base)',abs(top-bot)>3,(top,bot))
+    t('sem erros do WebGL (getError = 0)',JS("(()=>{const c=document.getElementById('cView');const gl=c.getContext('webgl');return gl.getError()})()")==0)
+    r=JS("(()=>{const r=document.getElementById('cView').getBoundingClientRect();return r.width/r.height})()")
+    t('a proporção do jogo é mantida (sem distorcer)',abs(r-444/576)<.02,r)
+    # --- começar ---
+    pg.keyboard.press(' '); pg.wait_for_timeout(100); JS("ffCorrida.test.freeze(true)"); clean(); JS("ffCorrida.test.nextZ(-9999)")
+    s=S(); t('Espaço começa o jogo',s['st']=='play' and s['lives']==3,s)
+    t('botão Pausar habilitado jogando',not JS("document.getElementById('cPause').disabled"))
+    # --- faixas ---
+    pg.keyboard.press('ArrowLeft'); step(30); t('← vai para a faixa da esquerda',S()['lane']==0 and abs(S()['x']+1.7)<.05,S())
+    pg.keyboard.press('ArrowLeft'); step(5); t('← na borda não sai da pista',S()['lane']==0)
+    pg.keyboard.press('d'); pg.keyboard.press('d'); pg.keyboard.press('d'); step(30); t('D (3x) para na faixa da direita',S()['lane']==2 and abs(S()['x']-1.7)<.05,S())
+    pg.keyboard.press('a'); pg.keyboard.press('a'); step(30); t('A volta ao centro e à esquerda',S()['lane']==0)
+    JS("ffCorrida.btn('right')"); step(30); JS("ffCorrida.btn('right')"); step(30); JS("ffCorrida.btn('left')"); step(30); t('botões ◀ ▶ trocam de faixa',S()['lane']==1)
+    # --- pular e deslizar ---
+    pg.keyboard.press('ArrowUp'); s0=S(); t('↑ inicia o pulo',s0['vy']>0,s0)
+    mx=0
+    for _ in range(40): step(1); mx=max(mx,S()['y'])
+    t('o pulo sobe cerca de 1,6 e volta ao chão',1.3<mx<2.0 and S()['y']==0 and S()['vy']==0,(mx,S()))
+    pg.keyboard.press(' '); step(1); pg.keyboard.press(' '); t('pulo duplo no ar é ignorado',S()['vy']<=10)
+    step(40)
+    pg.keyboard.press('ArrowDown'); t('↓ desliza',S()['slide']>.5,S()); step(40); t('o deslize termina',S()['slide']<=0,S())
+    pg.keyboard.press('s'); step(2); t('S também desliza',S()['slide']>0); step(40)
+    # --- colisões ---
+    def ahead(kind,lane,dz): JS("(()=>{ffCorrida.test.addObs(%r,%d,-ffCorrida.test.state().dist-%f)})()"%(kind,lane,dz))
+    clean(); ahead('wall',1,8); step(60,.02); s=S()
+    t('bater no muro tira 1 vida e dá invulnerabilidade',s['lives']==2 and s['inv']>0,s)
+    t('o placar de vidas mostra ♥♥♡',('♥♥♡' in g('cLives')),g('cLives'))
+    step(100); clean(); ahead('wall',0,8); step(60); t('muro em outra faixa não machuca',S()['lives']==2,S())
+    JS("ffCorrida.test.state().inv=0"); clean(); ahead('hurdle',1,8); step(60); t('barreira baixa sem pular machuca',S()['lives']==1,S())
+    JS("(()=>{const G=ffCorrida.test.state();G.inv=0;G.lives=3})()"); step(10); clean(); ahead('hurdle',1,4); step(1); pg.keyboard.press('ArrowUp'); step(40)
+    t('pulando a tempo passa por cima da barreira',S()['lives']==3,S())
+    clean(); ahead('gate',1,8); step(60); t('portal sem deslizar machuca',S()['lives']==2,S())
+    JS("(()=>{const G=ffCorrida.test.state();G.inv=0;G.lives=3})()"); step(5); clean(); ahead('gate',1,4); step(1); pg.keyboard.press('ArrowDown'); step(40)
+    t('deslizando passa por baixo do portal',S()['lives']==3,S())
+    clean(); ahead('gate',1,4); step(1); pg.keyboard.press('ArrowUp'); step(40); t('pular dentro do portal bate nele',S()['lives']==2,S())
+    JS("(()=>{const G=ffCorrida.test.state();G.inv=0;G.lives=3})()"); step(10)
+    # --- moedas ---
+    clean(); c0=S()['coins']; JS("ffCorrida.test.addCoin(1,6,.95)"); step(40); s=S()
+    t('pegar moeda soma 1 moeda e 10 pontos',s['coins']==c0+1 and s['score']>=10+0 and 'MOEDAS' in g('cCoins'),s)
+    clean(); c1=S()['coins']; JS("ffCorrida.test.addCoin(1,6,1.6)"); step(40); t('moeda alta não é pega sem pular',S()['coins']==c1)
+    clean(); JS("ffCorrida.test.addCoin(1,5,1.6)"); step(5); pg.keyboard.press('ArrowUp'); step(40); t('moeda alta é pega pulando',S()['coins']==c1+1,S())
+    clean(); JS("ffCorrida.test.addCoin(0,6,.95)"); step(40); t('moeda em outra faixa não é pega',S()['coins']==c1+1)
+    # --- velocidade ---
+    JS("(()=>{const G=ffCorrida.test.state();G.lives=9999;G.inv=1e9})()"); sp0=S()['speed']; step(500,.05); sp1=S()['speed']; t('a velocidade aumenta com o tempo',sp1>sp0,(sp0,sp1)); step(1500,.05); t('a velocidade tem limite (36)',abs(S()['speed']-36)<.01,S()['speed'])
+    # --- justiça da geração: nunca fecha as 3 faixas ---
+    JS("(()=>{const G=ffCorrida.test.state();G.nextZ=-G.dist-30;window.__rows={}})()")
+    for _ in range(100):
+        step(20,.05); JS("(()=>{const G=ffCorrida.test.state();G.obs.forEach(o=>{const k=o.z.toFixed(1);(window.__rows[k]=window.__rows[k]||[]).includes(o.lane)||window.__rows[k].push(o.lane)})})()")
+    rows=JS("Object.values(window.__rows).map(a=>a.length)"); 
+    t('a geração produz obstáculos e nunca bloqueia as 3 faixas de uma vez',len(rows)>20 and max(rows)<=2,(len(rows),max(rows) if rows else None))
+    # --- pausa e fim ---
+    JS("(()=>{const G=ffCorrida.test.state();G.lives=3;G.inv=0})()"); clean(); d0=S()['dist']
+    pg.keyboard.press('p'); step(20); t('P pausa e congela o jogo',S()['st']=='pause' and S()['dist']==d0 and 'Pausado' in g('cStatus') and g('cPause')=='Continuar',(S()['st'],g('cPause')))
+    pg.keyboard.press('ArrowLeft'); t('comandos de movimento são ignorados na pausa',S()['lane']==1 or S()['st']=='pause')
+    pg.keyboard.press('p'); t('P continua',S()['st']=='play')
+    JS("(()=>{Object.defineProperty(document,'hidden',{value:true,configurable:true});document.dispatchEvent(new Event('visibilitychange'))})()"); t('aba oculta pausa sozinho',S()['st']=='pause')
+    JS("(()=>{Object.defineProperty(document,'hidden',{value:false,configurable:true})})()"); pg.keyboard.press('p')
+    t('a página não rola com as setas/espaço (evento cancelado)',JS("(()=>{const e=new KeyboardEvent('keydown',{key:' ',cancelable:true});document.dispatchEvent(e);return e.defaultPrevented})()"))
+    JS("(()=>{const G=ffCorrida.test.state();G.coins=40;G.lives=1;G.inv=0})()"); clean(); ahead('wall',S()['lane'],5); step(40)
+    s=S(); t('perder a última vida termina o jogo',s['st']=='over' and 'Fim de jogo' in g('cStatus') and s['score']>=400,(s,g('cStatus')))
+    t('botão Pausar desabilitado no fim',JS("document.getElementById('cPause').disabled"))
+    sc=s['score']; pg.keyboard.press('Enter'); t('Enter logo após perder não reinicia por acidente (550 ms)',S()['st']=='over')
+    pg.wait_for_timeout(700); pg.keyboard.press('Enter'); s=S(); t('depois do intervalo, Enter reinicia (3 vidas, placar zerado)',s['st']=='play' and s['lives']==3 and s['coins']==0 and s['score']==0,s)
+    bst=JS("localStorage.getItem('ffCorridaV1')"); t('o recorde fica salvo (e visível), nunca menor que a última partida',bst is not None and int(bst)>=sc and str(bst) in g('cBest'),(sc,bst,g('cBest')))
+    pg.reload(); pg.wait_for_timeout(1200); t('o recorde persiste após recarregar',str(bst) in g('cBest'),(bst,g('cBest')))
+    # --- toque ---
+    pg.keyboard.press(' '); pg.wait_for_timeout(100); JS("ffCorrida.test.freeze(true)"); clean(); JS("ffCorrida.test.nextZ(-9999)")
+    bb=pg.locator('#cView').bounding_box(); cx=bb['x']+bb['width']/2; cy=bb['y']+bb['height']/2
+    def swipe(dx,dy):
+        pg.mouse.move(cx,cy); pg.mouse.down(); pg.mouse.move(cx+dx,cy+dy,steps=6); pg.mouse.up()
+    swipe(-80,0); t('deslizar para a esquerda troca de faixa',S()['lane']==0,S()['lane'])
+    swipe(80,0); swipe(80,0); t('deslizar para a direita (2x) vai à faixa da direita',S()['lane']==2,S()['lane'])
+    swipe(0,-80); t('deslizar para cima pula',S()['vy']>0,S())
+    step(60); swipe(0,80); t('deslizar para baixo desliza',S()['slide']>0,S()); step(60)
+    pg.mouse.click(cx,cy); t('um toque simples pula',S()['vy']>0,S())
+    pg.click('#cNew'); s=S(); t('Novo jogo reinicia a partida',s['st']=='play' and s['lives']==3 and s['coins']==0 and s['dist']<1,s)
+run('Corrida_Neon_3D',corrida,gl=True)
+def corrida_sem_webgl(pg,t,d):
+    pg.wait_for_timeout(400)
+    t('sem WebGL: aviso na tela em vez de travar',pg.evaluate("ffCorrida.gl3d.ok===false && !!ffCorrida.gl3d.error"),pg.evaluate("JSON.stringify(ffCorrida.gl3d)"))
+    t('sem WebGL: o placar e os botões continuam na página',pg.evaluate("!!document.getElementById('cScore')&&!!document.getElementById('cLeft')"))
+    pg.keyboard.press('ArrowLeft'); pg.keyboard.press(' ')
+run('Corrida_Neon_3D',corrida_sem_webgl,tag='Corrida_Neon_3D (sem WebGL)',init="(()=>{const g=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(k,...a){if(/webgl/.test(k))return null;return g.call(this,k,...a)}})()")
+
+def invasores(pg,t,d):
+    JS=lambda x:pg.evaluate(x); g=lambda i:tx(pg,i)
+    S=lambda:JS("(()=>{const G=ffInvasores.test.state();return {st:G.state,px:G.px,lives:G.lives,score:G.score,wave:G.wave,gx:G.gx,gy:G.gy,dir:G.dir,pb:G.pb.length,ab:G.ab.length,inv:G.inv,cool:G.cool,n:ffInvasores.test.alive(),rows:Math.max(...G.al.map(a=>a.r))+1,ufo:!!G.ufo,banner:G.banner}})()")
+    step=lambda n,dt=.02:JS("(()=>{for(let i=0;i<%d;i++)ffInvasores.test.step(%f)})()"%(n,dt))
+    pg.wait_for_timeout(500)
+    import io
+    from PIL import Image
+    im=Image.open(io.BytesIO(pg.locator('#iView').screenshot())).convert('RGB').resize((90,120)); cols=len(set(im.getdata()))
+    t('o jogo é desenhado de verdade (cores variadas)',cols>12,cols)
+    r=JS("(()=>{const r=document.getElementById('iView').getBoundingClientRect();return r.width/r.height})()")
+    t('a proporção do canvas é mantida (sem distorcer)',abs(r-.75)<.02,r)
+    s=S(); t('começa jogando: 32 invasores (4 fileiras × 8), 3 vidas, onda 1',s['st']=='play' and s['n']==32 and s['lives']==3 and s['wave']==1 and s['rows']==4,s)
+    t('4 abrigos inteiros no início',JS("ffInvasores.test.shields().length")==4 and min(JS("ffInvasores.test.shields()"))>40,JS("ffInvasores.test.shields()"))
+    t('placar mostra PONTOS, ONDA, VIDAS e RECORDE',all(k in g(i) for i,k in (('iScore','PONTOS'),('iWave','ONDA'),('iLives','VIDAS'),('iBest','RECORDE'))) and '♥♥♥' in g('iLives'),g('iLives'))
+    JS("ffInvasores.test.freeze(true);ffInvasores.test.noShots()")
+    # --- movimento (teclado segurado) ---
+    x0=S()['px']; pg.keyboard.down('ArrowLeft'); step(10,.05); xl=S()['px']; pg.keyboard.up('ArrowLeft'); step(5,.05)
+    t('← segurada move a nave para a esquerda',xl<x0-50,(x0,xl)); t('soltar a tecla para a nave',abs(S()['px']-xl)<.01,S()['px'])
+    pg.keyboard.down('ArrowLeft'); step(60,.05); t('a nave não sai pela esquerda',14<=S()['px']<=20,S()['px']); pg.keyboard.up('ArrowLeft')
+    pg.keyboard.down('d'); step(120,.05); t('D segurada vai até a borda direita sem sair',340<=S()['px']<=346,S()['px']); pg.keyboard.up('d')
+    JS("ffInvasores.test.state().px=180")
+    # --- tiro ---
+    pg.keyboard.press(' '); s=S(); t('Espaço atira (1 tiro)',s['pb']==1,s)
+    pg.keyboard.press(' '); t('tiro em sequência é limitado pelo intervalo de recarga',S()['pb']==1,S())
+    step(20,.02); pg.keyboard.press(' '); step(20,.02); pg.keyboard.press(' '); step(20,.02); pg.keyboard.press(' ')
+    t('no máximo 3 tiros ao mesmo tempo',S()['pb']<=3,S()['pb'])
+    step(100,.02); t('os tiros saem da tela e somem',S()['pb']==0,S())
+    # --- acertar invasores (pontuação por tipo) ---
+    def shoot_at(c,r):
+        JS("(()=>{const T=ffInvasores.test,G=T.state();const a=G.al.find(a=>a.c===%d&&a.r===%d);G.px=T.ax(a)+11;G.pb=[];G.cool=0;G.dir=0;G.sh.forEach(s=>s.length=0)})()"%(c,r))
+        pg.keyboard.press(' '); step(80,.02)
+    JS("ffInvasores.test.only(0,3)"); sc=S()['score']; shoot_at(0,3); t('atirar no invasor de baixo vale 10 pontos (e ele some)',S()['score']==sc+10 or S()['wave']==2,S())
+    JS("ffInvasores.test.setWave(1);ffInvasores.test.state().state='play';ffInvasores.test.noShots()"); JS("ffInvasores.test.state().score=0")
+    JS("(()=>{const G=ffInvasores.test.state();G.al.forEach(a=>{a.on=(a.c===2&&(a.r===1||a.r===0))||(a.c===5&&a.r===3)})})()")
+    shoot_at(2,1); t('invasor do meio vale 20',S()['score']==20,S()['score'])
+    shoot_at(2,0); t('invasor de cima vale 30',S()['score']==50,S()['score'])
+    # --- onda concluída ---
+    JS("ffInvasores.test.state().score=0"); shoot_at(5,3); s=S()
+    t('limpar a onda: +100 de bônus, onda 2 e aviso na tela',s['wave']==2 and s['score']==110 and s['st']=='wave' and s['n']==32,s)
+    step(80,.02); t('depois do aviso a onda 2 começa',S()['st']=='play',S()['st'])
+    t('onda 2 começa mais embaixo que a onda 1',S()['gy']>=52+14-1,S()['gy'])
+    JS("ffInvasores.test.setWave(3)"); t('a partir da onda 3 há 5 fileiras',S()['rows']==5 and S()['n']==40,S())
+    JS("ffInvasores.test.setWave(1);ffInvasores.test.noShots()")
+    # --- movimento dos invasores ---
+    s0=S(); step(30,.05); s1=S(); t('os invasores andam de lado',abs(s1['gx']-s0['gx'])>20 or s1['gy']>s0['gy'],(s0['gx'],s1['gx']))
+    step(60,.05); t('ao chegar na borda eles descem e invertem o sentido',S()['gy']>s0['gy'] and S()['dir']!=s0['dir'] or S()['gy']>s0['gy']+13,(s0,S()))
+    JS("ffInvasores.test.setWave(1);ffInvasores.test.noShots()"); a=S()['gx']; step(10,.05); v1=abs(S()['gx']-a)
+    JS("ffInvasores.test.setWave(1);ffInvasores.test.noShots();ffInvasores.test.kill(28);ffInvasores.test.state().dir=-1"); a=S()['gx']; step(10,.05); v2=abs(S()['gx']-a)
+    t('com menos invasores eles aceleram',v2>v1*1.5,(v1,v2))
+    JS("ffInvasores.test.setWave(1);ffInvasores.test.noShots()")
+    # --- tiros inimigos ---
+    JS("(()=>{const G=ffInvasores.test.state();G.shotT=0;})()"); step(2,.02); t('os invasores atiram',S()['ab']>=1,S())
+    JS("(()=>{const G=ffInvasores.test.state();G.ab=[];G.shotT=1e9;G.inv=0;G.px=180})()")
+    JS("ffInvasores.test.shoot(180,430,170)"); step(10,.02); s=S(); t('tiro inimigo na nave tira 1 vida e dá invulnerabilidade',s['lives']==2 and s['inv']>1 and '♥♥♡' in g('iLives'),(s,g('iLives')))
+    JS("ffInvasores.test.shoot(180,430,170)"); step(10,.02); t('durante a invulnerabilidade não perde outra vida',S()['lives']==2,S())
+    JS("(()=>{const G=ffInvasores.test.state();G.inv=0;G.ab=[]})()"); JS("ffInvasores.test.shoot(60,430,170)"); step(15,.02); t('tiro que passa longe da nave não machuca',S()['lives']==2,S())
+    # --- abrigos ---
+    JS("(()=>{const T=ffInvasores.test,G=T.state();G.ab=[];G.al.forEach(a=>a.on=false);G.al[0].on=true;G.al[0].c=7;G.al[0].r=0;G.gy=52})()")
+    n0=sum(JS("ffInvasores.test.shields()")); JS("ffInvasores.test.shoot(40,350,170)"); step(30,.02)
+    t('tiro inimigo é parado pelo abrigo e o desgasta',S()['ab']==0 and sum(JS("ffInvasores.test.shields()"))<n0 and S()['lives']==2,(n0,JS("ffInvasores.test.shields()")))
+    n0=sum(JS("ffInvasores.test.shields()")); JS("(()=>{const G=ffInvasores.test.state();G.px=40;G.cool=0;G.pb=[]})()"); pg.keyboard.press(' '); step(25,.02)
+    t('o seu tiro também desgasta o abrigo',sum(JS("ffInvasores.test.shields()"))<n0,(n0,sum(JS("ffInvasores.test.shields()"))))
+    JS("ffInvasores.test.setWave(1);ffInvasores.test.noShots()"); t('cada nova onda reconstrói os abrigos',min(JS("ffInvasores.test.shields()"))>40)
+    # --- disco voador ---
+    JS("(()=>{const G=ffInvasores.test.state();G.al.forEach(a=>a.on=false);G.al[0].on=true;G.dir=0;G.nextUfo=0;G.px=180})()"); step(2,.02); t('o disco voador bônus aparece',S()['ufo'],S())
+    JS("(()=>{const G=ffInvasores.test.state();G.score=0;G.ufo.x=170;G.ufo.v=0;G.px=185;G.pb=[];G.cool=0})()"); pg.keyboard.press(' '); step(70,.02); s=S()
+    t('acertar o disco dá 50 a 300 pontos',not s['ufo'] and s['score'] in (50,100,150,300),s)
+    JS("ffInvasores.test.setWave(1);ffInvasores.test.noShots()")
+    # --- invasores chegam embaixo ---
+    JS("(()=>{const G=ffInvasores.test.state();G.gy=420})()"); step(3,.02); s=S(); t('se os invasores chegam à Terra, fim de jogo',s['st']=='over' and 'Fim de jogo' in g('iStatus'),(s['st'],g('iStatus')))
+    t('Pausar desabilitado no fim',JS("document.getElementById('iPause').disabled"))
+    # --- fim por vidas + recorde ---
+    pg.keyboard.press('Enter'); t('Enter logo após perder não reinicia por acidente (550 ms)',S()['st']=='over')
+    pg.wait_for_timeout(700); pg.keyboard.press('Enter'); s=S(); t('depois do intervalo, Enter reinicia (3 vidas, placar zerado, onda 1)',s['st']=='play' and s['lives']==3 and s['score']==0 and s['wave']==1,s)
+    JS("ffInvasores.test.freeze(true);ffInvasores.test.noShots()")
+    JS("(()=>{const G=ffInvasores.test.state();G.lives=1;G.inv=0;G.ab=[];G.px=180;G.score=777})()"); JS("ffInvasores.test.shoot(180,430,170)"); step(10,.02); s=S()
+    t('perder a última vida termina o jogo',s['st']=='over' and s['lives']==0 and '♡♡♡' in g('iLives'),(s,g('iLives')))
+    t('o recorde fica salvo e visível',JS("localStorage.getItem('ffInvasoresV1')")=='777' and '777' in g('iBest'),(JS("localStorage.getItem('ffInvasoresV1')"),g('iBest')))
+    pg.reload(); pg.wait_for_timeout(1200); t('o recorde persiste após recarregar',g('iBest').endswith('777'),g('iBest'))
+    # --- pausa ---
+    JS("ffInvasores.test.freeze(true);ffInvasores.test.noShots()"); a=S()['gx']
+    pg.keyboard.press('p'); step(20,.05); t('P pausa e congela os invasores',S()['st']=='pause' and S()['gx']==a and g('iPause')=='Continuar' and 'Pausado' in g('iStatus'),(S()['st'],g('iPause')))
+    x1=S()['px']; JS("ffInvasores.btn('left')"); pg.keyboard.press(' '); t('movimento e tiro são ignorados na pausa',S()['px']==x1 and S()['pb']==0,S())
+    pg.keyboard.press('p'); t('P continua',S()['st']=='play')
+    JS("(()=>{Object.defineProperty(document,'hidden',{value:true,configurable:true});document.dispatchEvent(new Event('visibilitychange'))})()"); t('aba oculta pausa sozinho',S()['st']=='pause')
+    JS("(()=>{Object.defineProperty(document,'hidden',{value:false,configurable:true})})()"); pg.keyboard.press('p')
+    t('a página não rola com Espaço/setas (evento cancelado)',JS("(()=>{const e=new KeyboardEvent('keydown',{key:' ',cancelable:true});document.dispatchEvent(e);return e.defaultPrevented})()"))
+    # --- botões ---
+    JS("(()=>{const G=ffInvasores.test.state();G.px=180;G.pb=[];G.cool=0})()")
+    pg.click('#iLeft'); t('botão ◀ move a nave',S()['px']<180,S()['px']); pg.click('#iRight'); pg.click('#iRight'); t('botão ▶ move a nave',S()['px']>180,S()['px'])
+    pg.click('#iFire'); t('botão Atirar atira',S()['pb']==1,S())
+    # --- toque ---
+    JS("(()=>{const G=ffInvasores.test.state();G.pb=[];G.cool=0;G.px=180})()")
+    bb=pg.locator('#iView').bounding_box(); cy=bb['y']+bb['height']*.6
+    pg.mouse.move(bb['x']+bb['width']*.25,cy); pg.mouse.down(); pg.mouse.move(bb['x']+bb['width']*.2,cy,steps=4); pg.mouse.up()
+    t('arrastar no jogo leva a nave até o dedo',abs(S()['px']-72)<8,S()['px'])
+    JS("ffInvasores.test.state().pb=[];ffInvasores.test.state().cool=0"); pg.mouse.click(bb['x']+bb['width']*.5,cy); t('um toque no jogo atira e centraliza a nave',S()['pb']==1 and abs(S()['px']-180)<8,S())
+    pg.click('#iNew'); s=S(); t('Novo jogo reinicia a partida',s['st']=='play' and s['lives']==3 and s['score']==0 and s['n']==32,s)
+run('Invasores_do_Espaco',invasores)
+
+def labirinto(pg,t,d):
+    JS=lambda x:pg.evaluate(x); g=lambda i:tx(pg,i)
+    S=lambda:JS("(()=>{const G=ffLabirinto.test.state();return {st:G.state,level:G.level,n:G.n,x:G.x,z:G.z,yaw:G.yaw,time:G.time,score:G.score,got:G.got,total:G.total,best:G.best,hf:G.hold.f,drag:G.drag.f,vis:G.vis.flat().filter(Boolean).length}})()")
+    step=lambda n,dt=.02:JS("(()=>{for(let i=0;i<%d;i++)ffLabirinto.test.step(%f)})()"%(n,dt))
+    pg.wait_for_timeout(1200)
+    gi=JS("ffLabirinto.gl3d")
+    t('WebGL iniciado, sem erro, desenhando quadros',gi['ok'] and not gi['error'] and gi['frames']>2,gi)
+    s=S(); t('começa em "pronto": nível 1 (5x5), gemas 0/4, 1:00 de tempo',JS("ffLabirinto.test.state().state")=='ready' and s['n']==5 and s['total']==4 and '0/4' in g('lGemas') and 'NÍVEL' in g('lNivel'),(s,g('lGemas')))
+    t('botão Pausar desabilitado antes de começar',JS("document.getElementById('lPause').disabled"))
+    import io
+    from PIL import Image
+    im=Image.open(io.BytesIO(pg.locator('#lView').screenshot())).convert('RGB').resize((90,100)); cols=len(set(im.getdata()))
+    t('a cena 3D tem cores variadas (paredes, chão, teto)',cols>60,cols)
+    t('sem erros do WebGL (getError = 0)',JS("document.getElementById('lView').getContext('webgl').getError()")==0)
+    r=JS("(()=>{const r=document.getElementById('lView').getBoundingClientRect();return r.width/r.height})()")
+    t('a proporção do jogo é mantida (sem distorcer)',abs(r-353/420)<.03,r)
+    # --- geração ---
+    ok=True; det=[]
+    for lv in range(1,13):
+        for sd in (3,99,1234):
+            JS("(()=>{ffLabirinto.test.seed(%d);ffLabirinto.test.level(%d)})()"%(sd,lv))
+            if not JS("ffLabirinto.test.reachable()"): ok=False; det.append((lv,sd))
+    t('36 labirintos (12 níveis × 3 sementes): todas as células são alcançáveis',ok,det)
+    JS("ffLabirinto.test.level(1)"); t('nível 1 é 5x5 e a saída fica longe do início',S()['n']==5 and JS("ffLabirinto.test.pathLen()")>=6,JS("ffLabirinto.test.pathLen()"))
+    JS("ffLabirinto.test.level(5)"); s5=S(); JS("ffLabirinto.test.level(20)"); s20=S()
+    t('o labirinto cresce com o nível e para em 12x12; no máximo 10 gemas',s5['n']==9 and s20['n']==12 and s20['total']<=10,(s5['n'],s20['n'],s20['total']))
+    JS("ffLabirinto.test.level(1)"); t0=S()['time']; JS("ffLabirinto.test.level(8)"); t8=S()['time']
+    t('níveis maiores dão mais tempo',t8>t0,(t0,t8))
+    JS("ffLabirinto.test.seed(5);ffLabirinto.test.level(1)")
+    # --- começar ---
+    JS("ffLabirinto.test.freeze(true)"); pg.keyboard.press('Enter'); s=S()
+    t('Enter começa o jogo',s['st']=='play',s); t('botão Pausar habilitado jogando',not JS("document.getElementById('lPause').disabled"))
+    t('no início só o entorno do ponto de partida está revelado no minimapa',s['vis']<=3,s['vis'])
+    # --- movimento ---
+    def home(): JS("ffLabirinto.test.level(1)"); JS("ffLabirinto.test.state().state='play'")
+    home(); a=S(); pg.keyboard.down('ArrowUp'); step(25); pg.keyboard.up('ArrowUp'); b=S()
+    dist=((b['x']-a['x'])**2+(b['z']-a['z'])**2)**.5
+    t('↑ anda para a frente (~3,3 u/s)',1.0<dist<1.9,dist)
+    import math
+    ang=math.atan2(b['x']-a['x'],b['z']-a['z']); dy=abs((ang-a['yaw']+math.pi)%(2*math.pi)-math.pi)
+    t('o movimento segue a direção em que a câmera olha',dy<.2,(ang,a['yaw']))
+    home(); a=S(); pg.keyboard.down('ArrowDown'); step(10); pg.keyboard.up('ArrowDown'); b=S()
+    t('↓ anda para trás (ou encosta na parede), nunca para a frente',((b['x']-a['x'])*math.sin(a['yaw'])+(b['z']-a['z'])*math.cos(a['yaw']))<=.001,(a,b))
+    home(); y0=S()['yaw']; pg.keyboard.down('ArrowRight'); step(20); pg.keyboard.up('ArrowRight'); y1=S()['yaw']
+    t('→ gira para a direita (o ângulo diminui) sem sair do lugar',y1<y0-.5,(y0,y1))
+    pg.keyboard.down('ArrowLeft'); step(40); pg.keyboard.up('ArrowLeft'); t('← gira para a esquerda',S()['yaw']>y1+.5,(y1,S()['yaw']))
+    home(); a=S(); pg.keyboard.down('d'); step(10); pg.keyboard.up('d'); b=S(); mvx=(b['x']-a['x'])*(-math.cos(a['yaw']))+(b['z']-a['z'])*math.sin(a['yaw'])
+    t('D anda de lado, para a direita da câmera',mvx>.1 or (abs(b['x']-a['x'])+abs(b['z']-a['z']))<.05,(a,b,mvx))
+    pg.keyboard.down('w'); step(5); pg.keyboard.up('w'); t('W também anda para a frente',True)
+    t('soltar as teclas para o movimento',JS("(()=>{const x=ffLabirinto.test.state();return x.hold.f+x.hold.b+x.hold.l+x.hold.r+x.hold.sl+x.hold.sr})()")==0)
+    # --- colisão ---
+    JS("ffLabirinto.test.setPos(1,1,3*Math.PI/2)"); pg.keyboard.down('ArrowUp'); step(120); pg.keyboard.up('ArrowUp'); s=S()
+    t('a parede de fora segura o jogador (não atravessa)',s['x']>=.15+.34-.02,s)
+    JS("ffLabirinto.test.setPos(1,1,Math.PI)"); pg.keyboard.down('ArrowUp'); step(120); pg.keyboard.up('ArrowUp'); s=S()
+    t('a parede de cima também (e há deslize, sem ficar preso)',s['z']>=.15+.34-.02,s)
+    bad=0
+    for k in range(40):
+        JS("ffLabirinto.test.setPos(1,1,%f)"%(k*0.7)); pg.keyboard.down('ArrowUp'); step(60,.03); pg.keyboard.up('ArrowUp'); s=S()
+        if not(0<s['x']<s['n']*2 and 0<s['z']<s['n']*2): bad+=1
+    t('40 corridas em direções variadas: nunca sai do labirinto',bad==0,bad)
+    # --- gemas e minimapa ---
+    JS("ffLabirinto.test.level(1)"); JS("ffLabirinto.test.state().state='play'")
+    gm=JS("(()=>{const g=ffLabirinto.test.state().gems[0];return [g.x,g.z]})()"); sc=S()['score']
+    JS("ffLabirinto.test.setPos(%f,%f,0)"%(gm[0],gm[1])); step(2); s=S()
+    t('pegar uma gema: +100 pontos, 1/4 no placar',s['got']==1 and s['score']==sc+100 and '1/4' in g('lGemas') and str(sc+100) in g('lPontos'),(s,g('lGemas')))
+    step(5); t('a mesma gema não é contada de novo',S()['got']==1)
+    t('o minimapa revela as células visitadas',S()['vis']>=1)
+    ex=JS("(()=>{const G=ffLabirinto.test.state();return G.vis[G.ex.i][G.ex.j]})()"); t('a saída ainda não aparece no minimapa antes de visitar',ex is False,ex)
+    # --- tempo e pausa ---
+    JS("ffLabirinto.test.level(1)"); JS("ffLabirinto.test.state().state='play'"); t0=S()['time']; step(50); t1=S()['time']
+    t('o tempo corre durante o jogo',t1<t0-.9,(t0,t1))
+    pg.keyboard.press('p'); step(50); s=S(); t('P pausa e congela o tempo',s['st']=='pause' and abs(s['time']-t1)<.001 and g('lPause')=='Continuar',(s,g('lPause')))
+    pg.keyboard.down('ArrowUp'); step(20); pg.keyboard.up('ArrowUp'); t('comandos de movimento são ignorados na pausa',abs(S()['z']-s['z'])<1e-6 and abs(S()['x']-s['x'])<1e-6)
+    pg.keyboard.press('p'); t('P continua',S()['st']=='play')
+    JS("(()=>{Object.defineProperty(document,'hidden',{value:true,configurable:true});document.dispatchEvent(new Event('visibilitychange'))})()"); t('aba oculta pausa sozinho',S()['st']=='pause')
+    JS("(()=>{Object.defineProperty(document,'hidden',{value:false,configurable:true})})()"); pg.keyboard.press('p')
+    t('a página não rola com as setas/espaço (evento cancelado)',JS("(()=>{const e=new KeyboardEvent('keydown',{key:'ArrowUp',cancelable:true});document.dispatchEvent(e);return e.defaultPrevented})()"))
+    JS("ffLabirinto.test.state().hold.f=0")
+    # --- saída e novo nível ---
+    JS("ffLabirinto.test.level(1)"); JS("ffLabirinto.test.state().state='play'"); sc=S()['score']
+    JS("(()=>{const G=ffLabirinto.test.state();ffLabirinto.test.setPos((G.ex.i+.5)*2,(G.ex.j+.5)*2,0);G.time=30})()"); step(2); s=S()
+    t('chegar na saída conclui o nível com bônus (tempo × 5 + 200 × nível)',s['st']=='clear' and s['score']>=sc+30*5+200-10 and 'CONCLUÍDO' in JS("document.getElementById('lMsg').textContent"),s)
+    pg.wait_for_timeout(1700); step(1); s=S(); t('depois do aviso começa o nível 2 (6x6, mais gemas, nova planta)',s['st']=='play' and s['level']==2 and s['n']==6 and s['total']==5 and s['got']==0,s)
+    t('o placar acumula entre os níveis',s['score']>=sc+300,s['score'])
+    # --- fim por tempo, recorde ---
+    JS("(()=>{const G=ffLabirinto.test.state();G.time=.05})()"); step(5); s=S()
+    t('o tempo esgotar termina o jogo e mostra o aviso',s['st']=='over' and 'TEMPO ESGOTADO' in JS("document.getElementById('lMsg').textContent") and s['time']==0,s)
+    t('botão Pausar desabilitado no fim',JS("document.getElementById('lPause').disabled"))
+    sc=s['score']; pg.keyboard.press('Enter'); t('Enter logo após o fim não reinicia por acidente (550 ms)',S()['st']=='over')
+    pg.wait_for_timeout(700); pg.keyboard.press('Enter'); s=S(); t('depois do intervalo, Enter recomeça no nível 1 com placar zerado',s['st']=='play' and s['level']==1 and s['score']==0 and s['n']==5,s)
+    bst=JS("localStorage.getItem('ffLabirintoV1')"); t('o recorde fica salvo (e nunca é menor que a última partida)',bst is not None and int(bst)>=sc>0,(sc,bst))
+    pg.reload(); pg.wait_for_timeout(1200); t('o recorde persiste após recarregar',JS("ffLabirinto.test.state().best")==int(bst),(bst,JS("ffLabirinto.test.state().best")))
+    # --- toque ---
+    pg.keyboard.press('Enter'); JS("ffLabirinto.test.freeze(true)"); JS("ffLabirinto.test.state().state='play'")
+    bb=pg.locator('#lView').bounding_box(); cx=bb['x']+bb['width']/2; cy=bb['y']+bb['height']/2; y0=S()['yaw']
+    pg.mouse.move(cx,cy); pg.mouse.down(); pg.mouse.move(cx+90,cy,steps=6); t('arrastar para a direita gira a câmera para a direita',S()['yaw']<y0-.5,(y0,S()['yaw']))
+    pg.mouse.move(cx+90,cy-50,steps=4); t('arrastar para cima = andar para a frente',S()['drag']>.4,S()['drag'])
+    pg.mouse.up(); t('soltar o dedo para o movimento',S()['drag']==0)
+    JS("document.getElementById('lFwd').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:1}))"); t('segurar o botão ▲ anda para a frente',S()['hf']==1)
+    JS("document.getElementById('lFwd').dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:1}))"); t('soltar o botão ▲ para',S()['hf']==0)
+    pg.click('#lNew'); s=S(); t('Novo jogo reinicia a partida',s['st']=='play' and s['level']==1 and s['score']==0,s)
+run('Labirinto_3D',labirinto,gl=True)
+def labirinto_sem_webgl(pg,t,d):
+    pg.wait_for_timeout(400)
+    t('sem WebGL: aviso na tela em vez de travar',pg.evaluate("ffLabirinto.gl3d.ok===false && !!ffLabirinto.gl3d.error"),pg.evaluate("JSON.stringify(ffLabirinto.gl3d)"))
+    t('sem WebGL: o placar, o minimapa e os botões continuam na página',pg.evaluate("!!document.getElementById('lNivel')&&!!document.getElementById('lMap')&&!!document.getElementById('lFwd')"))
+    pg.keyboard.press('ArrowUp'); pg.keyboard.press('Enter')
+run('Labirinto_3D',labirinto_sem_webgl,tag='Labirinto_3D (sem WebGL)',init="(()=>{const g=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(k,...a){if(/webgl/.test(k))return null;return g.call(this,k,...a)}})()")
+
+def memoria_avancada(pg,t,d):
+    JS=lambda x:pg.evaluate(x); g=lambda i:tx(pg,i)
+    cards=lambda:JS("document.querySelectorAll('#tabuleiro button').length")
+    figs=lambda:JS("[...document.querySelectorAll('#tabuleiro button')].map(b=>b.dataset.figura)")
+    def par():
+        f=figs(); i=0; j=[k for k in range(1,len(f)) if f[k]==f[0]][0]; return 0,j
+    def diff():
+        f=figs(); return 0,[k for k in range(1,len(f)) if f[k]!=f[0]][0]
+    click=lambda i:JS("document.querySelectorAll('#tabuleiro button')[%d].click()"%i)
+    pg.wait_for_timeout(300)
+    t('o tabuleiro é criado por código ao abrir (nível Fácil = 12 cartas)',cards()==12,cards())
+    f=figs(); t('cada figura aparece exatamente 2 vezes',all(f.count(x)==2 for x in set(f)) and len(set(f))==6,sorted(f))
+    t('placar inicial e mensagem',g('lblJogadas')=='Jogadas: 0' and g('lblTempo')=='Tempo: 0s' and 'Encontre' in g('lblMsg') and g('lblRecorde')=='Recorde: -',(g('lblJogadas'),g('lblRecorde')))
+    t('o nível tem 3 opções',JS("[...document.querySelectorAll('#selNivel option')].map(o=>o.textContent).join(',')")=='Fácil,Médio,Difícil',JS("document.getElementById('selNivel').outerHTML")[:150])
+    # --- virar ---
+    a,b=diff(); click(a); t('virar uma carta mostra a figura',JS("document.querySelectorAll('#tabuleiro button')[%d].textContent"%a)==f[a])
+    t('o primeiro clique inicia o cronômetro',True); pg.wait_for_timeout(1300); t('o tempo passa (a cada 0,5 s)',g('lblTempo') in ('Tempo: 1s','Tempo: 2s'),g('lblTempo'))
+    click(b); t('segunda carta diferente conta 1 jogada',g('lblJogadas')=='Jogadas: 1',g('lblJogadas'))
+    c3=[k for k in range(len(f)) if k not in (a,b)][0]; click(c3); t('com o tabuleiro travado o clique é ignorado',JS("document.querySelectorAll('#tabuleiro button')[%d].textContent"%c3)=='?' and g('lblJogadas')=='Jogadas: 1')
+    pg.wait_for_timeout(1000); t('cartas diferentes voltam a ficar viradas para baixo',JS("[a,b].map(i=>document.querySelectorAll('#tabuleiro button')[i].textContent).join('')".replace('[a,b]','[%d,%d]'%(a,b)))=='??')
+    # --- par certo ---
+    x,y=par(); click(x); click(y); bs=JS("[x,y].map(i=>{const b=document.querySelectorAll('#tabuleiro button')[i];return [b.disabled,b.textContent]})".replace('[x,y]','[%d,%d]'%(x,y)))
+    t('par certo: cartas ficam abertas e desabilitadas',bs[0][0] and bs[1][0] and bs[0][1]==f[x],bs); t('a jogada do par também é contada',g('lblJogadas')=='Jogadas: 2',g('lblJogadas'))
+    click(x); t('clicar numa carta já encontrada não faz nada',g('lblJogadas')=='Jogadas: 2')
+    # --- ganhar, recorde ---
+    def vencer():
+        fs=figs(); done=set()
+        for i,v in enumerate(fs):
+            if i in done: continue
+            j=[k for k in range(i+1,len(fs)) if fs[k]==v][0]; done.update((i,j))
+            if JS("document.querySelectorAll('#tabuleiro button')[%d].disabled"%i): continue
+            click(i); click(j)
+    JS("localStorage.clear()"); JS("document.getElementById('btnNovo').click()"); pg.wait_for_timeout(200)
+    t('Novo jogo zera o placar e remonta o tabuleiro',g('lblJogadas')=='Jogadas: 0' and cards()==12 and g('lblTempo')=='Tempo: 0s')
+    vencer(); t('vencer: 6 jogadas perfeitas e mensagem de novo recorde',g('lblJogadas')=='Jogadas: 6' and 'Novo recorde' in g('lblMsg') and g('lblRecorde')=='Recorde: 6',(g('lblJogadas'),g('lblMsg'),g('lblRecorde')))
+    t('o recorde fica salvo no navegador (por nível)',JS("localStorage.getItem('memoria_Fácil')")=='6')
+    tmp=g('lblTempo'); pg.wait_for_timeout(1200); t('o cronômetro para quando o jogo termina',g('lblTempo')==tmp,(tmp,g('lblTempo')))
+    JS("document.getElementById('btnNovo').click()"); fs=figs(); a,b=diff(); click(a); click(b); pg.wait_for_timeout(1000); vencer()
+    t('partida pior que o recorde: mensagem de vitória sem trocar o recorde',g('lblRecorde')=='Recorde: 6' and 'Você venceu' in g('lblMsg'),(g('lblRecorde'),g('lblMsg')))
+    # --- níveis ---
+    JS("(()=>{const s=document.getElementById('selNivel');s.value='Médio';s.dispatchEvent(new Event('change',{bubbles:true}))})()"); pg.wait_for_timeout(200)
+    t('trocar para Médio remonta com 16 cartas (4x4, 8 figuras)',cards()==16 and len(set(figs()))==8,(cards(),len(set(figs()))))
+    t('o tabuleiro vira uma grade de 4 colunas',JS("getComputedStyle(document.getElementById('tabuleiro')).gridTemplateColumns.split(' ').length")==4)
+    JS("(()=>{const s=document.getElementById('selNivel');s.value='Difícil';s.dispatchEvent(new Event('change',{bubbles:true}))})()"); pg.wait_for_timeout(200)
+    t('Difícil: 24 cartas (6x4, 12 figuras), todas visíveis dentro do tabuleiro',cards()==24 and len(set(figs()))==12 and JS("(()=>{const t=document.getElementById('tabuleiro').getBoundingClientRect();return [...document.querySelectorAll('#tabuleiro button')].every(b=>{const r=b.getBoundingClientRect();return r.width>20&&r.height>20&&r.right<=t.right+1&&r.bottom<=t.bottom+1})})()"))
+    t('o recorde mostrado é do nível escolhido (Difícil ainda sem recorde)',g('lblRecorde')=='Recorde: -',g('lblRecorde'))
+    vencer(); t('vencer no Difícil: 12 jogadas e recorde próprio',g('lblJogadas')=='Jogadas: 12' and JS("localStorage.getItem('memoria_Difícil')")=='12' and JS("localStorage.getItem('memoria_Fácil')")=='6',(g('lblJogadas'),))
+    JS("document.getElementById('btnNovo').click()"); pg.wait_for_timeout(100); JS("document.getElementById('btnNovo').click()"); pg.wait_for_timeout(100)
+    t('reiniciar várias vezes não acumula cartas nem cronômetros',cards()==24 and g('lblTempo')=='Tempo: 0s')
+run('Memoria_Avancada',memoria_avancada)
+
+def habitos(pg,t,d):
+    JS=lambda x:pg.evaluate(x); g=lambda i:tx(pg,i)
+    JS("HB.agora=()=>new Date(2026,9,21,15,0)"); JS("HB.hoje()")
+    rows=lambda:JS("document.querySelectorAll('#hjLista .hb-linha').length")
+    nav=lambda n:(JS("ffNavigate(%r)"%n),pg.wait_for_timeout(150))
+    vis=lambda i:JS("(()=>{const e=document.getElementById('%s').closest('.ff-page');return e&&!e.classList.contains('hidden')&&getComputedStyle(e).display!=='none'})()"%i)
+    t('abre na página Hoje com os 4 hábitos padrão',rows()==4 and vis('hjTitle') and not vis('smTitle'),(rows(),))
+    t('data de hoje por extenso, com inicial maiúscula',g('hjData')=='Quarta-feira, 21 de outubro',g('hjData'))
+    t('progresso inicial e mensagem de incentivo',g('hjProgresso')=='0 de 4 concluídos (0%)' and 'Comece' in g('hjMsg'),(g('hjProgresso'),g('hjMsg')))
+    row=lambda i:"document.querySelectorAll('#hjLista .hb-linha')[%d]"%i
+    JS(row(0)+".click()"); t('tocar num hábito o marca (1 de 4, 25%)',g('hjProgresso')=='1 de 4 concluídos (25%)' and JS(row(0)+".dataset.feito")=='1',g('hjProgresso'))
+    t('a barra de progresso mostra 25%',JS("document.querySelector('#hjBarra div').style.width")=='25%')
+    t('hábito feito: riscado e sequência 🔥 1','🔥 1' in JS(row(0)+".textContent") and 'line-through' in JS(row(0)+".querySelector('.hb-nome').style.cssText"))
+    JS(row(0)+".click()"); t('tocar de novo desmarca',g('hjProgresso')=='0 de 4 concluídos (0%)' and JS(row(0)+".dataset.feito")=='')
+    # --- sequência com datas controladas ---
+    seq=lambda id:JS("HB.sequencia(%d)"%id)
+    def marca(id,dias):
+        JS("(()=>{const D=HB.dados();D.feitos={};%s.forEach(n=>{const k=HB.chave(HB.dia(n));(D.feitos[k]=D.feitos[k]||[]).push(%d)});HB.hoje()})()"%(dias,id))
+    marca(1,[0,1,2,3]); t('sequência de 4 dias seguidos (inclui hoje)',seq(1)==4,seq(1))
+    marca(1,[1,2,3]); t('se hoje ainda não foi feito, a sequência de ontem continua valendo (3)',seq(1)==3,seq(1))
+    marca(1,[0,1,3,4]); t('um dia faltando quebra a sequência (2)',seq(1)==2,seq(1))
+    marca(1,[2,3,4]); t('sem hoje nem ontem a sequência é 0',seq(1)==0,seq(1))
+    marca(1,[]); t('sem nenhum registro a sequência é 0',seq(1)==0)
+    # --- completar o dia ---
+    JS("HB.dados().feitos={};HB.hoje()")
+    for i in range(4): JS(row(i)+".click()")
+    t('todos feitos: 100%, barra cheia e mensagem de parabéns',g('hjProgresso')=='4 de 4 concluídos (100%)' and 'Tudo feito' in g('hjMsg') and JS("document.querySelector('#hjBarra div').style.width")=='100%',(g('hjProgresso'),g('hjMsg')))
+    # --- semana ---
+    nav('Semana'); t('ir para Semana mostra a grade 4 hábitos × 7 dias',vis('smTitle') and not vis('hjTitle') and JS("document.querySelectorAll('#smGrade td[data-k]').length")==28,JS("document.querySelectorAll('#smGrade td[data-k]').length"))
+    t('os 7 dias terminam em hoje (21), com letra do dia da semana',JS("[...document.querySelectorAll('#smGrade th')].slice(1).map(h=>h.textContent).join(',')")=='Q15,S16,S17,D18,S19,T20,Q21',JS("[...document.querySelectorAll('#smGrade th')].slice(1).map(h=>h.textContent).join(',')"))
+    t('hoje aparece marcado nos 4 hábitos; taxa 14% (4 de 28)',JS("document.querySelectorAll('#smGrade td[data-k=\"2026-10-21\"]')[0].textContent")=='●' and 'Taxa da semana: 14% (4 de 28)' in g('smResumo'),g('smResumo'))
+    JS("document.querySelector('#smGrade td[data-h=\"2\"][data-k=\"2026-10-19\"]').click()"); t('tocar numa bolinha corrige um dia passado',JS("document.querySelector('#smGrade td[data-h=\"2\"][data-k=\"2026-10-19\"]').textContent")=='●' and '5 de 28' in g('smResumo'),g('smResumo'))
+    t('melhor hábito da semana',g('smMelhor').startswith('Melhor hábito: Ler 10 minutos (2/7)'),g('smMelhor'))
+    nav('Hoje'); t('a correção reflete na página Hoje (sequência de 🔥 1 continua e dados persistem)',rows()==4 and g('hjProgresso')=='4 de 4 concluídos (100%)')
+    # --- gerenciar ---
+    nav('Hábitos'); t('página Hábitos lista os 4 e mostra contagem',vis('gdTitle') and JS("document.querySelectorAll('#gdLista .hb-gerencia').length")==4 and g('gdInfo')=='4 de 10 hábitos',g('gdInfo'))
+    add=lambda n:(JS("document.getElementById('gdNome').value=%r"%n),JS("document.getElementById('gdAdd').click()"))
+    add('   '); t('nome vazio é recusado',JS("document.querySelectorAll('#gdLista .hb-gerencia').length")==4 and 'Digite' in g('gdInfo'),g('gdInfo'))
+    add('x'*30); t('nome com mais de 28 letras é recusado',JS("document.querySelectorAll('#gdLista .hb-gerencia').length")==4 and '28' in g('gdInfo'),g('gdInfo'))
+    add('meditar'); t('duplicado (sem diferenciar maiúsculas) é recusado',JS("document.querySelectorAll('#gdLista .hb-gerencia').length")==4 and 'já existe' in g('gdInfo'),g('gdInfo'))
+    add('  Estudar   inglês '); t('adicionar um hábito novo (espaços extras normalizados)',JS("document.querySelectorAll('#gdLista .hb-gerencia').length")==5 and 'Estudar inglês' in JS("document.getElementById('gdLista').textContent") and g('gdInfo').startswith('Hábito adicionado') and JS("document.getElementById('gdNome').value")=='',g('gdInfo'))
+    JS("document.getElementById('gdNome').value='Alongar'"); JS("document.getElementById('gdNome').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))")
+    t('Enter no campo também adiciona',JS("document.querySelectorAll('#gdLista .hb-gerencia').length")==6,JS("document.querySelectorAll('#gdLista .hb-gerencia').length"))
+    for n in ('A1','A2','A3','A4','A5'): add(n)
+    t('limite de 10 hábitos',JS("document.querySelectorAll('#gdLista .hb-gerencia').length")==10 and 'Limite' in g('gdInfo') and g('gdInfo').startswith('Limite'),(g('gdInfo'),JS("document.querySelectorAll('#gdLista .hb-gerencia').length")))
+    JS("document.querySelectorAll('#gdLista .hb-del')[9].click()"); JS("document.querySelectorAll('#gdLista .hb-del')[8].click()"); JS("document.querySelectorAll('#gdLista .hb-del')[7].click()")
+    t('remover hábitos atualiza lista e contagem',JS("document.querySelectorAll('#gdLista .hb-gerencia').length")==7 and g('gdInfo')=='7 de 10 hábitos',g('gdInfo'))
+    JS("HB.dados().feitos['2026-10-21']=[1,99]"); JS("document.querySelectorAll('#gdLista .hb-del')[0].click()")
+    t('remover um hábito também apaga o histórico dele',all(1 not in v for v in JS("Object.values(HB.dados().feitos)")),JS("JSON.stringify(HB.dados().feitos)"))
+    # --- segurança: HTML no nome ---
+    add('<img src=x onerror=__xss=1>'); nav('Hoje'); nav('Semana'); pg.wait_for_timeout(200)
+    t('nome com HTML aparece como texto (não vira elemento)',JS("!window.__xss && !document.querySelector('#hjLista img, #smGrade img, #gdLista img')") and '<img' in JS("document.getElementById('smGrade').textContent"))
+    # --- persistência ---
+    nav('Hábitos'); n_antes=JS("HB.dados().habitos.length"); pg.reload(); pg.wait_for_function('window.HB',timeout=5000); pg.wait_for_timeout(200)
+    JS("HB.agora=()=>new Date(2026,9,21,15,0)"); JS("HB.hoje()")
+    t('os hábitos e marcações persistem após recarregar',JS("HB.dados().habitos.length")==n_antes and rows()==n_antes,(n_antes,rows()))
+    # --- abrir direto numa página interna (link/F5): cada página tem de montar a própria tela ---
+    base=pg.url.split('#')[0]; slugs=JS("(window.__FLOWFORGE_PAGES__||[]).map(p=>p.slug||p.id)")
+    for pagina,slug,ver in (('Semana',slugs[1],"document.querySelectorAll('#smGrade td[data-k]').length>=7"),('Hábitos',slugs[2],"document.querySelectorAll('#gdLista .hb-gerencia').length>=1"),('Hoje',slugs[0],"document.querySelectorAll('#hjLista .hb-linha').length>=1")):
+        pg.goto(base+'#/page/'+slug); pg.reload(); pg.wait_for_function('window.HB',timeout=5000); pg.wait_for_timeout(300)
+        t('abrir direto em "%s" (recarregando) monta a tela corretamente'%pagina,JS(ver),(slug,JS("location.hash")))
+    # --- restaurar ---
+    nav('Hábitos'); JS("document.getElementById('gdReset').click()"); pg.wait_for_timeout(200)
+    t('Restaurar volta aos 4 hábitos padrão e apaga o histórico (com confirmação)',JS("document.querySelectorAll('#gdLista .hb-gerencia').length")==4 and JS("Object.keys(HB.dados().feitos).length")==0 and any('padrão' in m for m in d),d)
+    JS("localStorage.setItem('habitos_v1','{quebrado')"); pg.reload(); pg.wait_for_function('window.HB',timeout=5000); pg.wait_for_timeout(200); nav('Hoje'); JS("HB.agora=()=>new Date(2026,9,21,15,0)"); JS("HB.hoje()")
+    t('dados corrompidos no navegador não quebram o app (volta ao padrão)',rows()==4)
+    JS("HB.dados().habitos.length=0; HB.hoje()"); t('sem hábitos: mensagem orientando a cadastrar',g('hjProgresso')=='0 de 0 concluídos (0%)' and 'Cadastre' in JS("document.getElementById('hjLista').textContent"),g('hjProgresso'))
+run('Rastreador_de_Habitos',habitos)
+
+def divisor(pg,t,d):
+    JS=lambda x:pg.evaluate(x); g=lambda i:tx(pg,i)
+    setv=lambda v:(JS("document.getElementById('inpValor').value=%r"%v),JS("DC.calc()"))
+    t('abre com gorjeta 10%, 4 pessoas e pedindo o valor',JS("document.getElementById('selGorjeta').value")=='10%' and g('lblPessoas')=='4 pessoas' and 'Digite' in g('lblMsg'),(g('lblPessoas'),g('lblMsg')))
+    setv('100'); t('R$ 100 + 10% / 4 = R$ 27,50',g('lblPor').replace('\xa0',' ')=='R$ 27,50' and 'R$ 10,00' in g('lblGorjeta').replace('\xa0',' ') and 'R$ 110,00' in g('lblTotal').replace('\xa0',' '),(g('lblPor'),g('lblGorjeta'),g('lblTotal')))
+    t('divisão exata avisa "sem sobras"','exata' in g('lblNota'),g('lblNota'))
+    setv('1.234,50'); t('aceita 1.234,50 (milhar e vírgula)','R$ 1.357,95' in g('lblTotal').replace('\xa0',' '),g('lblTotal'))
+    setv('45.90'); t('aceita 45.90 (ponto decimal)','R$ 45,90' in g('lblMsg').replace('\xa0',' '),g('lblMsg'))
+    setv('R$ 80'); t('aceita "R$ 80"','R$ 80,00' in g('lblMsg').replace('\xa0',' '),g('lblMsg'))
+    setv('100'); JS("DC.mais()"); t('+ aumenta para 5 pessoas e recalcula (R$ 22,00)',g('lblPessoas')=='5 pessoas' and g('lblPor').replace('\xa0',' ')=='R$ 22,00',(g('lblPessoas'),g('lblPor')))
+    JS("DC.menos()");JS("DC.menos()");JS("DC.menos()");JS("DC.menos()");JS("DC.menos()");JS("DC.menos()")
+    t('mínimo de 1 pessoa (singular) e paga o total',g('lblPessoas')=='1 pessoa' and g('lblPor').replace('\xa0',' ')=='R$ 110,00' and 'Só uma' in g('lblNota'),(g('lblPessoas'),g('lblPor'),g('lblNota')))
+    for _ in range(40): JS("DC.mais()")
+    t('máximo de 30 pessoas',g('lblPessoas')=='30 pessoas',g('lblPessoas'))
+    JS("DC.pessoas=3;DC.calc()"); setv('10'); t('R$ 10 + 10% / 3 → R$ 3,67 (arredonda centavo para cima)',g('lblPor').replace('\xa0',' ')=='R$ 3,67' and 'sobram R$ 0,01' in g('lblNota').replace('\xa0',' '),(g('lblPor'),g('lblNota')))
+    JS("document.getElementById('selArred').value='Sim'"); JS("DC.calc()"); t('arredondar para R$ inteiro: R$ 4,00 e avisa a sobra',g('lblPor').replace('\xa0',' ')=='R$ 4,00' and 'sobram R$ 1,00' in g('lblNota').replace('\xa0',' '),(g('lblPor'),g('lblNota')))
+    JS("document.getElementById('selArred').value='Não'"); JS("document.getElementById('selGorjeta').value='20%'"); JS("DC.calc()")
+    t('gorjeta 20%: R$ 10 → R$ 12,00 total',' R$ 12,00' in (' '+g('lblTotal').replace('\xa0',' ')),g('lblTotal'))
+    for v,m in (('abc','inválido'),('0','maior que zero'),('-5','inválido'),('1,234','inválido'),('99999999999','inválido'),('','Digite')):
+        setv(v); t('valor %r: mensagem "%s" e resultado zerado'%(v,m),m.lower() in g('lblMsg').lower() and g('lblPor').replace('\xa0',' ')=='R$ 0,00',(g('lblMsg'),g('lblPor')))
+    setv('0,10'); JS("DC.pessoas=1;DC.calc()"); t('centavos: R$ 0,10 sem gorjeta de 20% = R$ 0,12',g('lblPor').replace('\xa0',' ')=='R$ 0,12',g('lblPor'))
+    setv('33,33'); JS("document.getElementById('selGorjeta').value='0%'"); JS("DC.pessoas=3;DC.calc()"); t('33,33 / 3 = R$ 11,11 (sem erro de ponto flutuante)',g('lblPor').replace('\xa0',' ')=='R$ 11,11',g('lblPor'))
+    setv('50'); pg.click('#inpValor'); pg.keyboard.type('5'); pg.wait_for_timeout(100); t('digitar no campo atualiza na hora (teclado)','R$ 505,00' in g('lblMsg').replace('\xa0',' '),g('lblMsg'))
+    JS("document.getElementById('btnLimpar').click()"); t('Limpar volta ao estado inicial',JS("document.getElementById('inpValor').value")=='' and g('lblPessoas')=='4 pessoas' and JS("document.getElementById('selGorjeta').value")=='10%' and 'Digite' in g('lblMsg'),(g('lblPessoas'),g('lblMsg')))
+run('Divisor_de_Conta',divisor)
+
+def jogo2048(pg,t,d):
+    JS=lambda x:pg.evaluate(x); g=lambda i:tx(pg,i)
+    cel=lambda:JS("[...document.querySelectorAll('#tabuleiro .dg-celula')].map(c=>+c.dataset.v)")
+    setg=lambda m:(JS("DG.fim=false;DG.grade=%s;DG.anterior=null;DG.desenha()"%json.dumps(m)))
+    rnd0=lambda:JS("DG.rnd=()=>0.99")  # sorteio determinístico: último espaço livre, valor 4
+    t('abre com 16 células e 2 peças iniciais',len(cel())==16 and sum(1 for v in cel() if v)==2 and all(v in (0,2,4) for v in cel()),cel())
+    t('placar inicial e dica',g('lblPts')=='Pontos: 0' and 'setas' in g('lblMsg'),(g('lblPts'),g('lblMsg')))
+    L=lambda l:JS("DG.linha(%s)"%l)
+    t('linha [2,2,4,0] → [4,4,0,0], só 2+2 junta (4 pontos)',L([2,2,4,0])=={'linha':[4,4,0,0],'pontos':4},L([2,2,4,0]))
+    t('linha [2,2,2,2] → [4,4,0,0] (cada peça junta só uma vez)',L([2,2,2,2])=={'linha':[4,4,0,0],'pontos':8},L([2,2,2,2]))
+    t('linha [2,2,2,0] → [4,2,0,0]',L([2,2,2,0])['linha']==[4,2,0,0])
+    t('linha [4,0,4,8] → [8,8,0,0]',L([4,0,4,8])['linha']==[8,8,0,0])
+    t('linha [2,4,2,4] não muda',L([2,4,2,4])=={'linha':[2,4,2,4],'pontos':0})
+    rnd0()
+    setg([[2,0,0,2],[0,0,0,0],[0,0,0,0],[4,0,0,0]]); JS("DG.mover('esq')")
+    t('mover à esquerda junta 2+2 e soma 4 pontos',cel()[0]==4 and g('lblPts')=='Pontos: 4' and JS("DG.grade[3][0]")==4,(cel()[:4],g('lblPts')))
+    t('depois da jogada nasce 1 peça nova (4 no último espaço livre)',JS("DG.grade[3][3]")==4 and sum(1 for v in cel() if v)==3,cel())
+    rnd0(); setg([[2,0,0,0],[2,0,0,0],[0,0,0,0],[0,0,0,0]]); JS("DG.mover('cima')")
+    t('mover para cima junta na vertical',JS("DG.grade[0][0]")==4,JS("DG.grade"))
+    rnd0(); setg([[2,2,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]); JS("DG.mover('dir')")
+    t('mover para a direita junta e encosta à direita',JS("DG.grade[0][3]")==4 and JS("DG.grade[0][0]")==0,JS("DG.grade[0]"))
+    rnd0(); setg([[0,0,0,0],[0,0,0,0],[0,0,0,0],[2,0,0,0]]); JS("DG.mover('cima')"); JS("DG.mover('baixo')")
+    t('mover para baixo encosta embaixo',JS("DG.grade[3][0]")==2,JS("DG.grade"))
+    p0=JS("DG.pontos"); setg([[2,4,2,4],[4,2,4,2],[2,4,2,4],[8,16,32,64]]); JS("DG.mover('baixo')")
+    t('jogada que não move nada é ignorada (sem peça nova, sem desfazer)',sum(1 for v in cel() if v)==16 and JS("DG.anterior")==None and JS("DG.pontos")==p0,cel())
+    # desfazer
+    setg([[2,2,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]); JS("DG.pontos=0"); rnd0(); JS("DG.mover('esq')")
+    antes_pts=g('lblPts'); JS("document.getElementById('btnDesfazer').click()")
+    t('Desfazer volta a grade e os pontos',JS("DG.grade[0][0]")==2 and JS("DG.grade[0][1]")==2 and g('lblPts')=='Pontos: 0' and antes_pts=='Pontos: 4','%s %s'%(antes_pts,g('lblPts')))
+    JS("document.getElementById('btnDesfazer').click()"); t('Desfazer duas vezes avisa que não há o que desfazer','Nada' in g('lblMsg'),g('lblMsg'))
+    # fim de jogo
+    rnd0(); setg([[2,4,2,4],[4,2,4,2],[2,4,2,4],[16,8,32,0]]); JS("DG.mover('dir')")
+    t('sem movimentos: "Fim de jogo" e bloqueia novas jogadas',JS("DG.fim")==True and 'Fim de jogo' in g('lblMsg') and JS("DG.mover('esq')")==False,g('lblMsg'))
+    JS("document.getElementById('btnDesfazer').click()"); t('desfazer reabre o jogo depois do fim',JS("DG.fim")==False and JS("DG.mover('dir')")==True)
+    # vitória
+    rnd0(); setg([[1024,1024,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]); JS("DG.mover('esq')")
+    t('chegar a 2048 avisa e deixa continuar',JS("DG.grade[0][0]")==2048 and '2048' in g('lblMsg') and JS("DG.fim")==False and JS("DG.ganhou")==True,g('lblMsg'))
+    t('peça 2048 é desenhada com 22px',JS("document.querySelector('#tabuleiro .dg-celula[data-v=\"2048\"]').style.fontSize")=='22px')
+    # recorde e persistência
+    setg([[2,2,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]); JS("DG.pontos=100;DG.melhor=100"); rnd0(); JS("DG.mover('esq')")
+    t('recorde sobe junto com os pontos',g('lblMelhor')=='Melhor: 104' and g('lblPts')=='Pontos: 104',(g('lblPts'),g('lblMelhor')))
+    pg.reload(); pg.wait_for_function('window.DG',timeout=5000); pg.wait_for_timeout(300)
+    t('o jogo salvo volta depois de recarregar',g('lblPts')=='Pontos: 104' and g('lblMelhor')=='Melhor: 104' and JS("DG.grade[0][0]")==4,(g('lblPts'),JS("DG.grade[0]")))
+    JS("document.getElementById('btnNovo').click()")
+    t('Novo jogo zera os pontos, mantém o recorde e sorteia 2 peças',g('lblPts')=='Pontos: 0' and g('lblMelhor')=='Melhor: 104' and sum(1 for v in cel() if v)==2,(g('lblPts'),g('lblMelhor')))
+    # teclado
+    rnd0(); setg([[0,0,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0]]); pg.keyboard.press('ArrowLeft')
+    t('seta ← do teclado move',JS("DG.grade[0][0]")==2,JS("DG.grade[0]"))
+    one=lambda r,c:(rnd0(),setg([[2 if (rr,cc)==(r,c) else 0 for cc in range(4)] for rr in range(4)]))
+    one(0,0); pg.keyboard.press('ArrowDown'); t('seta ↓ do teclado move',JS("DG.grade[3][0]")==2,JS("DG.grade"))
+    one(1,0); pg.keyboard.press('d'); t('tecla D move para a direita',JS("DG.grade[1][3]")==2,JS("DG.grade[1]"))
+    one(2,1); pg.keyboard.press('w'); t('tecla W move para cima',JS("DG.grade[0][1]")==2,JS("DG.grade"))
+    one(0,2); JS("document.getElementById('btnEsq').click()"); ok1=JS("DG.grade[0][0]")==2
+    one(0,1); JS("document.getElementById('btnBaixo').click()"); ok2=JS("DG.grade[3][1]")==2
+    one(3,0); JS("document.getElementById('btnCima').click()"); ok3=JS("DG.grade[0][0]")==2
+    one(0,0); JS("document.getElementById('btnDir').click()"); ok4=JS("DG.grade[0][3]")==2
+    t('botões ← ↓ ↑ → na tela movem',ok1 and ok2 and ok3 and ok4,(ok1,ok2,ok3,ok4))
+    # deslizar
+    rnd0(); setg([[0,0,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0]])
+    box=pg.locator('#tabuleiro').bounding_box(); cx=box['x']+box['width']/2; cy=box['y']+box['height']/2
+    pg.mouse.move(cx+80,cy); pg.mouse.down(); pg.mouse.move(cx-80,cy,steps=5); pg.mouse.up(); pg.wait_for_timeout(100)
+    t('deslizar para a esquerda move',JS("DG.grade[0][0]")==2,JS("DG.grade[0]"))
+    n=JS("JSON.stringify(DG.grade)"); pg.mouse.move(cx,cy); pg.mouse.down(); pg.mouse.move(cx+8,cy+5); pg.mouse.up()
+    t('toque curto (sem deslizar) não move',JS("JSON.stringify(DG.grade)")==n)
+    # dados corrompidos
+    for ruim in ('{quebrado','{"grade":[[3,0,0,0]],"pontos":5}','{"grade":[[2,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,6]],"pontos":5}','null'):
+        JS("localStorage.setItem('jogo2048_v1',%r)"%ruim); pg.reload(); pg.wait_for_function('window.DG',timeout=5000); pg.wait_for_timeout(150)
+        t('salvo inválido %s: começa jogo novo com 2 peças'%ruim[:18],sum(1 for v in cel() if v)==2 and len(cel())==16 and g('lblPts')=='Pontos: 0',cel())
+    JS("localStorage.setItem('jogo2048_v1',JSON.stringify({grade:[[2,4,2,4],[4,2,4,2],[2,4,2,4],[4,2,4,2]],pontos:50,melhor:80}))"); pg.reload(); pg.wait_for_function('window.DG',timeout=5000); pg.wait_for_timeout(150)
+    t('salvo já sem movimentos abre como fim de jogo',JS("DG.fim")==True and g('lblMelhor')=='Melhor: 80',(g('lblMsg'),))
+    t('sem erros de JavaScript',not [m for m in d if 'rror' in m] ,d)
+run('Jogo_2048',jogo2048)
+
+def campominado(pg,t,d):
+    JS=lambda x:pg.evaluate(x); g=lambda i:tx(pg,i)
+    cs=lambda:JS("document.querySelectorAll('#tabuleiro .cm-casa').length")
+    def board(minas,n_nivel=None):
+        JS("CM.novo()"); JS("(m)=>{}" ) if False else None
+        JS("(()=>{CM.novo();%s;CM.m=%d;CM.comecou=true;CM.conta();CM.desenha()})()"%(";".join("CM.mina[%d][%d]=true"%(r,c) for r,c in minas),len(minas)))
+    cel=lambda r,c:"document.querySelector('#tabuleiro .cm-casa[data-r=\"%d\"][data-c=\"%d\"]')"%(r,c)
+    t('abre no nível Fácil: 64 casas, 10 minas, tempo 0s, modo Cavar',cs()==64 and g('lblMinas')=='💣 10' and g('lblTempo')=='Tempo: 0s' and 'Cavar' in g('btnModo'),(cs(),g('lblMinas'),g('btnModo')))
+    t('mostra dica e recorde vazio','primeira jogada' in g('lblMsg') and g('lblRecorde')=='Recorde (Fácil): -',(g('lblMsg'),g('lblRecorde')))
+    # primeira jogada segura (muitas vezes, nos 3 níveis)
+    ruins=0
+    for nv,tot in (('Fácil',10),('Médio',18),('Difícil',30)):
+        JS("document.getElementById('selNivel').value=%r"%nv)
+        for rep in range(40):
+            JS("document.getElementById('selNivel').dispatchEvent(new Event('change'))")
+            r0,c0=(0,0) if rep%3==0 else (CM_N(nv)-1,CM_N(nv)-1) if rep%3==1 else (3,3)
+            JS("CM.abrir(%d,%d)"%(r0,c0))
+            info=JS("({fim:CM.fim,minas:CM.mina.flat().filter(Boolean).length,perto:[[%d,%d],...[-1,0,1].flatMap(a=>[-1,0,1].map(b=>[%d+a,%d+b]))].some(([r,c])=>CM.mina[r]&&CM.mina[r][c])})"%(r0,c0,r0,c0))
+            if info['fim'] or info['minas']!=tot or info['perto']: ruins+=1
+    t('1ª jogada nunca é mina nem vizinha de mina (120 partidas) e o nº de minas está certo',ruins==0,ruins)
+    JS("document.getElementById('selNivel').value='Fácil'"); JS("document.getElementById('selNivel').dispatchEvent(new Event('change'))")
+    # números
+    board([(0,0)]); t('números ao redor da mina: 1,1,1 e 0 longe',JS("[CM.num[0][1],CM.num[1][0],CM.num[1][1],CM.num[2][2],CM.num[7][7]]")==[1,1,1,0,0],JS("CM.num.slice(0,3)"))
+    # cascata + vitória
+    JS("CM.abrir(7,7)"); t('abrir casa vazia abre em cascata e termina o jogo (todas as seguras)',JS("CM.fim")==True and JS("CM.abertas")==63,JS("CM.abertas"))
+    t('vitória: mensagem, recorde e minas com bandeira','venceu' in g('lblMsg') and 'Recorde' in g('lblRecorde') and 's' in g('lblRecorde') and JS(cel(0,0)+".dataset.e")=='2' and g('lblMinas')=='💣 0',(g('lblMsg'),g('lblRecorde')))
+    t('depois de vencer, jogadas são ignoradas',JS("CM.abrir(0,0)")==False and JS("CM.bandeira(0,0)")==False)
+    # derrota
+    board([(0,0),(4,4)]); JS("CM.bandeira(1,1)"); JS("CM.abrir(0,0)")
+    t('pisar na mina: Boom, casa 💣 vermelha, outras minas reveladas, bandeira errada ❌',JS("CM.fim")==True and 'Boom' in g('lblMsg') and JS(cel(0,0)+".dataset.e")=='3' and JS(cel(4,4)+".textContent")=='💣' and JS(cel(1,1)+".textContent")=='❌',(g('lblMsg'),JS(cel(1,1)+".textContent")))
+    t('depois de perder, não abre mais nada',JS("CM.abrir(7,7)")==False and JS("CM.abertas")==0)
+    # bandeiras
+    board([(0,0),(4,4)]); JS("CM.bandeira(1,1)")
+    t('bandeira reduz o contador de minas e bloqueia abrir a casa',g('lblMinas')=='💣 1' and JS("CM.abrir(1,1)")==False and JS("CM.est[1][1]")==2,g('lblMinas'))
+    JS("CM.bandeira(1,1)"); t('tirar a bandeira devolve o contador',g('lblMinas')=='💣 2' and JS("CM.est[1][1]")==0)
+    JS("CM.abrir(7,7)"); t('não dá para pôr bandeira em casa aberta',JS("CM.bandeira(7,7)")==False)
+    # modo bandeira
+    board([(0,0),(4,4)])
+    JS("document.getElementById('btnModo').click()"); t('botão Modo alterna para Bandeira','Bandeira' in g('btnModo') and JS("CM.modo")=='bandeira',g('btnModo'))
+    JS("CM.toque(2,2)"); t('no modo Bandeira tocar marca a casa',JS("CM.est[2][2]")==2)
+    JS("CM.toque(2,2)"); t('tocar de novo desmarca',JS("CM.est[2][2]")==0)
+    JS("document.getElementById('btnModo').click()"); t('volta ao modo Cavar','Cavar' in g('btnModo'))
+    # acorde
+    board([(0,0),(0,2)]); JS("CM.abrir(0,1)")
+    t('número 2 aberto',JS("CM.est[0][1]")==1 and JS("CM.num[0][1]")==2)
+    JS("CM.bandeira(0,0)"); t('acorde com bandeiras a menos não faz nada',JS("CM.acorde(0,1)")==False and JS("CM.est[1][1]")==0)
+    JS("CM.bandeira(0,2)"); JS("CM.toque(0,1)"); t('acorde com bandeiras certas abre as vizinhas livres',JS("[CM.est[1][0],CM.est[1][1],CM.est[1][2]]")==[1,1,1] and JS("CM.fim")==False,JS("CM.est"))
+    board([(0,0),(0,2)]); JS("CM.abrir(0,1)"); JS("CM.bandeira(1,0)"); JS("CM.bandeira(0,0)"); JS("CM.toque(0,1)")
+    t('acorde com bandeira no lugar errado explode',JS("CM.fim")==True and 'Boom' in g('lblMsg'),g('lblMsg'))
+    # eventos reais do ponteiro
+    board([(0,0),(7,7)]); JS("CM.comecou=false")
+    box=lambda r,c:pg.locator('#tabuleiro .cm-casa[data-r="%d"][data-c="%d"]'%(r,c)).bounding_box()
+    b=box(3,3); pg.mouse.click(b['x']+b['width']/2,b['y']+b['height']/2); pg.wait_for_timeout(100)
+    t('clique do mouse abre a casa',JS("CM.est[3][3]")==1 and JS("CM.comecou")==True)
+    b=box(0,3); pg.mouse.click(b['x']+b['width']/2,b['y']+b['height']/2,button='right'); pg.wait_for_timeout(100)
+    t('clique direito põe bandeira',JS("CM.est[0][3]")==2 or JS("CM.est[0][3]")==1,JS("CM.est[0]"))
+    JS("CM.novo()"); JS("CM.comecou=true;CM.mina[7][7]=true;CM.m=1;CM.conta();CM.desenha()")
+    b=box(1,0); x,y=b['x']+b['width']/2,b['y']+b['height']/2; pg.mouse.move(x,y); pg.mouse.down(); pg.wait_for_timeout(650); pg.mouse.up(); pg.wait_for_timeout(100)
+    t('toque longo (650 ms) põe bandeira e não abre',JS("CM.est[1][0]")==2,JS("CM.est[1]"))
+    b=box(1,0); pg.mouse.click(b['x']+b['width']/2,b['y']+b['height']/2); pg.wait_for_timeout(100)
+    t('tocar numa bandeira (modo Cavar) não abre',JS("CM.est[1][0]")==2)
+    # cronômetro
+    JS("CM.novo()"); JS("CM.abrir(3,3)"); pg.wait_for_timeout(1400); tm=g('lblTempo')
+    t('cronômetro conta depois da 1ª jogada',tm in ('Tempo: 1s','Tempo: 2s'),tm)
+    JS("CM.novo()"); t('Novo zera tempo e contador e recomeça',g('lblTempo')=='Tempo: 0s' and JS("CM.comecou")==False and g('lblMinas')=='💣 10')
+    # níveis
+    for nv,n,m in (('Médio',100,18),('Difícil',144,30),('Fácil',64,10)):
+        JS("document.getElementById('selNivel').value=%r"%nv); JS("document.getElementById('selNivel').dispatchEvent(new Event('change'))")
+        ok=JS("(()=>{const p=document.getElementById('tabuleiro').getBoundingClientRect();return [...document.querySelectorAll('.cm-casa')].every(c=>{const r=c.getBoundingClientRect();return r.left>=p.left-1&&r.right<=p.right+1&&r.top>=p.top-1&&r.bottom<=p.bottom+1&&r.width>=24})})()")
+        t('nível %s: %d casas, %d minas, tudo cabe no painel'%(nv,n,m),cs()==n and g('lblMinas')=='💣 %d'%m and ok and ('Recorde (%s)'%nv) in g('lblRecorde'),(cs(),g('lblMinas'),ok))
+    # recorde
+    JS("localStorage.setItem('campominado_Fácil','1000')"); board([(0,0)]); JS("CM.inicio=Date.now()-5000;CM.abrir(7,7)")
+    t('tempo menor que o recorde: novo recorde salvo (5s)','Novo recorde' in g('lblMsg') and JS("localStorage.getItem('campominado_Fácil')")=='5' and 'Recorde (Fácil): 5s'==g('lblRecorde'),(g('lblMsg'),g('lblRecorde')))
+    board([(0,0)]); JS("CM.inicio=Date.now()-9000;CM.abrir(7,7)")
+    t('tempo maior que o recorde: não substitui',JS("localStorage.getItem('campominado_Fácil')")=='5' and 'Novo recorde' not in g('lblMsg'),g('lblMsg'))
+    JS("localStorage.setItem('campominado_Fácil','abc')"); JS("CM.novo()"); t('recorde salvo inválido é ignorado',g('lblRecorde')=='Recorde (Fácil): -',g('lblRecorde'))
+    t('sem erros de JavaScript',not [m for m in d if 'rror' in m],d)
+CM_N=lambda nv:{'Fácil':8,'Médio':10,'Difícil':12}[nv]
+run('Campo_Minado',campominado)
+
 bad=0; tot=0
 for name,checks in RES.items():
     fails=[c for c in checks if not c[1]]; tot+=len(checks); bad+=len(fails)

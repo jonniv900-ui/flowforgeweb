@@ -696,7 +696,8 @@ const EXAMPLES=[
 ];
 function renderExamples(){
  const box=$('#exampleChoices'); if(!box)return; box.innerHTML='';
- EXAMPLES.forEach(([key,icon,title,desc])=>{const b=document.createElement('button');b.type='button';b.className='exampleCard';b.innerHTML=`<span class="bigicon">${icon}</span><b>${title}</b><small>${desc}</small>`;b.onclick=()=>{project=exampleProject(key);selected=null;undoStack=[];future=[];$('#examplesDlg').close();$('#newDlg').close();render();};box.append(b)});
+ const pack=window.FF_EXAMPLE_PACK||[]; /* exemplos da pasta examples/ (js/examples-pack.js, gerado por tools/gerar_menu_exemplos.py) */
+ [...EXAMPLES,...pack.map(e=>[e.key,e.icon,e.title,e.desc])].forEach(([key,icon,title,desc])=>{const b=document.createElement('button');b.type='button';b.className='exampleCard';b.innerHTML=`<span class="bigicon">${icon}</span><b>${title}</b><small>${desc}</small>`;b.onclick=()=>{const pk=pack.find(e=>e.key===key);project=pk?JSON.parse(JSON.stringify(pk.project)):exampleProject(key);selected=null;undoStack=[];future=[];$('#examplesDlg').close();$('#newDlg').close();render();};box.append(b)});
 }
 function showExamples(){renderExamples();$('#examplesDlg').showModal()}
 

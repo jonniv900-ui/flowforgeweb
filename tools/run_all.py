@@ -2,7 +2,7 @@
 import subprocess, sys
 from pathlib import Path
 here = Path(__file__).resolve().parent
-steps = [("Suítes HTML", ["run_suites.py"]), ("Exportar exemplos", ["export_examples.py"]),
+steps = [("Suítes HTML", ["run_suites.py"]), ("Exportar exemplos", ["export_examples.py"]), ("Menu de exemplos", ["test_menu_exemplos.py"]),
          ("Cenários dos exemplos", ["test_exemplos.py"]), ("Câmera (Estúdio de Câmera)", ["test_camera.py"]),
          ("Permissão de câmera", ["test_permissoes.py"]), ("Depurador", ["test_depurador.py"]), ("Empacotar para Android", ["test_android.py"])]
 fail = []

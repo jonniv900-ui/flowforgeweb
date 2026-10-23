@@ -36,3 +36,7 @@ python tools/gerar_exemplos/exemplo_10.py   # grava examples/*.flowmobile
 Observações: `exemplo_09.py` reutiliza funções de `exemplo_08.py`. Os arquivos em `examples/` já estão prontos; rodar os geradores só os sobrescreve.
 
 `test_android.py` testa o menu **Exportar → Android (APK)** (empacotamento Android): diálogo, os 3 formatos, conteúdo dos .zip, permissões, ícones, `prepare-android.js` e o PWA offline. Os modelos dos pacotes ficam em `android_templates/`; `gerar_android_templates.py` os embute em `js/ff-android-templates.js`.
+
+- `gravar_demo.py` grava em vídeo (MP4) o IDE sendo usado de verdade: cria um app do zero com cursor visível, cliques destacados e legendas em português. Uso: `python tools/gravar_demo.py [pasta_de_saída]` (requer Playwright e ffmpeg; edite o roteiro dentro do script para filmar outro app).
+- `gravar_tutorial.py` grava o vídeo-tutorial completo do Jogo da Memória (capítulos, legendas, código digitado ao vivo); usa `gerar_exemplos/memoria_codigo.py`. Uso: `python tools/gravar_tutorial.py [pasta]` (`FF_RAPIDO=1` para ensaiar).
+- `gerar_menu_exemplos.py` empacota os `examples/*.flowmobile` em `js/examples-pack.js` para o menu Exemplos (rode após criar/alterar um exemplo); `test_menu_exemplos.py` confere o menu.

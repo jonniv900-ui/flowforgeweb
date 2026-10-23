@@ -1,0 +1,151 @@
+{
+  "name": "Campo Minado",
+  "projectVersion": "1.0.0",
+  "icon": "",
+  "favicon": "",
+  "themeColor": "#16a34a",
+  "type": "app",
+  "framework": "none",
+  "titlebar": true,
+  "active": 0,
+  "pages": [
+    {
+      "id": "44963f42-9091-4c2d-b246-66a3a246a0fb",
+      "name": "Jogo",
+      "items": [
+        {
+          "id": "cf3a3fed-f2a3-4318-a074-19b8179fcc54",
+          "kind": "heading",
+          "name": "heading1",
+          "text": "Campo Minado",
+          "x": 20,
+          "y": 70,
+          "width": "350px",
+          "height": "40px",
+          "bg": "transparent",
+          "color": "#222222",
+          "events": {}
+        },
+        {
+          "id": "a93c20c2-a1a0-4509-8322-3b60c3476b32",
+          "kind": "select",
+          "name": "selNivel",
+          "text": "",
+          "x": 20,
+          "y": 118,
+          "width": "150px",
+          "height": "44px",
+          "bg": "#ffffff",
+          "color": "#222222",
+          "events": {
+            "change": "CM.novo();"
+          },
+          "items": [
+            "Fácil",
+            "Médio",
+            "Difícil"
+          ]
+        },
+        {
+          "id": "17b49b06-179e-4fea-9ec2-d76a88c9a68f",
+          "kind": "button",
+          "name": "btnModo",
+          "text": "Modo: Cavar ⛏",
+          "x": 180,
+          "y": 118,
+          "width": "190px",
+          "height": "44px",
+          "bg": "#ffffff",
+          "color": "#222222",
+          "events": {
+            "click": "CM.alternaModo();"
+          }
+        },
+        {
+          "id": "1b37ed4f-6ccf-4a1c-9492-ccdcc76c150f",
+          "kind": "label",
+          "name": "lblMinas",
+          "text": "💣 10",
+          "x": 20,
+          "y": 172,
+          "width": "110px",
+          "height": "40px",
+          "bg": "#fee2e2",
+          "color": "#991b1b",
+          "events": {}
+        },
+        {
+          "id": "53f3466c-8398-4b93-9b75-b1ffd9f0fc1c",
+          "kind": "label",
+          "name": "lblTempo",
+          "text": "Tempo: 0s",
+          "x": 140,
+          "y": 172,
+          "width": "110px",
+          "height": "40px",
+          "bg": "#e0f2fe",
+          "color": "#075985",
+          "events": {}
+        },
+        {
+          "id": "23585d06-03dc-4ce1-b555-26422b9bbdcb",
+          "kind": "button",
+          "name": "btnNovo",
+          "text": "🙂 Novo",
+          "x": 260,
+          "y": 172,
+          "width": "110px",
+          "height": "40px",
+          "bg": "#16a34a",
+          "color": "#ffffff",
+          "events": {
+            "click": "CM.novo();"
+          }
+        },
+        {
+          "id": "5cc4657e-8a6f-4037-8487-58393d9d1950",
+          "kind": "panel",
+          "name": "tabuleiro",
+          "text": "",
+          "x": 20,
+          "y": 222,
+          "width": "350px",
+          "height": "350px",
+          "bg": "#94a3b8",
+          "color": "#222222",
+          "events": {}
+        },
+        {
+          "id": "b1f8c588-74c0-4387-9496-a5ace9741beb",
+          "kind": "label",
+          "name": "lblMsg",
+          "text": "",
+          "x": 20,
+          "y": 580,
+          "width": "350px",
+          "height": "48px",
+          "bg": "transparent",
+          "color": "#334155",
+          "events": {}
+        },
+        {
+          "id": "d0967e96-7565-4c56-862f-58b0bc62e6cc",
+          "kind": "label",
+          "name": "lblRecorde",
+          "text": "",
+          "x": 20,
+          "y": 634,
+          "width": "350px",
+          "height": "28px",
+          "bg": "transparent",
+          "color": "#64748b",
+          "events": {}
+        }
+      ],
+      "events": {
+        "onload": "if (!window.CM) {\nwindow.CM = (function () {\n  const $ = id => document.getElementById(id);\n  const NIVEIS = { 'Fácil': [8, 8, 10], 'Médio': [10, 10, 18], 'Difícil': [12, 12, 30] };\n  const COR = ['', '#2563eb', '#16a34a', '#dc2626', '#7c3aed', '#b45309', '#0891b2', '#111827', '#6b7280'];\n  const D = { n: 8, m: 10, mina: [], num: [], est: [], jogando: false, fim: false, comecou: false, inicio: 0, relogio: 0, modo: 'cavar', rnd: Math.random, abertas: 0, bandeiras: 0, nivel: 'Fácil' };\n  const viz = (r, c) => { const o = []; for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { if ((a || b) && r + a >= 0 && r + a < D.n && c + b >= 0 && c + b < D.n) o.push([r + a, c + b]); } return o; };\n  const matriz = v => Array.from({ length: D.n }, () => Array(D.n).fill(v));\n  D.novo = () => {\n    clearInterval(D.relogio);\n    D.nivel = $('selNivel').value in NIVEIS ? $('selNivel').value : 'Fácil';\n    D.n = NIVEIS[D.nivel][0]; D.m = NIVEIS[D.nivel][2];\n    D.mina = matriz(false); D.num = matriz(0); D.est = matriz(0);\n    D.comecou = false; D.fim = false; D.abertas = 0; D.bandeiras = 0; D.inicio = 0; D.modo = 'cavar';\n    $('btnModo').textContent = 'Modo: Cavar ⛏'; $('btnNovo').textContent = '🙂 Novo';\n    $('lblTempo').textContent = 'Tempo: 0s';\n    $('lblMsg').textContent = 'Toque numa casa para começar. A primeira jogada é sempre segura.';\n    D.recorde(); D.desenha();\n  };\n  D.recorde = () => {\n    let r = 0; try { r = Number(localStorage.getItem('campominado_' + D.nivel)); } catch (e) {}\n    $('lblRecorde').textContent = 'Recorde (' + D.nivel + '): ' + (Number.isFinite(r) && r > 0 ? Math.round(r) + 's' : '-');\n  };\n  // põe as minas depois da 1ª jogada, longe da casa clicada e das vizinhas\n  D.minar = (r0, c0) => {\n    const proibido = new Set([r0 * D.n + c0, ...viz(r0, c0).map(([a, b]) => a * D.n + b)]);\n    const livres = []; for (let i = 0; i < D.n * D.n; i++) if (!proibido.has(i)) livres.push(i);\n    for (let i = livres.length - 1; i > 0; i--) { const j = Math.floor(D.rnd() * (i + 1)); [livres[i], livres[j]] = [livres[j], livres[i]]; }\n    livres.slice(0, D.m).forEach(i => { D.mina[Math.floor(i / D.n)][i % D.n] = true; });\n    D.conta();\n  };\n  D.conta = () => { for (let r = 0; r < D.n; r++) for (let c = 0; c < D.n; c++) D.num[r][c] = viz(r, c).filter(([a, b]) => D.mina[a][b]).length; };\n  D.comeca = () => {\n    if (D.inicio) return; D.inicio = Date.now();\n    D.relogio = setInterval(() => { $('lblTempo').textContent = 'Tempo: ' + Math.floor((Date.now() - D.inicio) / 1000) + 's'; }, 250);\n  };\n  D.abrir = (r, c) => {\n    if (D.fim || D.est[r][c] !== 0) return false;\n    if (!D.comecou) { D.comecou = true; D.minar(r, c); D.comeca(); $('lblMsg').textContent = 'Abra todas as casas seguras. Bandeira: clique direito, toque longo ou modo Bandeira.'; }\n    if (D.mina[r][c]) { D.perdeu(r, c); return true; }\n    const pilha = [[r, c]];\n    while (pilha.length) {   // cascata sem recursão (não estoura a pilha)\n      const [a, b] = pilha.pop(); if (D.est[a][b] !== 0) continue;\n      D.est[a][b] = 1; D.abertas++;\n      if (D.num[a][b] === 0) viz(a, b).forEach(([x, y]) => { if (D.est[x][y] === 0) pilha.push([x, y]); });\n    }\n    if (D.abertas === D.n * D.n - D.m) D.ganhou(); else D.desenha();\n    return true;\n  };\n  D.bandeira = (r, c) => {\n    if (D.fim || D.est[r][c] === 1) return false;\n    D.est[r][c] = D.est[r][c] === 2 ? 0 : 2; D.bandeiras += D.est[r][c] === 2 ? 1 : -1; D.desenha(); return true;\n  };\n  // clicar num número já aberto, com o nº certo de bandeiras em volta, abre as outras vizinhas\n  D.acorde = (r, c) => {\n    if (D.fim || D.est[r][c] !== 1 || !D.num[r][c]) return false;\n    const v = viz(r, c); if (v.filter(([a, b]) => D.est[a][b] === 2).length !== D.num[r][c]) return false;\n    v.forEach(([a, b]) => { if (!D.fim) D.abrir(a, b); }); return true;\n  };\n  D.toque = (r, c) => {\n    if (D.est[r][c] === 1) return D.acorde(r, c);\n    return D.modo === 'cavar' ? D.abrir(r, c) : D.bandeira(r, c);\n  };\n  D.perdeu = (r, c) => {\n    D.fim = true; clearInterval(D.relogio); D.est[r][c] = 3;\n    $('btnNovo').textContent = '😵 Novo'; D.desenha('Boom! Você pisou numa mina. Toque em Novo para tentar de novo.');\n  };\n  D.ganhou = () => {\n    D.fim = true; clearInterval(D.relogio);\n    for (let r = 0; r < D.n; r++) for (let c = 0; c < D.n; c++) if (D.mina[r][c]) D.est[r][c] = 2;\n    D.bandeiras = D.m;\n    const s = Math.max(1, Math.round((Date.now() - D.inicio) / 1000)); let msg = 'Você venceu em ' + s + 's!';\n    try { const k = 'campominado_' + D.nivel, ant = Number(localStorage.getItem(k)); if (!(ant > 0) || s < ant) { localStorage.setItem(k, s); msg += ' Novo recorde!'; } } catch (e) {}\n    $('btnNovo').textContent = '😎 Novo'; D.recorde(); D.desenha(msg);\n  };\n  D.alternaModo = () => {\n    D.modo = D.modo === 'cavar' ? 'bandeira' : 'cavar';\n    $('btnModo').textContent = D.modo === 'cavar' ? 'Modo: Cavar ⛏' : 'Modo: Bandeira 🚩'; return D.modo;\n  };\n  D.desenha = msg => {\n    const t = $('tabuleiro'); if (!t) return;\n    const tam = Math.floor((342 - 2 * (D.n - 1)) / D.n);\n    if (!t.dataset.ok) {\n      t.dataset.ok = '1';\n      for (const id of ['lblMinas', 'lblTempo']) $(id).style.cssText += ';display:flex;align-items:center;justify-content:center;border-radius:10px;font-weight:700;font-size:16px';\n      t.style.cssText += ';display:grid;gap:2px;padding:4px;box-sizing:border-box;background:#94a3b8;border-radius:10px;touch-action:manipulation;user-select:none;-webkit-user-select:none';\n      t.oncontextmenu = e => { e.preventDefault(); const c = e.target.closest('.cm-casa'); if (c && !D.longo) D.bandeira(+c.dataset.r, +c.dataset.c); };\n      let timer = 0, alvo = null;\n      t.onpointerdown = e => {\n        const c = e.target.closest('.cm-casa'); D.longo = false; if (!c || e.button === 2) return; alvo = c;\n        timer = setTimeout(() => { D.longo = true; D.bandeira(+c.dataset.r, +c.dataset.c); }, 450);\n      };\n      const solta = () => clearTimeout(timer);\n      t.onpointerleave = solta; t.onpointercancel = solta;\n      t.onpointerup = e => {\n        clearTimeout(timer); const c = e.target.closest('.cm-casa');\n        if (D.longo) { D.longo = false; return; }\n        if (c && c === alvo && e.button === 0) D.toque(+c.dataset.r, +c.dataset.c);\n        alvo = null;\n      };\n    }\n    t.style.gridTemplateColumns = 'repeat(' + D.n + ',' + tam + 'px)'; t.style.gridTemplateRows = 'repeat(' + D.n + ',' + tam + 'px)'; t.style.justifyContent = 'center'; t.style.alignContent = 'center';\n    t.innerHTML = '';\n    for (let r = 0; r < D.n; r++) for (let c = 0; c < D.n; c++) {\n      const e = D.est[r][c], el = document.createElement('div'); let txt = '', bg = '#cbd5e1', cor = '#0f172a';\n      el.className = 'cm-casa'; el.dataset.r = r; el.dataset.c = c; el.dataset.e = e;\n      if (e === 1) { bg = '#f1f5f9'; txt = D.num[r][c] || ''; cor = COR[D.num[r][c]] || cor; }\n      else if (e === 2) { txt = D.fim && !D.mina[r][c] ? '❌' : '🚩'; }\n      else if (e === 3) { bg = '#fca5a5'; txt = '💣'; }\n      else if (D.fim && D.mina[r][c]) { bg = '#e2e8f0'; txt = '💣'; }\n      el.textContent = txt; el.dataset.n = e === 1 ? D.num[r][c] : '';\n      el.style.cssText = 'display:flex;align-items:center;justify-content:center;border-radius:4px;font-weight:800;cursor:pointer;width:' + tam + 'px;height:' + tam + 'px;background:' + bg + ';color:' + cor + ';font-size:' + Math.round(tam * 0.55) + 'px';\n      t.appendChild(el);\n    }\n    $('lblMinas').textContent = '💣 ' + (D.m - D.bandeiras);\n    if (msg) $('lblMsg').textContent = msg;\n  };\n  return D;\n})();\n}\nCM.novo();",
+        "onshow": ""
+      }
+    }
+  ]
+}
