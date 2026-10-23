@@ -16,3 +16,12 @@ for n,l in enumerate(L):
     items.append(it('button',f'forca{l}',l,24+c*62,206+r*50,56,44,{"click":P+f"window.ffForca.guess('{l}');"}))
 items.append(it('button','forcaNew','Novo jogo',24,206+4*50+6,200,48,{"click":P+"window.ffForca.start();"},bg=BTN,color='#ffffff'))
 save('Jogo_da_Forca',proj('Jogo da Forca',[('Principal',items,{'onload':P})]))
+# ---------- sons (componente Game Sound) ----------
+from sons import pos_salvar
+S = lambda n: "Sons.play('%s');" % n
+pos_salvar('Jogo_da_Forca', [
+    ("return F.hit[c]})){F.over=true;", "return F.hit[c]})){F.over=true;" + S('win')),
+    ("else $('forcaStatus').textContent='Boa!'", "else{" + S('pop') + "$('forcaStatus').textContent='Boa!'}"),
+    ("if(F.miss>=F.max){F.over=true;", "if(F.miss>=F.max){F.over=true;" + S('lose')),
+    ("else $('forcaStatus').textContent='Letra errada'", "else{" + S('error') + "$('forcaStatus').textContent='Letra errada'}"),
+    ("F.over=false;$('forcaStatus').textContent='Escolha uma letra'", "F.over=false;" + S('start') + "$('forcaStatus').textContent='Escolha uma letra'")])

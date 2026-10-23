@@ -6,13 +6,14 @@ import os, json
 here = os.path.dirname(os.path.abspath(__file__))
 MOTOR = r'''window.CM = (function () {
   const $ = id => document.getElementById(id);
+  const som = (n, v) => { try { if (window.Sons) window.Sons.play(n, v); } catch (e) {} }; // sons (componente Game Sound), se o projeto tiver
   const NIVEIS = { 'Fácil': [8, 8, 10], 'Médio': [10, 10, 18], 'Difícil': [12, 12, 30] };
   const COR = ['', '#2563eb', '#16a34a', '#dc2626', '#7c3aed', '#b45309', '#0891b2', '#111827', '#6b7280'];
   const D = { n: 8, m: 10, mina: [], num: [], est: [], jogando: false, fim: false, comecou: false, inicio: 0, relogio: 0, modo: 'cavar', rnd: Math.random, abertas: 0, bandeiras: 0, nivel: 'Fácil' };
   const viz = (r, c) => { const o = []; for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { if ((a || b) && r + a >= 0 && r + a < D.n && c + b >= 0 && c + b < D.n) o.push([r + a, c + b]); } return o; };
   const matriz = v => Array.from({ length: D.n }, () => Array(D.n).fill(v));
   D.novo = () => {
-    clearInterval(D.relogio);
+    som('start'); clearInterval(D.relogio);
     D.nivel = $('selNivel').value in NIVEIS ? $('selNivel').value : 'Fácil';
     D.n = NIVEIS[D.nivel][0]; D.m = NIVEIS[D.nivel][2];
     D.mina = matriz(false); D.num = matriz(0); D.est = matriz(0);
@@ -43,18 +44,19 @@ MOTOR = r'''window.CM = (function () {
     if (D.fim || D.est[r][c] !== 0) return false;
     if (!D.comecou) { D.comecou = true; D.minar(r, c); D.comeca(); $('lblMsg').textContent = 'Abra todas as casas seguras. Bandeira: clique direito, toque longo ou modo Bandeira.'; }
     if (D.mina[r][c]) { D.perdeu(r, c); return true; }
+    const antes = D.abertas;
     const pilha = [[r, c]];
     while (pilha.length) {   // cascata sem recursão (não estoura a pilha)
       const [a, b] = pilha.pop(); if (D.est[a][b] !== 0) continue;
       D.est[a][b] = 1; D.abertas++;
       if (D.num[a][b] === 0) viz(a, b).forEach(([x, y]) => { if (D.est[x][y] === 0) pilha.push([x, y]); });
     }
-    if (D.abertas === D.n * D.n - D.m) D.ganhou(); else D.desenha();
+    if (D.abertas === D.n * D.n - D.m) D.ganhou(); else { som(D.abertas - antes > 3 ? 'merge' : 'pop'); D.desenha(); }
     return true;
   };
   D.bandeira = (r, c) => {
     if (D.fim || D.est[r][c] === 1) return false;
-    D.est[r][c] = D.est[r][c] === 2 ? 0 : 2; D.bandeiras += D.est[r][c] === 2 ? 1 : -1; D.desenha(); return true;
+    D.est[r][c] = D.est[r][c] === 2 ? 0 : 2; D.bandeiras += D.est[r][c] === 2 ? 1 : -1; som('flag'); D.desenha(); return true;
   };
   // clicar num número já aberto, com o nº certo de bandeiras em volta, abre as outras vizinhas
   D.acorde = (r, c) => {
@@ -67,11 +69,11 @@ MOTOR = r'''window.CM = (function () {
     return D.modo === 'cavar' ? D.abrir(r, c) : D.bandeira(r, c);
   };
   D.perdeu = (r, c) => {
-    D.fim = true; clearInterval(D.relogio); D.est[r][c] = 3;
+    D.fim = true; clearInterval(D.relogio); D.est[r][c] = 3; som('explosion'); setTimeout(() => som('lose'), 600);
     $('btnNovo').textContent = '😵 Novo'; D.desenha('Boom! Você pisou numa mina. Toque em Novo para tentar de novo.');
   };
   D.ganhou = () => {
-    D.fim = true; clearInterval(D.relogio);
+    D.fim = true; clearInterval(D.relogio); som('win');
     for (let r = 0; r < D.n; r++) for (let c = 0; c < D.n; c++) if (D.mina[r][c]) D.est[r][c] = 2;
     D.bandeiras = D.m;
     const s = Math.max(1, Math.round((Date.now() - D.inicio) / 1000)); let msg = 'Você venceu em ' + s + 's!';
@@ -79,7 +81,7 @@ MOTOR = r'''window.CM = (function () {
     $('btnNovo').textContent = '😎 Novo'; D.recorde(); D.desenha(msg);
   };
   D.alternaModo = () => {
-    D.modo = D.modo === 'cavar' ? 'bandeira' : 'cavar';
+    som('click'); D.modo = D.modo === 'cavar' ? 'bandeira' : 'cavar';
     $('btnModo').textContent = D.modo === 'cavar' ? 'Modo: Cavar ⛏' : 'Modo: Bandeira 🚩'; return D.modo;
   };
   D.desenha = msg => {
@@ -139,3 +141,7 @@ p = proj('Campo Minado', [('Jogo', ui, {'onload': JS})], theme='#16a34a')
 dest = os.path.join(here, '..', '..', 'examples', 'Campo_Minado.flowmobile')
 json.dump(p, open(dest, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 print('ok')
+
+# ---------- sons: o motor chama Sons.play (som); aqui entram o componente Game Sound e o botão 🔊/🔇 ----------
+from sons import pos_salvar
+pos_salvar('Campo_Minado', [])

@@ -23,3 +23,8 @@ items+=[
  it('button','quizRestart','Jogar de novo',24,480,200,44,{"click":P+"window.ffQuiz.start();"},bg=BTN,color='#ffffff'),
 ]
 save('Quiz_de_Conhecimentos',proj('Quiz de Conhecimentos',[('Principal',items,{'onload':P})]))
+# ---------- sons (componente Game Sound) ----------
+from sons import pos_salvar
+pos_salvar('Quiz_de_Conhecimentos', [
+    ("if(ok)G.score++;", "if(ok)G.score++;Sons.play(ok?'coin':'error');"),
+    ("G.end=function(){var n=G.score,t=G.Q.length,b=G.best();", "G.end=function(){var n=G.score,t=G.Q.length,b=G.best();setTimeout(function(){Sons.play(n===t?'win':n>=t*0.6?'powerup':'lose')},450);")])

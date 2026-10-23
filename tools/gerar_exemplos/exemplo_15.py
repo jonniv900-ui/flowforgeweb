@@ -22,3 +22,7 @@ items = [
 ]
 save('Invasores_do_Espaco', proj('Invasores do Espaço', [('Principal', items, {'onload': JS + "\nwindow.ffInvasores.init();"})]))
 print('ok')
+
+# ---------- sons: o motor chama Sons.play (snd); aqui entram o componente Game Sound e o botão 🔊/🔇 ----------
+from sons import pos_salvar
+pos_salvar('Invasores_do_Espaco', [])

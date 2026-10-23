@@ -22,7 +22,8 @@ hero = next((i for i in pg['items'] if i['kind'] == 'hero'), None)
 if hero:
     for k, v in list(hero.items()):
         if isinstance(v, str) and 'xadrez no navegador' in v: hero[k] = v.replace('xadrez no navegador', 'xadrez 3D no navegador')
-pg['events'] = {"onload": JS + "\n" + JS3D + "\nwindow.ffChess.init();", "onshow": ""}
+from sons import MUTE_LOAD
+pg['events'] = {"onload": JS + "\n" + JS3D + "\nwindow.ffChess.init();\n" + MUTE_LOAD, "onshow": ""}
 dest = os.path.join(ex, 'Xadrez_3D.flowmobile')
 json.dump(p, open(dest, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 print('ok', os.path.getsize(dest), 'bytes')

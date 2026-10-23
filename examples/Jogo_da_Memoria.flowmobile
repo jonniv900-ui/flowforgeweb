@@ -51,7 +51,7 @@
           "bg": "#fff",
           "color": "#111",
           "events": {
-            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m0'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
+            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m0'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;Sons.play('pop');if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;Sons.play(g.pairs===4?'win':'coin');document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;Sons.play('error');let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
           }
         },
         {
@@ -66,7 +66,7 @@
           "bg": "#fff",
           "color": "#111",
           "events": {
-            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m1'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
+            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m1'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;Sons.play('pop');if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;Sons.play(g.pairs===4?'win':'coin');document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;Sons.play('error');let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
           }
         },
         {
@@ -81,7 +81,7 @@
           "bg": "#fff",
           "color": "#111",
           "events": {
-            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m2'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
+            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m2'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;Sons.play('pop');if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;Sons.play(g.pairs===4?'win':'coin');document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;Sons.play('error');let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
           }
         },
         {
@@ -96,7 +96,7 @@
           "bg": "#fff",
           "color": "#111",
           "events": {
-            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m3'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
+            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m3'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;Sons.play('pop');if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;Sons.play(g.pairs===4?'win':'coin');document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;Sons.play('error');let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
           }
         },
         {
@@ -111,7 +111,7 @@
           "bg": "#fff",
           "color": "#111",
           "events": {
-            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m4'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
+            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m4'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;Sons.play('pop');if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;Sons.play(g.pairs===4?'win':'coin');document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;Sons.play('error');let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
           }
         },
         {
@@ -126,7 +126,7 @@
           "bg": "#fff",
           "color": "#111",
           "events": {
-            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m5'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
+            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m5'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;Sons.play('pop');if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;Sons.play(g.pairs===4?'win':'coin');document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;Sons.play('error');let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
           }
         },
         {
@@ -141,7 +141,7 @@
           "bg": "#fff",
           "color": "#111",
           "events": {
-            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m6'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
+            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m6'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;Sons.play('pop');if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;Sons.play(g.pairs===4?'win':'coin');document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;Sons.play('error');let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
           }
         },
         {
@@ -156,7 +156,7 @@
           "bg": "#fff",
           "color": "#111",
           "events": {
-            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m7'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
+            "click": "if(!window.ffMem){window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';}const b=document.getElementById('m7'),g=window.ffMem;if(g.lock||b.dataset.ok||b===g.first)return;b.textContent=b.dataset.v;Sons.play('pop');if(!g.first){g.first=b}else if(g.first.dataset.v===b.dataset.v){b.dataset.ok=g.first.dataset.ok='1';g.first=null;g.pairs++;Sons.play(g.pairs===4?'win':'coin');document.getElementById('memStatus').textContent=g.pairs===4?'Você venceu!':'Par encontrado!'}else{g.lock=true;Sons.play('error');let a=g.first;g.first=null;setTimeout(()=>{a.textContent=b.textContent='?';g.lock=false;document.getElementById('memStatus').textContent='Tente novamente'},650)}"
           }
         },
         {
@@ -173,8 +173,45 @@
           "events": {
             "click": "window.ffMem={lock:false,first:null,pairs:0};const vals=['🍎','🍌','🍒','🍇','🍎','🍌','🍒','🍇'].sort(()=>Math.random()-.5);[0,1,2,3,4,5,6,7].map(k=>document.getElementById('m'+k)).forEach((b,i)=>{b.dataset.v=vals[i];b.textContent='?';b.dataset.ok='';});document.getElementById('memStatus').textContent='Encontre os 4 pares';"
           }
+        },
+        {
+          "id": "73c96e59-bdd6-40dd-b290-e0f88a7ae805",
+          "kind": "button",
+          "name": "btnSom",
+          "text": "🔊",
+          "x": 334,
+          "y": 29,
+          "width": "36px",
+          "height": "32px",
+          "bg": "#e2e8f0",
+          "color": "#0f172a",
+          "events": {
+            "click": "Sons.toggleMute();document.getElementById('btnSom').textContent=Sons.muted?'🔇':'🔊';Sons.play('click');"
+          }
+        },
+        {
+          "id": "801d213a-703d-4901-8a20-e66832a9da89",
+          "kind": "gamesound",
+          "name": "Sons",
+          "text": "Sons",
+          "x": 20,
+          "y": 376,
+          "width": "90px",
+          "height": "34px",
+          "bg": "#ffffff",
+          "color": "#222222",
+          "events": {},
+          "volume": 0.6,
+          "muted": false,
+          "sounds": "",
+          "visible": true,
+          "enabled": true
         }
-      ]
+      ],
+      "events": {
+        "onload": "document.getElementById('btnSom').textContent=Sons.muted?'🔇':'🔊';",
+        "onshow": ""
+      }
     }
   ]
 }

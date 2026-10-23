@@ -53,3 +53,7 @@ old['pages'][0]['items'] = items
 old['pages'][0]['events'] = {"onload": JS + "\nwindow.ffChess.init();", "onshow": ""}
 json.dump(old, open(dest, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 print('ok', os.path.getsize(dest), 'bytes')
+
+# ---------- sons: o motor chama Sons.play (snd); aqui entram o componente Game Sound e o botão 🔊/🔇 (ao lado do título "Partida") ----------
+from sons import pos_salvar
+pos_salvar('Chess_Landing_Page', [], mudo_xy=(729, 274))

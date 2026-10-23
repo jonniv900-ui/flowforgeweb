@@ -25,3 +25,7 @@ items = [
 ]
 save('Labirinto_3D', proj('Labirinto 3D', [('Principal', items, {'onload': JS + "\nwindow.ffLabirinto.init();"})]))
 print('ok')
+
+# ---------- sons: o motor chama Sons.play (snd); aqui entram o componente Game Sound e o botão 🔊/🔇 ----------
+from sons import pos_salvar
+pos_salvar('Labirinto_3D', [])

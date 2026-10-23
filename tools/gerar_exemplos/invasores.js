@@ -5,6 +5,7 @@ if(!window.ffInvasores){(function(){
    disco voador bônus, 3 vidas, recorde salvo. Teclado: ← → mover (segure), Espaço/↑ atirar, P pausa.
    Toque: arraste no jogo para mover a nave, toque para atirar (ou use os botões). */
 var C=window.ffInvasores={};
+function snd(n,v){try{if(window.Sons)window.Sons.play(n,v)}catch(e){}} // sons (componente Game Sound), se o projeto tiver
 var W=360,H=480,KEY='ffInvasoresV1',COLS=8,DX=34,DY=28,AW=22,AH=16,SY=448,SH=16,SW=28,SP=230,BLK=4;
 var BM={
  A:[['...xx...','..xxxx..','.xxxxxx.','xx.xx.xx','xxxxxxxx','..x..x..','.x.xx.x.','x.x..x.x'],['...xx...','..xxxx..','.xxxxxx.','xx.xx.xx','xxxxxxxx','.x.xx.x.','x......x','.x....x.']],
@@ -36,16 +37,16 @@ function hitShield(x,y,w,h,dmg){ // remove blocos tocados; devolve true se tocou
    if(x<b.x+BLK&&x+w>b.x&&y<b.y+BLK&&y+h>b.y){hit=true;cs.splice(i,1);if(dmg){var j;for(j=cs.length-1;j>=0;j--){var o=cs[j];if(Math.abs(o.x-b.x)<=BLK&&Math.abs(o.y-b.y)<=BLK&&rnd()<.55)cs.splice(j,1)}}
     if(!dmg)continue;return true}}}
  return hit}
-C.reset=function(){G.state='play';G.t=0;G.px=W/2;G.score=0;G.lives=3;G.wave=1;G.inv=0;G.cool=0;G.ufo=null;G.nextUfo=14;G.banner=0;G.overAt=0;G.flash=0;G.keys.l=G.keys.r=G.keys.f=0;G.seed=(Date.now()&0xffff)+1;best();mkWave();C.ui()};
+C.reset=function(){snd('start');G.state='play';G.t=0;G.px=W/2;G.score=0;G.lives=3;G.wave=1;G.inv=0;G.cool=0;G.ufo=null;G.nextUfo=14;G.banner=0;G.overAt=0;G.flash=0;G.keys.l=G.keys.r=G.keys.f=0;G.seed=(Date.now()&0xffff)+1;best();mkWave();C.ui()};
 C.fire=function(){
  if(G.state!=='play'||G.cool>0||G.pb.length>=3)return false;
- G.pb.push({x:G.px,y:SY-2});G.cool=.32;return true};
+ G.pb.push({x:G.px,y:SY-2});G.cool=.32;snd('laser',.5);return true};
 C.nudge=function(d){if(G.state!=='play')return false;G.px=Math.max(SW/2+4,Math.min(W-SW/2-4,G.px+d*26));return true};
 C.left=function(){C.nudge(-1)};C.right=function(){C.nudge(1)};
 C.pause=function(){if(G.state==='play')G.state='pause';else if(G.state==='pause'){G.state='play';G.last=0}C.ui()};
 C.btn=function(n,a){if(typeof C[n]==='function')C[n](a);if(document.activeElement&&document.activeElement.blur&&document.activeElement.tagName==='BUTTON')document.activeElement.blur()};
-function over(){G.state='over';G.overAt=now();saveBest();C.ui()}
-function loseLife(){G.lives--;G.inv=1.7;G.flash=.25;if(G.lives<=0){G.lives=0;over()}else C.ui()}
+function over(){snd('lose');G.state='over';G.overAt=now();saveBest();C.ui()}
+function loseLife(){snd('explosion');G.lives--;G.inv=1.7;G.flash=.25;if(G.lives<=0){G.lives=0;over()}else C.ui()}
 function step(dt){
  var i,j,a,b;
  if(G.state==='wave'){G.banner-=dt;if(G.banner<=0){G.state='play'}return}
@@ -59,12 +60,12 @@ function step(dt){
   if(hitShield(b.x-1,b.y,3,10,true)){G.pb.splice(i,1);continue}
   var hitA=false;
   for(j=0;j<G.al.length;j++){a=G.al[j];if(!a.on)continue;var X=ax(a),Y=ay(a);
-   if(b.x+1.5>X&&b.x-1.5<X+AW&&b.y<Y+AH&&b.y+10>Y){a.on=false;G.score+=PTS[a.t];hitA=true;C.ui();break}}
+   if(b.x+1.5>X&&b.x-1.5<X+AW&&b.y<Y+AH&&b.y+10>Y){a.on=false;G.score+=PTS[a.t];hitA=true;snd('hit',.7);C.ui();break}}
   if(hitA){G.pb.splice(i,1);continue}
-  if(G.ufo&&b.x>G.ufo.x&&b.x<G.ufo.x+30&&b.y<44&&b.y+10>28){G.score+=G.ufo.pts;G.ufo=null;G.pb.splice(i,1);C.ui()}}
+  if(G.ufo&&b.x>G.ufo.x&&b.x<G.ufo.x+30&&b.y<44&&b.y+10>28){G.score+=G.ufo.pts;snd('powerup');G.ufo=null;G.pb.splice(i,1);C.ui()}}
  // invasores
  var n=alive();
- if(n===0){G.wave++;G.score+=100;mkWave();G.state='wave';G.banner=1.4;C.ui();return}
+ if(n===0){G.wave++;G.score+=100;snd('win');mkWave();G.state='wave';G.banner=1.4;C.ui();return}
  var sp=Math.min(210,(28+G.wave*5)*(1+(G.total-n)/G.total*3.2)),mn=1e9,mx=-1e9;
  G.gx+=G.dir*sp*dt;
  for(j=0;j<G.al.length;j++){a=G.al[j];if(!a.on)continue;mn=Math.min(mn,ax(a));mx=Math.max(mx,ax(a)+AW)}

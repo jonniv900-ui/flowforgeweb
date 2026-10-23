@@ -5,6 +5,7 @@ if(!window.ffCorrida){(function(){
    moedas, 3 vidas, velocidade crescente. Teclado: ← → faixas, ↑ / Espaço pular, ↓ deslizar, P pausa.
    Toque no jogo: deslize para os lados, para cima (pular) ou para baixo (deslizar); toque simples = pular. */
 var C=window.ffCorrida={},PI=Math.PI,KEY='ffCorridaV1';
+function snd(n,v){try{if(window.Sons)window.Sons.play(n,v)}catch(e){}} // sons (componente Game Sound), se o projeto tiver
 var LANES=[-1.7,0,1.7];
 var G={state:'ready',t:0,dist:0,coins:0,lives:3,speed:14,lane:1,x:0,y:0,vy:0,slide:0,slideQ:false,inv:0,obs:[],coi:[],bld:[],par:[],nextZ:-45,bz:[0,0],shake:0,flash:0,best:0,score:0,overAt:0,freeze:false};
 var R={c:null,gl:null,W:0,H:0,frames:0,last:0,eye:[0,0,0],ovKey:''};
@@ -208,12 +209,12 @@ function saveBest(){if(G.score>G.best){G.best=G.score;try{localStorage.setItem(K
 function loadBest(){try{G.best=parseInt(localStorage.getItem(KEY),10)||0}catch(e){G.best=0}}
 
 C.reset=function(){
- G.state='play';G.t=0;G.dist=0;G.coins=0;G.lives=3;G.speed=14;G.lane=1;G.x=0;G.y=0;G.vy=0;G.slide=0;G.slideQ=false;G.inv=0;G.shake=0;G.flash=0;G.score=0;
+ snd('start');G.state='play';G.t=0;G.dist=0;G.coins=0;G.lives=3;G.speed=14;G.lane=1;G.x=0;G.y=0;G.vy=0;G.slide=0;G.slideQ=false;G.inv=0;G.shake=0;G.flash=0;G.score=0;
  G.obs=[];G.coi=[];G.par=[];G.nextZ=-45;G.overAt=0;R.ovKey='';C.ui()};
 function hurt(){
  if(G.inv>0)return;
- G.lives--;G.shake=.6;G.flash=1;G.inv=1.6;burst(G.x,.6,-G.dist,18,[[1,.3,.2],[1,.7,.2],[1,1,1]]);
- if(G.lives<=0){G.state='over';G.overAt=now();G.score=Math.floor(G.dist/2)+G.coins*10;saveBest()}
+ G.lives--;snd(G.lives<=0?'explosion':'hit');G.shake=.6;G.flash=1;G.inv=1.6;burst(G.x,.6,-G.dist,18,[[1,.3,.2],[1,.7,.2],[1,1,1]]);
+ if(G.lives<=0){setTimeout(function(){snd('lose')},550);G.state='over';G.overAt=now();G.score=Math.floor(G.dist/2)+G.coins*10;saveBest()}
  C.ui()}
 C.step=function(dt){
  if(G.state!=='play')return;
@@ -230,7 +231,7 @@ C.step=function(dt){
   o.hit=true;hurt()});
  G.coi.forEach(function(c){if(c.got||G.state!=='play')return;
   if(c.z<pz-.5||c.z>pz0+.5)return;if(Math.abs(c.x-G.x)>.75)return;if(c.y<py-.25||c.y>py+ph+.25)return;
-  c.got=true;G.coins++;burst(c.x,c.y,c.z,7,[[1,.85,.2],[1,1,.6]])});
+  c.got=true;G.coins++;snd('coin',.7);burst(c.x,c.y,c.z,7,[[1,.85,.2],[1,1,.6]])});
  if(G.state==='play'){if(rnd()<.8)G.par.push({x:G.x+(rnd()<.5?-.14:.14),y:G.y+.32,z:pz+.85,vx:0,vy:.2,vz:2,life:.35,max:.35,col:[.2,.9,1],s:.1});
   G.score=Math.floor(G.dist/2)+G.coins*10}
  for(i=G.obs.length-1;i>=0;i--)if(G.obs[i].z>pz+25)G.obs.splice(i,1);
@@ -239,10 +240,10 @@ function parts(dt){for(var i=G.par.length-1;i>=0;i--){var p=G.par[i];p.life-=dt;
 
 /* ---------- comandos ---------- */
 function begin(){if(G.state==='ready'||(G.state==='over'&&now()-G.overAt>550)){C.reset();return true}return G.state==='play'}
-C.left=function(){if(!begin())return;if(G.state==='play'&&G.lane>0)G.lane--};
-C.right=function(){if(!begin())return;if(G.state==='play'&&G.lane<2)G.lane++};
-C.jump=function(){if(!begin())return;if(G.state!=='play')return;if(G.y<=0&&G.vy<=0){G.vy=10;G.slide=0;G.slideQ=false}};
-C.slide=function(){if(!begin())return;if(G.state!=='play')return;if(G.y>0){G.vy=Math.min(G.vy,-16);G.slideQ=true}else G.slide=.7};
+C.left=function(){if(!begin())return;if(G.state==='play'&&G.lane>0){G.lane--;snd('move')}};
+C.right=function(){if(!begin())return;if(G.state==='play'&&G.lane<2){G.lane++;snd('move')}};
+C.jump=function(){if(!begin())return;if(G.state!=='play')return;if(G.y<=0&&G.vy<=0){G.vy=10;G.slide=0;G.slideQ=false;snd('jump')}};
+C.slide=function(){if(!begin())return;if(G.state!=='play')return;if(G.y>0){G.vy=Math.min(G.vy,-16);G.slideQ=true}else{G.slide=.7;snd('tick')}};
 C.pause=function(){if(G.state==='play')G.state='pause';else if(G.state==='pause'){G.state='play'}R.ovKey='';C.ui()};
 C.btn=function(n,a){var f=C[n];if(typeof f==='function')f(a);var e=document.activeElement;if(e&&e.blur&&e.tagName==='BUTTON')e.blur()};
 function key(e){

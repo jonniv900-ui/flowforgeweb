@@ -23,3 +23,7 @@ items = [
 ]
 save('Corrida_Neon_3D', proj('Corrida Neon 3D', [('Principal', items, {'onload': JS + "\nwindow.ffCorrida.init();"})]))
 print('ok')
+
+# ---------- sons: o motor chama Sons.play (snd); aqui entram o componente Game Sound e o botão 🔊/🔇 ----------
+from sons import pos_salvar
+pos_salvar('Corrida_Neon_3D', [])

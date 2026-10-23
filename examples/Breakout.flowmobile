@@ -64,7 +64,7 @@
           "bg": "#334155",
           "color": "#fff",
           "events": {
-            "click": "if(window.ffBreak)window.ffBreak.p=Math.max(0,window.ffBreak.p-2)"
+            "click": "if(window.ffBreak)Sons.play('tick');if(window.ffBreak)window.ffBreak.p=Math.max(0,window.ffBreak.p-2)"
           }
         },
         {
@@ -79,7 +79,7 @@
           "bg": "#334155",
           "color": "#fff",
           "events": {
-            "click": "if(window.ffBreak)window.ffBreak.p=Math.min(12,window.ffBreak.p+2)"
+            "click": "if(window.ffBreak)Sons.play('tick');if(window.ffBreak)window.ffBreak.p=Math.min(12,window.ffBreak.p+2)"
           }
         },
         {
@@ -94,10 +94,47 @@
           "bg": "#2563eb",
           "color": "#fff",
           "events": {
-            "click": "clearInterval(window.ffBreakTimer);window.ffBreak={x:7,y:8,dx:1,dy:-1,p:6,bricks:Array.from({length:24},(_,i)=>i),score:0};const b=document.getElementById('breakBoard'),st=document.getElementById('breakStatus');function draw(){let q=window.ffBreak,g=Array.from({length:12},()=>Array(16).fill(' '));q.bricks.forEach(i=>g[1+Math.floor(i/8)][i%8*2]='■');for(let i=0;i<4;i++)if(q.p+i<16)g[11][q.p+i]='═';g[q.y][q.x]='●';b.textContent=g.map(r=>r.join(' ')).join('\\n');st.textContent='Pontos: '+q.score}function tick(){let q=window.ffBreak,nx=q.x+q.dx,ny=q.y+q.dy;if(nx<0||nx>15){q.dx*=-1;nx=q.x+q.dx}if(ny<0){q.dy=1;ny=1}if(ny>=11){if(nx>=q.p&&nx<q.p+4){q.dy=-1;ny=10}else{clearInterval(window.ffBreakTimer);st.textContent='Fim — '+q.score+' pontos';return}}let bi=q.bricks.find(i=>1+Math.floor(i/8)===ny&&i%8*2===nx);if(bi!==undefined){q.bricks=q.bricks.filter(i=>i!==bi);q.score++;q.dy*=-1;ny=q.y+q.dy;if(!q.bricks.length){clearInterval(window.ffBreakTimer);st.textContent='Você venceu!';draw();return}}q.x=nx;q.y=ny;draw()}draw();window.ffBreakTimer=setInterval(tick,110);"
+            "click": "Sons.play('start');clearInterval(window.ffBreakTimer);window.ffBreak={x:7,y:8,dx:1,dy:-1,p:6,bricks:Array.from({length:24},(_,i)=>i),score:0};const b=document.getElementById('breakBoard'),st=document.getElementById('breakStatus');function draw(){let q=window.ffBreak,g=Array.from({length:12},()=>Array(16).fill(' '));q.bricks.forEach(i=>g[1+Math.floor(i/8)][i%8*2]='■');for(let i=0;i<4;i++)if(q.p+i<16)g[11][q.p+i]='═';g[q.y][q.x]='●';b.textContent=g.map(r=>r.join(' ')).join('\\n');st.textContent='Pontos: '+q.score}function tick(){let q=window.ffBreak,nx=q.x+q.dx,ny=q.y+q.dy;if(nx<0||nx>15){q.dx*=-1;Sons.play('blip');nx=q.x+q.dx}if(ny<0){q.dy=1;Sons.play('blip');ny=1}if(ny>=11){if(nx>=q.p&&nx<q.p+4){q.dy=-1;ny=10;Sons.play('click');}else{clearInterval(window.ffBreakTimer);Sons.play('lose');st.textContent='Fim — '+q.score+' pontos';return}}let bi=q.bricks.find(i=>1+Math.floor(i/8)===ny&&i%8*2===nx);if(bi!==undefined){q.bricks=q.bricks.filter(i=>i!==bi);q.score++;Sons.play('pop');q.dy*=-1;ny=q.y+q.dy;if(!q.bricks.length){clearInterval(window.ffBreakTimer);Sons.play('win');st.textContent='Você venceu!';draw();return}}q.x=nx;q.y=ny;draw()}draw();window.ffBreakTimer=setInterval(tick,110);"
           }
+        },
+        {
+          "id": "1dff69ce-43c4-4317-99f2-f1edd60ea5e4",
+          "kind": "button",
+          "name": "btnSom",
+          "text": "🔊",
+          "x": 334,
+          "y": 24,
+          "width": "36px",
+          "height": "32px",
+          "bg": "#e2e8f0",
+          "color": "#0f172a",
+          "events": {
+            "click": "Sons.toggleMute();document.getElementById('btnSom').textContent=Sons.muted?'🔇':'🔊';Sons.play('click');"
+          }
+        },
+        {
+          "id": "866cfe68-b40a-48d6-b948-ca1576ba3d51",
+          "kind": "gamesound",
+          "name": "Sons",
+          "text": "Sons",
+          "x": 20,
+          "y": 460,
+          "width": "90px",
+          "height": "34px",
+          "bg": "#ffffff",
+          "color": "#222222",
+          "events": {},
+          "volume": 0.6,
+          "muted": false,
+          "sounds": "",
+          "visible": true,
+          "enabled": true
         }
-      ]
+      ],
+      "events": {
+        "onload": "document.getElementById('btnSom').textContent=Sons.muted?'🔇':'🔊';",
+        "onshow": ""
+      }
     }
   ]
 }

@@ -6,6 +6,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 MOTOR = r'''window.DG = (function () {
   const $ = id => document.getElementById(id);
   const KEY = 'jogo2048_v1', N = 4;
+  const som = (n, v) => { try { if (window.Sons) window.Sons.play(n, v); } catch (e) {} }; // sons (componente Game Sound), se o projeto tiver
   const COR = { 0: ['#cdc1b4', '#776e65'], 2: ['#eee4da', '#776e65'], 4: ['#ede0c8', '#776e65'], 8: ['#f2b179', '#fff'], 16: ['#f59563', '#fff'], 32: ['#f67c5f', '#fff'],
     64: ['#f65e3b', '#fff'], 128: ['#edcf72', '#fff'], 256: ['#edcc61', '#fff'], 512: ['#edc850', '#fff'], 1024: ['#edc53f', '#fff'], 2048: ['#edc22e', '#fff'] };
   const D = { grade: [], pontos: 0, melhor: 0, ganhou: false, fim: false, anterior: null, rnd: Math.random };
@@ -29,7 +30,7 @@ MOTOR = r'''window.DG = (function () {
   };
   D.novo = () => {
     D.grade = vazia(); D.pontos = 0; D.ganhou = false; D.fim = false; D.anterior = null;
-    D.sorteia(); D.sorteia(); salvar(); D.desenha();
+    som('start'); D.sorteia(); D.sorteia(); salvar(); D.desenha();
   };
   // junta uma linha para o início: [2,2,4,0] -> [4,4,0,0]; devolve a nova linha e os pontos
   D.linha = l => {
@@ -58,16 +59,17 @@ MOTOR = r'''window.DG = (function () {
     if (JSON.stringify(antes) === JSON.stringify(D.grade)) return false; // nada se mexeu: não conta
     D.anterior = { grade: antes, pontos: D.pontos, ganhou: D.ganhou, melhor: D.melhor };
     D.pontos += pts; D.melhor = Math.max(D.melhor, D.pontos);
+    som(pts ? 'merge' : 'tick');
     D.sorteia();
     let msg = '';
-    if (!D.ganhou && D.grade.some(l => l.includes(2048))) { D.ganhou = true; msg = 'Você chegou ao 2048! Continue jogando.'; }
-    if (D.sem(D.grade)) { D.fim = true; msg = 'Fim de jogo! Sem movimentos. Pontos: ' + D.pontos; }
+    if (!D.ganhou && D.grade.some(l => l.includes(2048))) { D.ganhou = true; msg = 'Você chegou ao 2048! Continue jogando.'; som('win'); }
+    if (D.sem(D.grade)) { D.fim = true; som('lose'); msg = 'Fim de jogo! Sem movimentos. Pontos: ' + D.pontos; }
     salvar(); D.desenha(msg); return true;
   };
   D.desfazer = () => {
     if (!D.anterior) { D.desenha('Nada para desfazer.'); return false; }
     D.grade = D.anterior.grade; D.pontos = D.anterior.pontos; D.ganhou = D.anterior.ganhou; D.melhor = Math.max(D.melhor, D.anterior.melhor);
-    D.anterior = null; D.fim = false; salvar(); D.desenha('Jogada desfeita.'); return true;
+    D.anterior = null; D.fim = false; salvar(); som('blip'); D.desenha('Jogada desfeita.'); return true;
   };
   D.desenha = msg => {
     const t = $('tabuleiro'); if (!t) return;
@@ -130,3 +132,7 @@ p = proj('2048', [('Jogo', ui, {'onload': JS})], theme='#f59563')
 dest = os.path.join(here, '..', '..', 'examples', 'Jogo_2048.flowmobile')
 json.dump(p, open(dest, 'w', encoding='utf-8'), ensure_ascii=False, indent=2)
 print('ok')
+
+# ---------- sons: o motor chama Sons.play (som); aqui entram o componente Game Sound e o botão 🔊/🔇 ----------
+from sons import pos_salvar
+pos_salvar('Jogo_2048', [])

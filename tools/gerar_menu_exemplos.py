@@ -4,10 +4,21 @@ Rode de novo sempre que um .flowmobile for criado ou alterado:  python3 tools/ge
 import json, os, glob
 raiz = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 # já existem no menu embutido (app.js): não repetir
-JA_NO_MENU = {'Adivinhe_o_Numero', 'Breakout', 'Genius_Simon', 'Jogo_da_Memoria', 'Jogo_da_Velha_IA', 'Lista_de_Tarefas',
-              'Pedra_Papel_Tesoura_IA', 'Pong_IA', 'Snake', 'Teste_de_Reflexo'}
+JA_NO_MENU = {'Lista_de_Tarefas'}
+# jogos clássicos: a versão da pasta (com sons) substitui a do menu embutido  →  arquivo: chave do app.js
+SUBSTITUI = {'Snake': 'snake', 'Pong_IA': 'pong', 'Breakout': 'breakout', 'Genius_Simon': 'simon', 'Jogo_da_Memoria': 'memory',
+             'Adivinhe_o_Numero': 'guess', 'Teste_de_Reflexo': 'reaction', 'Pedra_Papel_Tesoura_IA': 'rps', 'Jogo_da_Velha_IA': 'tictactoe'}
 # arquivo: (ícone, título, descrição)
 META = {
+ 'Snake': ('●', 'Snake', 'Movimento, timer, colisão e pontuação. Com sons.'),
+ 'Pong_IA': ('↕', 'Pong vs IA', 'Raquete, bola, colisões e adversário automático. Com sons.'),
+ 'Breakout': ('▦', 'Breakout', 'Blocos, colisão, pontuação e controle da raquete. Com sons.'),
+ 'Genius_Simon': ('◉', 'Genius / Simon', 'Sequências, memória e temporização. Com sons.'),
+ 'Jogo_da_Memoria': ('▦', 'Jogo da Memória', 'Encontre os pares e pratique estado, eventos e Timer. Com sons.'),
+ 'Adivinhe_o_Numero': ('#', 'Adivinhe o Número', 'Jogo simples com entrada de dados e lógica. Com sons.'),
+ 'Teste_de_Reflexo': ('⚡', 'Teste de Reflexo', 'Timer aleatório e medição de tempo de reação. Com sons.'),
+ 'Pedra_Papel_Tesoura_IA': ('✊', 'Pedra Papel Tesoura', 'Jogador contra IA com escolha aleatória. Com sons.'),
+ 'Jogo_da_Velha_IA': ('⊞', 'Jogo da Velha IA', 'Jogador X contra IA O com estratégia minimax. Com sons.'),
  'Blocos_Empilhados': ('▤', 'Blocos Empilhados', 'Jogo de empilhar blocos com timing e pontuação.'),
  'Cadastro_Usuario': ('👤', 'Cadastro de Usuário', 'Formulário com validação de campos.'),
  'Calculadora_Interativa': ('🧮', 'Calculadora Interativa', 'Calculadora com botões e visor.'),
@@ -51,7 +62,9 @@ for f in sorted(glob.glob(os.path.join(raiz, 'examples', '*.flowmobile'))):
     if k in JA_NO_MENU: continue
     if k not in META: falta.append(k); continue
     ic, ti, de = META[k]
-    pack.append({'key': 'file:' + k, 'icon': ic, 'title': ti, 'desc': de, 'project': json.load(open(f, encoding='utf-8'))})
+    e = {'key': 'file:' + k, 'icon': ic, 'title': ti, 'desc': de, 'project': json.load(open(f, encoding='utf-8'))}
+    if k in SUBSTITUI: e['replaces'] = SUBSTITUI[k]
+    pack.append(e)
 if falta: raise SystemExit('Sem descrição em META para: ' + ', '.join(falta))
 dest = os.path.join(raiz, 'js', 'examples-pack.js')
 open(dest, 'w', encoding='utf-8').write('/* Gerado por tools/gerar_menu_exemplos.py a partir de examples/*.flowmobile — não edite à mão. */\nwindow.FF_EXAMPLE_PACK = ' + json.dumps(pack, ensure_ascii=False, separators=(',', ':')) + ';\n')

@@ -4,6 +4,7 @@ if(!window.ffBlocos){(function(){
    Teclado: ← → mover, ↑ ou X girar, ↓ descer, Espaço queda direta, P pausar. Toque: arraste para mover,
    toque para girar, deslize rápido para baixo para a queda direta (ou use os botões). */
 var C=window.ffBlocos={};
+function snd(n,v){try{if(window.Sons)window.Sons.play(n,v)}catch(e){}} // sons (componente Game Sound), se o projeto tiver
 var W=10,H=20,CS=30,KEY='ffBlocosV1';
 var BASE={I:[[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],O:[[1,1],[1,1]],T:[[0,1,0],[1,1,1],[0,0,0]],S:[[0,1,1],[1,1,0],[0,0,0]],Z:[[1,1,0],[0,1,1],[0,0,0]],J:[[1,0,0],[1,1,1],[0,0,0]],L:[[0,0,1],[1,1,1],[0,0,0]]};
 var COR={I:'#22d3ee',O:'#facc15',T:'#a78bfa',S:'#4ade80',Z:'#f87171',J:'#60a5fa',L:'#fb923c'};
@@ -27,23 +28,23 @@ function best(){try{var o=JSON.parse(localStorage.getItem(KEY)||'{}');G.best=o.b
 function saveBest(){if(G.score>G.best){G.best=G.score;try{localStorage.setItem(KEY,JSON.stringify({best:G.best}))}catch(e){}}}
 function spawn(){
  G.p=make(G.next||bagNext());G.next=bagNext();G.acc=0;G.t0=now();
- if(hit(G.p,G.p.r,G.p.x,G.p.y)){G.state='over';saveBest()}}
+ if(hit(G.p,G.p.r,G.p.x,G.p.y)){G.state='over';saveBest();snd('lose')}}
 function interval(){return Math.max(90,820-(G.level-1)*72)}
 function lock(){
  var c=cells(G.p),i,over=false;
  for(i=0;i<c.length;i++){if(c[i][1]<0)over=true;else G.b[c[i][1]][c[i][0]]=G.p.t}
  var full=[],r;for(r=0;r<H;r++)if(G.b[r].every(function(v){return v}))full.push(r);
- if(over){G.p=null;G.state='over';saveBest();return}
- if(full.length){G.score+=PTS[full.length]*G.level;G.lines+=full.length;G.level=1+Math.floor(G.lines/10);G.flash={rows:full,t0:now()};G.state='flash';G.p=null;saveBest()}
- else spawn()}
+ if(over){G.p=null;G.state='over';saveBest();snd('lose');return}
+ if(full.length){var lv0=G.level;G.score+=PTS[full.length]*G.level;G.lines+=full.length;G.level=1+Math.floor(G.lines/10);snd(full.length>=4?'powerup':G.level>lv0?'win':'coin');G.flash={rows:full,t0:now()};G.state='flash';G.p=null;saveBest()}
+ else{snd('blip');spawn()}}
 function removeRows(){
  var rows=G.flash.rows;G.b=G.b.filter(function(_,i){return rows.indexOf(i)<0});
  while(G.b.length<H)G.b.unshift(new Array(W).fill(''));
  G.flash=null;G.state='play';spawn()}
-C.move=function(d){if(G.state!=='play')return false;if(!hit(G.p,G.p.r,G.p.x+d,G.p.y)){G.p.x+=d;C.draw();return true}return false};
+C.move=function(d){if(G.state!=='play')return false;if(!hit(G.p,G.p.r,G.p.x+d,G.p.y)){G.p.x+=d;snd('tick');C.draw();return true}return false};
 C.rotate=function(){if(G.state!=='play')return false;var nr=(G.p.r+1)%4,ks=[0,-1,1,-2,2],i;
- for(i=0;i<ks.length;i++)if(!hit(G.p,nr,G.p.x+ks[i],G.p.y)){G.p.r=nr;G.p.x+=ks[i];C.draw();return true}
- if(!hit(G.p,nr,G.p.x,G.p.y-1)){G.p.r=nr;G.p.y--;C.draw();return true}return false};
+ for(i=0;i<ks.length;i++)if(!hit(G.p,nr,G.p.x+ks[i],G.p.y)){G.p.r=nr;G.p.x+=ks[i];snd('move');C.draw();return true}
+ if(!hit(G.p,nr,G.p.x,G.p.y-1)){G.p.r=nr;G.p.y--;snd('move');C.draw();return true}return false};
 C.soft=function(){if(G.state!=='play')return false;
  if(!hit(G.p,G.p.r,G.p.x,G.p.y+1)){G.p.y++;G.score+=1;G.acc=0;C.ui();return true}
  lock();C.ui();return false};
@@ -52,7 +53,7 @@ C.btn=function(n,a){C[n](a);var e=document.activeElement;if(e&&e.tagName==='BUTT
 C.pause=function(){
  if(G.state==='play'){G.state='pause'}else if(G.state==='pause'){G.state='play';G.acc=0;G.t0=now()}
  C.ui()};
-C.reset=function(){G.b=empty();G.score=0;G.lines=0;G.level=1;G.flash=null;G.bag=[];G.next=null;G.state='play';best();spawn();C.ui()};
+C.reset=function(){snd('start');G.b=empty();G.score=0;G.lines=0;G.level=1;G.flash=null;G.bag=[];G.next=null;G.state='play';best();spawn();C.ui()};
 C.step=function(){ // gravidade: uma casa para baixo (ou trava a peça)
  if(G.state!=='play')return;
  if(!hit(G.p,G.p.r,G.p.x,G.p.y+1))G.p.y++;else lock();

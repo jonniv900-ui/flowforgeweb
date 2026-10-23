@@ -726,3 +726,15 @@ O clássico Campo Minado em 1 página: 3 níveis (8x8/10 minas, 10x10/18, 12x12/
 ## Menu de exemplos (todos os arquivos da pasta `examples/`)
 
 O menu **Exemplos** mostra os 24 exemplos embutidos no `app.js` e, em seguida, todos os `.flowmobile` da pasta `examples/` (36 hoje), como Campo Minado, Xadrez 3D, Corrida Neon 3D, Labirinto 3D, Invasores do Espaço, 2048, Rastreador de Hábitos, Divisor de Conta, Memória Avançada, sites e landing pages. Para funcionar abrindo o `index.html` direto do disco (sem servidor), uma cópia dos arquivos é empacotada em `js/examples-pack.js`. **Ao criar ou alterar um exemplo, rode `python tools/gerar_menu_exemplos.py`** (o teste `tools/test_menu_exemplos.py` avisa se o menu ficou desatualizado).
+
+## Componente Som do jogo (Game Sound) e sons nos jogos
+
+Na categoria **GAMES** da caixa de ferramentas há o componente não visual **Som do jogo** (`gamesound`). Ele não ocupa espaço no app (no editor aparece como uma etiqueta) e cria efeitos sonoros **sintetizados na hora (Web Audio), sem arquivos**; também aceita arquivos de áudio. O motor só entra no HTML exportado/Preview quando o projeto usa o componente. Chame pelo nome do componente (por padrão `Sons`):
+
+- `Sons.play('coin')` toca um efeito pronto: `click, blip, tick, move, pop, flag, merge, coin, jump, laser, hit, explosion, powerup, start, win, lose, error`. `Sons.play('hit', 0.4)` define o volume (0 a 1).
+- `Sons.tone(440, 200, 'square', 0.5)` toca uma nota (Hz, ms, onda, volume); `Sons.notes([[440,150],[660,300]])` toca uma melodia.
+- `Sons.music('musica.mp3')` / `Sons.stopMusic()` música de fundo em repetição (arquivo ou data URI); `Sons.stop()` para tudo.
+- `Sons.mute()`, `Sons.unmute()`, `Sons.toggleMute()` e a propriedade `muted`: o estado de mudo fica salvo no aparelho. `Sons.volume` (0 a 1).
+- `Sons.register('tiro', {notes:[[880,60],[440,120]], wave:'square'})` cadastra um som próprio (`{src}`, `{notes, wave}` ou `{preset}`).
+
+Os navegadores só liberam áudio depois do primeiro toque ou tecla; antes disso o som é simplesmente ignorado, sem erro, e se o navegador não tiver Web Audio o jogo continua normalmente. Os jogos de exemplo (Snake, Pong, Breakout, Genius, Memória, Velha, Pedra Papel Tesoura, Adivinhe o Número, Reflexo, Quiz, Forca, Blocos Empilhados, Invasores, Corrida 3D, Labirinto 3D, Xadrez 3D, 2048 e Campo Minado) têm sons e um botão 🔊/🔇. Os 9 jogos clássicos sem gerador próprio recebem os sons com `python tools/gerar_exemplos/sons_nos_jogos.py` (seguro rodar de novo). Testado com `tools/test_som.py` (31 verificações).

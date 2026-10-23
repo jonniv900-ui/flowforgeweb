@@ -5,6 +5,7 @@
    (para os lados gira, para cima/baixo anda) ou segure os botões. */
 if(!window.ffLabirinto){(function(){
 var C=window.ffLabirinto={},PI=Math.PI,$=function(i){return document.getElementById(i)},KEY='ffLabirintoV1';
+function snd(n,v){try{if(window.Sons)window.Sons.play(n,v)}catch(e){}} // sons (componente Game Sound), se o projeto tiver
 var S=2,WH=2.3,WT=.3,PR=.34,SPEED=3.3,TURN=2.3,FOG=[.03,.035,.09];
 var G={state:'ready',level:1,n:5,cells:null,walls:[],vis:null,gems:[],ex:{i:0,j:0},x:1,z:1,yaw:0,time:60,score:0,got:0,total:0,best:0,spin:0,seed:7,overAt:0,clearAt:0,freeze:false,hold:{f:0,b:0,l:0,r:0,sl:0,sr:0},drag:{f:0,t:0},bonus:0,t:0};
 var R={c:null,gl:null,m:null,mx:null,fail:false,frames:0,W:0,H:0,last:0,raf:0,err:''};
@@ -79,10 +80,10 @@ function step(dt){
  var n=Math.max(1,Math.ceil(Math.max(Math.abs(vx),Math.abs(vz))/.12));
  for(i=0;i<n;i++){G.x+=vx/n;G.z+=vz/n;resolve()}
  G.t+=dt;G.time-=dt;visit();
- for(i=0;i<G.gems.length;i++){var g=G.gems[i];if(!g.got&&Math.hypot(G.x-g.x,G.z-g.z)<.85){g.got=true;G.got++;G.score+=100;C.ui()}}
+ for(i=0;i<G.gems.length;i++){var g=G.gems[i];if(!g.got&&Math.hypot(G.x-g.x,G.z-g.z)<.85){g.got=true;G.got++;G.score+=100;snd('coin');C.ui()}}
  var ex=(G.ex.i+.5)*S,ez=(G.ex.j+.5)*S;
- if(Math.hypot(G.x-ex,G.z-ez)<.9){G.bonus=Math.max(0,Math.floor(G.time))*5+200*G.level;G.score+=G.bonus;G.state='clear';G.clearAt=now();saveBest();C.ui();return}
- if(G.time<=0){G.time=0;G.state='over';G.overAt=now();saveBest();C.ui()}}
+ if(Math.hypot(G.x-ex,G.z-ez)<.9){G.bonus=Math.max(0,Math.floor(G.time))*5+200*G.level;G.score+=G.bonus;G.state='clear';G.clearAt=now();snd('win');saveBest();C.ui();return}
+ if(G.time<=0){G.time=0;G.state='over';G.overAt=now();snd('lose');saveBest();C.ui()}}
 C.step=step;
 function nextLevel(){G.state='play';level(G.level+1)}
 function loadBest(){try{G.best=+localStorage.getItem(KEY)||0}catch(e){G.best=0}}
@@ -91,7 +92,7 @@ function begin(){
  if(G.state==='ready'){G.state='play';G.score=0;C.ui();return true}
  if(G.state==='over'&&now()-G.overAt>550){C.reset();return true}
  return G.state==='play'}
-C.reset=function(){G.seed=(Date.now()&0xffff)+3;G.score=0;G.state='play';G.drag.f=0;G.drag.t=0;level(1)};
+C.reset=function(){snd('start');G.seed=(Date.now()&0xffff)+3;G.score=0;G.state='play';G.drag.f=0;G.drag.t=0;level(1)};
 C.pause=function(){if(G.state==='play')G.state='pause';else if(G.state==='pause')G.state='play';R.last=0;C.ui()};
 C.start=function(){begin()};
 C.btn=function(n){if(typeof C[n]==='function')C[n]();var e=document.activeElement;if(e&&e.blur&&e.tagName==='BUTTON')e.blur()};

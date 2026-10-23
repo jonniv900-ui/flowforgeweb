@@ -39,7 +39,7 @@
       carousel:'Carrossel',iframe:'iFrame / Web',canvas:'Tela (Canvas)',map:'Mapa',qrcode:'QR Code',
       /* Jogos */
       gamecanvas:'Tela do jogo',sprite:'Sprite',spritesheet:'Folha de sprites',collisionarea:'Área de colisão',keyboardinput:'Entrada de teclado',gamepadinput:'Entrada de controle',
-      gametimer:'Cronômetro do jogo',scorelabel:'Placar',healthbar:'Barra de vida',joystick:'Joystick virtual',
+      gametimer:'Cronômetro do jogo',gamesound:'Som do jogo',scorelabel:'Placar',healthbar:'Barra de vida',joystick:'Joystick virtual',
       /* Não visuais */
       timer:'Temporizador',http:'HTTP / API',websocket:'WebSocket',storage:'Armazenamento local',geolocation:'Geolocalização',notification:'Notificação',clipboard:'Área de transferência',
       network:'Status da rede',vibration:'Vibração',
@@ -71,7 +71,7 @@
       carousel:'Carrusel',iframe:'iFrame / Web',canvas:'Lienzo (Canvas)',map:'Mapa',qrcode:'Código QR',
       /* Juegos */
       gamecanvas:'Lienzo del juego',sprite:'Sprite',spritesheet:'Hoja de sprites',collisionarea:'Área de colisión',keyboardinput:'Entrada de teclado',gamepadinput:'Entrada de mando',
-      gametimer:'Temporizador del juego',scorelabel:'Marcador',healthbar:'Barra de vida',joystick:'Joystick virtual',
+      gametimer:'Temporizador del juego',gamesound:'Sonido del juego',scorelabel:'Marcador',healthbar:'Barra de vida',joystick:'Joystick virtual',
       /* No visuales */
       timer:'Temporizador',http:'HTTP / API',websocket:'WebSocket',storage:'Almacenamiento local',geolocation:'Geolocalización',notification:'Notificación',clipboard:'Portapapeles',
       network:'Estado de la red',vibration:'Vibración',

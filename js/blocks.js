@@ -11,6 +11,7 @@
   progress:{props:['value'],methods:['progressSet','progressInc','show','hide'],events:['change','complete']},
   timer:{props:['enabled'],methods:['timerStart','timerStop'],events:['tick']},
   camera:{props:[],methods:['cameraStart','cameraStop','cameraCapture','show','hide'],events:['camerastart','cameraerror']},
+  gamesound:{props:['volume','muted'],methods:['show','hide'],events:[]},
   audio:{props:[],methods:['play','pause','show','hide'],events:['play']},video:{props:['src'],methods:['play','pause','show','hide'],events:['play']},
   default:{props:['textContent'],methods:['show','hide'],events:['click']}
  };

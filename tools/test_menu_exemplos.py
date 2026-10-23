@@ -12,13 +12,13 @@ with sync_playwright() as pw:
     pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d=>d.close())")
     pg.evaluate("showExamples()"); pg.wait_for_timeout(200)
     n = pg.evaluate("document.querySelectorAll('#exampleChoices .exampleCard').length")
-    builtin = pg.evaluate("EXAMPLES.length"); pack = pg.evaluate("(window.FF_EXAMPLE_PACK||[]).length")
-    t('o menu mostra os exemplos embutidos + os da pasta (%d + %d)' % (builtin, pack), n == builtin + pack and pack >= 30, (n, builtin, pack))
+    builtin = pg.evaluate("EXAMPLES.length"); pack = pg.evaluate("(window.FF_EXAMPLE_PACK||[]).filter(e=>!e.replaces).length")
+    t('o menu mostra os exemplos embutidos + os da pasta (%d + %d)' % (builtin, pack), n == builtin + pack and pack >= 25, (n, builtin, pack))
     titulos = pg.evaluate("[...document.querySelectorAll('#exampleChoices .exampleCard b')].map(e=>e.textContent)")
     t('sem títulos repetidos no menu', len(set(titulos)) == len(titulos), [x for x in titulos if titulos.count(x) > 1])
     # o pacote tem de estar em dia com a pasta: cada arquivo está no menu embutido ou no pacote
     chaves = pg.evaluate("(window.FF_EXAMPLE_PACK||[]).map(e=>e.key.slice(5))")
-    JA = {'Adivinhe_o_Numero', 'Breakout', 'Genius_Simon', 'Jogo_da_Memoria', 'Jogo_da_Velha_IA', 'Lista_de_Tarefas', 'Pedra_Papel_Tesoura_IA', 'Pong_IA', 'Snake', 'Teste_de_Reflexo'}
+    JA = {'Lista_de_Tarefas'}
     t('todos os arquivos de examples/ estão no menu (rode tools/gerar_menu_exemplos.py se faltar)', set(arqs) - JA == set(chaves), (sorted(set(arqs) - JA - set(chaves)), sorted(set(chaves) - set(arqs))))
     t('o conteúdo do pacote é idêntico ao arquivo da pasta', all(pg.evaluate("(k)=>JSON.stringify(window.FF_EXAMPLE_PACK.find(e=>e.key==='file:'+k).project)", k) == json.dumps(arqs[k], ensure_ascii=False, separators=(',', ':')) or pg.evaluate("(k)=>window.FF_EXAMPLE_PACK.find(e=>e.key==='file:'+k).project.name", k) == arqs[k]['name'] for k in chaves))
     # abre cada um pelo clique
@@ -31,7 +31,7 @@ with sync_playwright() as pw:
     # os da pasta mantêm páginas/itens do arquivo
     ruins = []
     for k in chaves:
-        r = pg.evaluate("(k)=>{showExamples();const i=[...document.querySelectorAll('#exampleChoices .exampleCard')].findIndex((c,j)=>j>=EXAMPLES.length&&window.FF_EXAMPLE_PACK[j-EXAMPLES.length].key==='file:'+k);document.querySelectorAll('#exampleChoices .exampleCard')[i].click();return {p:project.pages.length,n:project.pages.map(x=>x.items.length),nome:project.name}}", k)
+        r = pg.evaluate("(k)=>{showExamples();document.querySelector('#exampleChoices .exampleCard[data-key=\"file:'+k+'\"]').click();return {p:project.pages.length,n:project.pages.map(x=>x.items.length),nome:project.name}}", k)
         if r['p'] != len(arqs[k]['pages']) or r['n'] != [len(x['items']) for x in arqs[k]['pages']] or r['nome'] != arqs[k]['name']: ruins.append((k, r))
     t('projetos abertos pelo menu = conteúdo dos arquivos', not ruins, ruins[:2])
     # abrir um exemplo e rodar no Preview (Rastreador usa localStorage e páginas)

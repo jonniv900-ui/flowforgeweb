@@ -25,4 +25,6 @@ items = [
     it('label', 'bHint', 'Teclado: ← → mover, ↑ girar, ↓ descer, Espaço queda, P pausa. Toque no tabuleiro: arraste para mover, toque para girar, deslize para baixo para a queda direta. A peça tracejada mostra onde ela vai parar.', 24, 730, 420, 78, bg='transparent', color='#64748b'),
 ]
 save('Blocos_Empilhados', proj('Blocos Empilhados', [('Principal', items, {'onload': JS + "\nwindow.ffBlocos.init();"})]))
+from sons import pos_salvar
+pos_salvar('Blocos_Empilhados', [])  # os sons estão no próprio blocos.js (snd); aqui entram só o componente Sons e o botão 🔊
 print('ok')

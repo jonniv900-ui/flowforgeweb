@@ -1,6 +1,7 @@
 var $=function(i){return document.getElementById(i)};
 if(!window.ffChess){(function(){
 var C=window.ffChess={};
+function snd(n,v){try{if(window.Sons)window.Sons.play(n,v)}catch(e){}} // sons (componente Game Sound), se o projeto tiver
 var SYM={K:'♚',Q:'♛',R:'♜',B:'♝',N:'♞',P:'♟︎'};
 var PT={K:'R',Q:'D',R:'T',B:'B',N:'C',P:''};
 var NOME={Q:'Dama',R:'Torre',B:'Bispo',N:'Cavalo'};
@@ -138,7 +139,7 @@ C.ui=function(){
  if(G.over)txt=G.msg;
  else if(G.paused)txt='Partida pausada';
  else{txt='Vez das '+(S.t==='w'?'brancas':'pretas');if(inCheck(S,S.t))txt+=' — Xeque!';if(cpuTurn())txt+=G.thinking?' — computador pensando…':' (computador)'}
- if(G.over&&!G.scored){G.scored=true;var o=/vencem/.test(G.msg)?(/Brancas vencem/.test(G.msg)?0:2):1;G.score[o]++;C.save();if(modeKind()==='pcpc'&&autoOn())setTimeout(function(){if(G.over&&modeKind()==='pcpc'&&autoOn())C.reset(false)},3200)}
+ if(G.over&&!G.scored){G.scored=true;snd(/vencem/.test(G.msg)?'win':'blip');var o=/vencem/.test(G.msg)?(/Brancas vencem/.test(G.msg)?0:2):1;G.score[o]++;C.save();if(modeKind()==='pcpc'&&autoOn())setTimeout(function(){if(G.over&&modeKind()==='pcpc'&&autoOn())C.reset(false)},3200)}
  $('chessStatus').textContent=txt;
  var out=[],i;for(i=0;i<G.hist.length;i+=2){out.push((i/2+1)+'. '+G.hist[i].san+(G.hist[i+1]?' '+G.hist[i+1].san:''))}
  var mv=$('chessMoves');mv.value=out.join('\n');mv.scrollTop=mv.scrollHeight;
@@ -179,6 +180,7 @@ C.play=function(m){
  var n=apply(S,m);G.hist.push({m:m,san:sn,before:S,after:n,clk:{w:G.cw,b:G.cb}});
  if(!tc.up){if(S.t==='w')G.cw+=tc.inc;else G.cb+=tc.inc}
  G.S=n;G.legal=null;G.sel=-1;G.targets=[];G.last=m;G.t0=now();
+ snd(S.b[m.t]||m.ep?'hit':'move');if(inCheck(n,n.t))setTimeout(function(){snd('error')},150);
  C.save();C.ui();C.sched()};
 C.sched=function(){
  if(!G.over&&!G.paused&&!G.thinking&&cpuTurn()){G.thinking=true;C.ui();setTimeout(C.cpu,delay())}};
