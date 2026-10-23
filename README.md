@@ -725,7 +725,7 @@ O clássico Campo Minado em 1 página: 3 níveis (8x8/10 minas, 10x10/18, 12x12/
 
 ## Menu de exemplos (todos os arquivos da pasta `examples/`)
 
-O menu **Exemplos** mostra os 24 exemplos embutidos no `app.js` e, em seguida, todos os `.flowmobile` da pasta `examples/` (36 hoje), como Campo Minado, Xadrez 3D, Corrida Neon 3D, Labirinto 3D, Invasores do Espaço, 2048, Rastreador de Hábitos, Divisor de Conta, Memória Avançada, sites e landing pages. Para funcionar abrindo o `index.html` direto do disco (sem servidor), uma cópia dos arquivos é empacotada em `js/examples-pack.js`. **Ao criar ou alterar um exemplo, rode `python tools/gerar_menu_exemplos.py`** (o teste `tools/test_menu_exemplos.py` avisa se o menu ficou desatualizado).
+O menu **Exemplos** mostra os 24 exemplos embutidos no `app.js` e, em seguida, todos os `.flowmobile` da pasta `examples/` (37 hoje), como Campo Minado, Xadrez 3D, Corrida Neon 3D, Labirinto 3D, Invasores do Espaço, 2048, Rastreador de Hábitos, Divisor de Conta, Memória Avançada, sites e landing pages. Para funcionar abrindo o `index.html` direto do disco (sem servidor), uma cópia dos arquivos é empacotada em `js/examples-pack.js`. **Ao criar ou alterar um exemplo, rode `python tools/gerar_menu_exemplos.py`** (o teste `tools/test_menu_exemplos.py` avisa se o menu ficou desatualizado).
 
 ## Componente Som do jogo (Game Sound) e sons nos jogos
 
@@ -738,3 +738,19 @@ Na categoria **GAMES** da caixa de ferramentas há o componente não visual **So
 - `Sons.register('tiro', {notes:[[880,60],[440,120]], wave:'square'})` cadastra um som próprio (`{src}`, `{notes, wave}` ou `{preset}`).
 
 Os navegadores só liberam áudio depois do primeiro toque ou tecla; antes disso o som é simplesmente ignorado, sem erro, e se o navegador não tiver Web Audio o jogo continua normalmente. Os jogos de exemplo (Snake, Pong, Breakout, Genius, Memória, Velha, Pedra Papel Tesoura, Adivinhe o Número, Reflexo, Quiz, Forca, Blocos Empilhados, Invasores, Corrida 3D, Labirinto 3D, Xadrez 3D, 2048 e Campo Minado) têm sons e um botão 🔊/🔇. Os 9 jogos clássicos sem gerador próprio recebem os sons com `python tools/gerar_exemplos/sons_nos_jogos.py` (seguro rodar de novo). Testado com `tools/test_som.py` (31 verificações).
+
+## Componente Gráfico (Chart) e exemplo Painel_de_Graficos
+
+O componente **Chart** (categoria Dados) agora desenha gráficos de verdade em SVG, sem bibliotecas: **barras, barras horizontais, linhas, área, pizza e rosca**, com várias séries, legenda, valores sobre as barras, grade, linha suave, cores próprias, prefixo/sufixo (ex.: `R$ `, `%`), eixo mínimo/máximo e animação. Ele se redesenha sozinho quando o componente muda de tamanho e passa o mouse mostra o valor de cada barra, ponto ou fatia.
+
+**Pelo editor:** escolha *Tipo de gráfico*, *Rótulos* (`Jan,Fev,Mar`) e *Valores* (`[12,19,8]`, ou `[[1,2],[3,4]]` para várias séries; também vale `{"Jan":10,"Fev":20}`).
+
+**Pelo código** (use o nome do componente, por exemplo `grafico`):
+
+- `grafico.setData(['Jan','Fev'], [10, 20])` troca os dados (valores `[[..],[..]]` e nomes `'Vendas,Custos'` para várias séries).
+- `grafico.addPoint('12:01', 42)` acrescenta um ponto (ou uma lista, um valor por série); com `grafico.maxPoints = 20` guarda só os últimos 20, ideal para gráficos ao vivo.
+- `grafico.clear()`, `grafico.getData()`, `grafico.chartType = 'line'`, `grafico.chartTitle`, `grafico.legend`, `grafico.showValues`.
+- Evento **select**: clique numa barra, ponto ou fatia, com `event.detail = { index, label, value, series }` (também em `grafico.selected`).
+- `grafico.toImage()` devolve uma Promise com o PNG (data URI) e `grafico.download('nome')` baixa a imagem.
+
+O motor só entra no HTML exportado quando o projeto usa um gráfico. O exemplo **Painel_de_Graficos** (3 páginas) mostra tudo: *Vendas* (troca o tipo do gráfico, novos dados, clique nas barras), *Ao vivo* (Timer + `addPoint` + `maxPoints`, pausar e limpar) e *Despesas* (rosca com lançamentos salvos no aparelho). Gerador: `tools/gerar_exemplos/exemplo_22.py`; testes: `tools/test_grafico.py` (48 verificações) e o cenário do exemplo (30).

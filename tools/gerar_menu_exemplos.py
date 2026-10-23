@@ -46,6 +46,7 @@ META = {
  'Landing_Page_Layout_Exemplo': ('↥', 'Landing Page: Layout', 'Demonstração de layout de landing page.'),
  'Landing_Page_SaaS_Exemplo': ('☁', 'Landing Page SaaS', 'Página de produto SaaS com planos e CTA.'),
  'Memoria_Avancada': ('🃏', 'Memória Avançada (3 níveis)', 'Memória com tabuleiro por código, cronômetro e recorde.'),
+ 'Painel_de_Graficos': ('📊', 'Painel de Gráficos', 'Componente Gráfico: barras, linhas, ao vivo e rosca de despesas.'),
  'Painel_Configuracoes': ('⚙', 'Painel de Configurações', 'Opções e preferências do aplicativo.'),
  'Pomodoro': ('🍅', 'Pomodoro', 'Temporizador de foco e pausa.'),
  'Quiz_de_Conhecimentos': ('❓', 'Quiz de Conhecimentos', 'Perguntas com pontuação e resultado final.'),

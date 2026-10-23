@@ -37,7 +37,7 @@ with sync_playwright() as pw:
     # --- componente no HTML exportado ---
     pg.set_input_files('#fileInput', common.OUT + '/som.flowmobile'); pg.wait_for_timeout(700)
     html = pg.evaluate("generated()")
-    t('HTML exportado inclui o motor de som e esconde o componente', 'FlowForgeSound' in html and '.ff-kind-gamesound{display:none!important}' in html)
+    t('HTML exportado inclui o motor de som e esconde o componente', 'FlowForgeSound' in html and '.ff-kind-gamesound,.ff-kind-timer{display:none!important}' in html)
     pg.set_input_files('#fileInput', common.OUT + '/semsom.flowmobile'); pg.wait_for_timeout(700)
     t('projeto sem o componente não leva o motor de som', 'engine' not in pg.evaluate("generated()") and 'ff_sound_muted' not in pg.evaluate("generated()"))
     pg.set_input_files('#fileInput', common.OUT + '/som.flowmobile'); pg.wait_for_timeout(700)
