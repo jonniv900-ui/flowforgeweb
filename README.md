@@ -591,7 +591,7 @@ Por que a câmera "não funcionava" mesmo com o app publicado:
 - Se o app for embutido em um `iframe` de outra origem, use `allow="camera; microphone"`. O preview do IDE já faz isso.
 - Se o servidor enviar o cabeçalho `Permissions-Policy: camera=()`, a câmera é bloqueada; use `camera=(self)`.
 
-Testes: `tests/camera_test.html` (18 verificações).
+Testes: `tests/camera_test.html` (20 verificações).
 
 Correções adicionais na câmera:
 
@@ -754,3 +754,35 @@ O componente **Chart** (categoria Dados) agora desenha gráficos de verdade em S
 - `grafico.toImage()` devolve uma Promise com o PNG (data URI) e `grafico.download('nome')` baixa a imagem.
 
 O motor só entra no HTML exportado quando o projeto usa um gráfico. O exemplo **Painel_de_Graficos** (3 páginas) mostra tudo: *Vendas* (troca o tipo do gráfico, novos dados, clique nas barras), *Ao vivo* (Timer + `addPoint` + `maxPoints`, pausar e limpar) e *Despesas* (rosca com lançamentos salvos no aparelho). Gerador: `tools/gerar_exemplos/exemplo_22.py`; testes: `tools/test_grafico.py` (48 verificações) e o cenário do exemplo (30).
+
+## Auditoria dos 111 componentes
+
+O teste `tests/all_components_test.html` cria **todos os 111 tipos de componente** da Toolbox em uma página (uma única renderização, para o teste ser rápido), exporta o projeto e verifica o resultado no HTML gerado:
+
+- todo tipo chega ao palco (`.component.ff-kind-<tipo>`) e ao export (`.ff-component.ff-kind-<tipo>`);
+- componentes visíveis têm conteúdo e tamanho; os não visuais (timer, http, websocket, storage, geolocalização, notificação, clipboard, rede, vibração) ficam ocultos como serviço;
+- as APIs dos jogos/serviços existem no export (`FlowForgeSound`, `FlowForgeTimer`, `FlowForgeChart`, `FlowForgeQRCode`, câmera, canvas com contexto 2D, `http`, `db`);
+- as interações funcionam após carregar o HTML exportado: checkbox, switch, range, select, color, date, accordion, rating, stepper, carrossel, LED, lista, drawer, bottom sheet, FAB (menu abre **e** o `click` do usuário roda), toast, modal, gráfico (SVG), sparkline (canvas), QR Code, câmera (autoplay), navbar, pagenav (navega e dispara o `change` do usuário), timer (`tick`) e nenhum erro de runtime.
+
+Resultado atual: **46 verificações, todas aprovadas (111 componentes)**. Componentes dependentes do ambiente (câmera, geolocalização, notificações, clipboard, gamepad, vibração, rede, mapa) são testados com stubs/permissões simuladas; em uso real dependem de HTTPS/localhost, permissão do usuário e do hardware.
+
+## Eventos do usuário não substituem mais o comportamento nativo do componente
+
+Na exportação, componentes "diretos" (o evento fica no controle real, como `<button>` ou `<video>`) tinham o `onclick`/`onchange` interno substituído pelo evento do usuário. Com isso, o FAB deixava de abrir o menu e o PageNav deixava de navegar quando o projeto definia uma ação para `click`/`change`. Agora os dois são mesclados: o comportamento nativo roda primeiro e o código do usuário roda em seguida. Teste: `tests/generated_events_test.html` e `tests/all_components_test.html`.
+
+## Layout do palco (Mobile/Tablet/Desktop/Livre) é preservado ao abrir o projeto
+
+O tamanho escolhido no designer (`project.viewport`) era descartado por `FFSecurity.validateProject()` ao abrir um `.flowmobile`, e o projeto reaberto voltava ao padrão do tipo (390 px para App). Agora a largura (280–1440), a altura (200–4000) e o preset (Livre/390/768/1440) são validados e restaurados. Teste: `tests/viewport_test.html` (33 verificações).
+
+## Como rodar as suítes
+
+Com um servidor local na raiz (`python -m http.server`), abra o `tests/*_test.html` no navegador. Para rodar tudo sem a limitação de temporizadores de abas em segundo plano, use o Chrome em modo headless e leia o resultado em `body[data-test]`:
+
+```bash
+for t in all_components camera component_semantics generated_events preview_assets \
+         project_icons runtime_components site_chrome toolbox_i18n ui_i18n viewport; do
+  "/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --disable-gpu \
+    --virtual-time-budget=600000 --dump-dom "http://127.0.0.1:8000/tests/${t}_test.html" \
+    | grep -o 'data-test="[A-Z]*"'
+done
+```

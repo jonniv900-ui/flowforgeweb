@@ -30,6 +30,8 @@ async function run(){
     summary.textContent='Sem acesso ao app: abra por http://, não por file://';document.body.dataset.test='FAIL';return;
   }
   const $=s=>D.querySelector(s);
+  /* the harness iframe is offscreen: width transitions never tick there, so measure the final layout */
+  const noAnim=D.createElement('style');noAnim.textContent='#stage{transition:none!important}';D.head.append(noAnim);
   const stage=()=>$('#stage');
   const sw=()=>parseFloat(stage().style.width);
   const sh=()=>parseFloat(stage().style.height);
@@ -39,7 +41,7 @@ async function run(){
   async function createProject(type){ /* "Novo" abre o assistente: é preciso clicar em "Criar projeto" */
     $('[data-new='+type+']').click();await sleep(250);
     if($('#siteWizardDlg')?.open)$('#wizCreate').click();
-    await sleep(450);closeDialogs();
+    await sleep(1100);closeDialogs();
   }
   async function setSel(sel,value){const el=$(sel);el.value=value;el.dispatchEvent(new W.Event('change',{bubbles:true}));await sleep(350);}
   async function setNum(sel,value){const el=$(sel);el.value=value;el.dispatchEvent(new W.Event('change',{bubbles:true}));await sleep(350);}
@@ -106,12 +108,12 @@ async function run(){
   await setSel('#viewport','768');
   const saved=W.eval('JSON.stringify(project)');
   await createProject('site');
-  check('novo Site começa em 1200',sw()===1200,sw());
+  check('novo Site começa em 1200',sw()===1200,[sw(),W.eval('project.type'),!!$('#siteWizardDlg')?.open]);
   const file=new W.File([saved],'t.flowmobile',{type:'application/json'});
   const dt=new W.DataTransfer();dt.items.add(file);
   $('#fileInput').files=dt.files;$('#fileInput').dispatchEvent(new W.Event('change',{bubbles:true}));
-  await sleep(600);closeDialogs();
-  check('reabrir projeto restaura Tablet 768',sw()===768&&W.eval('project.type')==='app',[sw(),W.eval('project.type')]);
+  await sleep(1200);closeDialogs();
+  check('reabrir projeto restaura Tablet 768',sw()===768&&W.eval('project.type')==='app',[sw(),W.eval('project.type'),JSON.parse(saved).viewport]);
 
   /* 8. Projeto antigo sem viewport usa o padrão do tipo */
   W.eval('delete project.viewport;render()');await sleep(350);

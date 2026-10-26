@@ -5,7 +5,7 @@
   title:'ProgressBar',category:'Dados / Indicadores',
   defaults:{name:'ProgressBar1',width:240,height:32,min:0,max:100,value:50,showText:true,barColor:'#22c55e',bg:'#e5e7eb'},
   event:'change',events:['change','complete'],
-  render:ctx=>{const x=ctx?.item||ctx||{},min=Number(x.min??0),max=Number(x.max??100),v=Math.max(min,Math.min(max,Number(x.value??50))),p=max>min?(v-min)/(max-min)*100:0;return `<div class="ff-progress" data-min="${min}" data-max="${max}" data-value="${v}"><i style="width:${p}%;background:${x.barColor||'#22c55e'}"></i>${x.showText!==false?`<span>${Math.round(p)}%</span>`:''}</div>`}
+  render:ctx=>{const x=ctx?.item||ctx||{},min=Number(x.min??0),max=Number(x.max??100),v=Math.max(min,Math.min(max,Number(x.value??50))),p=max>min?(v-min)/(max-min)*100:0;const color=window.FFSecurity?.safeColor(x.barColor,'#22c55e')||'#22c55e';return `<div class="ff-progress" data-min="${min}" data-max="${max}" data-value="${v}"><i style="width:${p}%;background:${color}"></i>${x.showText!==false?`<span>${Math.round(p)}%</span>`:''}</div>`}
  });
  window.FlowForgeProgress={
   _bar(id){const outer=typeof id==='string'?document.getElementById(id):id;if(!outer)return null;return outer.classList?.contains('ff-progress')?outer:(outer.querySelector?.('.ff-progress')||outer)},

@@ -11,10 +11,54 @@ const TOOL_GROUPS={
 'Não Visuais':[['timer','◷','Timer'],['http','⇄','HTTP / API'],['websocket','⌁','WebSocket'],['storage','▤','LocalStorage'],['geolocation','⌖','Geolocation'],['notification','◉','Notification'],['clipboard','▣','Clipboard'],['network','⌁','Network Status'],['vibration','〰','Vibration']],
 'FlowForge Components':[['battery','▰','Battery Indicator'],['thermometer','♨','Thermometer Gauge'],['led','●','LED Indicator'],['sevenseg','88','7 Segment'],['dotmatrix','⠿','Dot Matrix'],['sparkline','⌁','Sparkline'],['valuecard','▣','Value Card'],['statuscard','◉','Status Card'],['glasspanel','◇','Glass Panel'],['gradientbutton','▰','Gradient Button'],['iconbutton','★','Icon Button'],['mobilelist','☷','Mobile List']]
 };
+const FF_GAME_KINDS=new Set(['gamecanvas','sprite','spritesheet','collisionarea','keyboardinput','gamepadinput','gametimer','scorelabel','healthbar','joystick','gamesound']);
+const FF_SERVICE_KINDS=new Set(['http','websocket','storage','geolocation','notification','clipboard','network','vibration']);
+const FF_RUNTIME_KINDS=new Set([...FF_GAME_KINDS,...FF_SERVICE_KINDS].filter(k=>k!=='gamesound'));
+const FF_RUNTIME_PROP_KEYS={
+ gamecanvas:['canvasWidth','canvasHeight','fps','bg','autoplay','blur'],
+ sprite:['x','y','rotation','vx','vy','tag','collidable'],
+ spritesheet:['frame','frameWidth','frameHeight','frames','fps','loop','autoplay'],
+ collisionarea:['tag','debug'],
+ keyboardinput:['enabled','preventDefault'],
+ gamepadinput:['enabled','index','deadZone'],
+ gametimer:['interval','enabled','oneShot'],
+ scorelabel:['value','prefix'],
+ healthbar:['value','max','barColor'],
+ joystick:['deadZone'],
+ http:['url','method','headers'],
+ websocket:['url','protocol','autoConnect'],
+ storage:['key'],
+ geolocation:['highAccuracy','watch','timeout','maximumAge'],
+ notification:['title','body','icon'],
+ clipboard:[],
+ network:[],
+ vibration:['pattern']
+};
+const FF_NO_DOCK=new Set([...FF_GAME_KINDS,...FF_SERVICE_KINDS,'timer']);
 let project,selected=null,undoStack=[],future=[];const uid=()=>globalThis.crypto?.randomUUID?.()||('ff-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10));
+/* Preview interactions do nothing in the designer stage; this stub keeps the inline handlers from throwing and lets collapsible nav reveal its body. */
+window.FlowForgeUI=window.FlowForgeUI||{
+ goPage(){return false},page(){},tab(){},step(){},carousel(){},sparkline(){},init(){},
+ toggleMenu(b){const m=b.parentElement&&b.parentElement.querySelector('.ff-real-menu');if(m)m.hidden=!m.hidden;},
+ toggleFab(b){const m=b.parentElement&&b.parentElement.querySelector('.ff-fab-menu');if(m)m.hidden=!m.hidden;},
+ toggleDrawer(b){const r=b.closest('.ff-real-drawer');if(!r)return;const open=!r.classList.contains('open');r.classList.toggle('open',open);b.setAttribute('aria-expanded',String(open));},
+ toggleSheet(b){const r=b.closest('.ff-real-bottomsheet');if(!r)return;const body=r.querySelector('.ff-sheet-body');if(!body)return;body.hidden=!body.hidden;b.setAttribute('aria-expanded',String(!body.hidden));},
+ selectItem(b){const r=b.parentElement;if(!r)return;r.querySelectorAll('.selected').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');},
+ rate(b,n){const r=b.parentElement;if(!r)return;r.querySelectorAll('button').forEach((x,i)=>x.classList.toggle('selected',i<n));},
+ toggleLed(b){const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(on));b.classList.toggle('on',on);}
+};
 const FF_NAME_RE=/^[A-Za-z_$][\w$]*$/;
-function sanitizeName(value,fallback='component'){let s=String(value??'').trim().replace(/[^A-Za-z0-9_$]+/g,'_').replace(/^[^A-Za-z_$]+/,'');return s||fallback}
-function uniqueName(kind='component',base){let items=ffItems?.()||project?.pages?.[project?.active||0]?.items||[],root=sanitizeName(base||kind,kind||'component');if(!items.some(x=>x.name===root))return root;let i=2;while(items.some(x=>x.name===root+'_'+i))i++;return root+'_'+i}
+const assetPool=new Map();
+function sanitizeName(value,fallback='component'){
+ if(window.FFSecurity?.sanitizeIdentifier)return FFSecurity.sanitizeIdentifier(value,fallback);
+ let s=String(value??'').trim().replace(/[^A-Za-z0-9_$]+/g,'_').replace(/^[^A-Za-z_$]+/,'');return s||fallback;
+}
+function uniqueName(kind='component',base){
+ let items=(project?.pages||[]).flatMap(p=>p.items||[]),root=sanitizeName(base||kind,kind||'component');
+ if(!items.some(x=>x.name===root))return root;
+ let i=2;while(items.some(x=>x.name===root+'_'+i))i++;
+ return root+'_'+i;
+}
 function ensureProjectNames(p){const all=(p?.pages||[]).flatMap(page=>page.items||[]),used=new Set();all.forEach(x=>{let base=sanitizeName(x.name,x.kind||'component'),name=base,i=2;while(used.has(name)){name=base+'_'+i++;}x.name=name;used.add(name);});}
 window.sanitizeName=sanitizeName;window.uniqueName=uniqueName;window.FF_NAME_RE=FF_NAME_RE;
 function fresh(type='app'){const page={id:uid(),name:type==='landing'?'Landing':'Home',items:[]};const p={version:'0.13.0',name:'Meu Projeto',projectVersion:'1.0.0',icon:'',favicon:'',headerLogo:'',themeColor:'#20242a',type,framework:'none',designerMode:'framework',titlebar:{name:'titlebar1',text:'FlowForge webstudio 0.6 Beta',height:'52px',bg:'#20242a',color:'#ffffff',showMenu:true,autoStyle:true},pages:[page],active:0,activePage:page.id}; if(type!=='app') ensureSiteChrome(p); return p;}
@@ -48,15 +92,122 @@ function ensureSiteChrome(p){
    if(isSite && layout.footer!==false && !selfManaged && !hasManual('footer') && !hasAuto('footer'))page.items.push({id:uid(),kind:'footer',name:'siteFooter',text:'',x:0,y:900,width:'100%',height:'90px',bg:'#111827',color:'#ffffff',...auto});
  });
 }
-function snapshot(){undoStack.push(JSON.stringify(project));if(undoStack.length>80)undoStack.shift();future=[]}
+function ffHistoryJSON(p=project){
+ (p.assets||[]).forEach(a=>{if(a&&a.id)assetPool.set(String(a.id),a)});
+ return JSON.stringify({...p,assets:(p.assets||[]).map(a=>({id:a.id,name:a.name,type:a.type,size:a.size}))});
+}
+function ffHistoryRestore(json){
+ const p=JSON.parse(json);
+ if(Array.isArray(p.assets))p.assets=p.assets.map(a=>assetPool.get(String(a.id))||a).filter(Boolean);
+ return p;
+}
+function snapshot(){undoStack.push(ffHistoryJSON());if(undoStack.length>80)undoStack.shift();future=[];ffScheduleAutosave()}
+const FF_AUTOSAVE_DB='FlowForgeIDE',FF_AUTOSAVE_STORE='autosave',FF_AUTOSAVE_KEY='current';
+let ffAutosaveTimer=null;
+function ffAutosaveOpenDB(){
+ return new Promise((resolve,reject)=>{
+  if(!window.indexedDB)return reject(new Error('IndexedDB indisponível'));
+  const req=indexedDB.open(FF_AUTOSAVE_DB,1);
+  req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(FF_AUTOSAVE_STORE))db.createObjectStore(FF_AUTOSAVE_STORE)};
+  req.onsuccess=()=>resolve(req.result);
+  req.onerror=()=>reject(req.error||new Error('IndexedDB indisponível'));
+ });
+}
+async function ffAutosavePut(payload){
+ try{
+  if(payload.json.length<3500000)localStorage.setItem('ffAutosave',JSON.stringify(payload));
+  else localStorage.removeItem('ffAutosave');
+ }catch(_){try{localStorage.removeItem('ffAutosave')}catch(_){}}
+ const db=await ffAutosaveOpenDB();
+ await new Promise((resolve,reject)=>{
+  const tx=db.transaction(FF_AUTOSAVE_STORE,'readwrite');
+  tx.objectStore(FF_AUTOSAVE_STORE).put(payload,FF_AUTOSAVE_KEY);
+  tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('Falha ao salvar'));tx.onabort=()=>reject(tx.error||new Error('Falha ao salvar'));
+ });
+ db.close();
+}
+async function ffAutosaveGet(){
+ let best=null;
+ try{
+  const db=await ffAutosaveOpenDB();
+  const value=await new Promise((resolve,reject)=>{const tx=db.transaction(FF_AUTOSAVE_STORE,'readonly');const r=tx.objectStore(FF_AUTOSAVE_STORE).get(FF_AUTOSAVE_KEY);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+  db.close();
+  if(value&&typeof value.json==='string')best=value;
+ }catch(_){}
+ try{const raw=localStorage.getItem('ffAutosave');if(raw){const v=JSON.parse(raw);if(v&&typeof v.json==='string'&&v.json&&(!best||(v.savedAt||0)>(best.savedAt||0)))best=v}}catch(_){}
+ return best;
+}
+async function ffAutosaveDelete(){
+ try{
+  const db=await ffAutosaveOpenDB();
+  await new Promise((resolve,reject)=>{const tx=db.transaction(FF_AUTOSAVE_STORE,'readwrite');tx.objectStore(FF_AUTOSAVE_STORE).delete(FF_AUTOSAVE_KEY);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)});
+  db.close();
+ }catch(_){}
+ try{localStorage.removeItem('ffAutosave')}catch(_){}
+}
+function ffScheduleAutosave(){
+ clearTimeout(ffAutosaveTimer);
+ ffAutosaveTimer=setTimeout(async()=>{
+  if(!project)return;
+  try{
+   const json=JSON.stringify(project);
+   await ffAutosavePut({savedAt:Date.now(),name:project.name||'Projeto',type:project.type||'app',json});
+  }catch(err){console.warn('[FlowForge autosave]',err)}
+ },700);
+}
+async function ffOfferAutosaveRecovery(){
+ const saved=await ffAutosaveGet();
+ if(!saved)return false;
+ const dlg=$('#recoveryDlg');if(!dlg)return false;
+ if(dlg.open)return true;
+ const when=new Date(saved.savedAt||Date.now());
+ $('#recoveryText').textContent=`Foi encontrado um projeto não salvo: "${saved.name||'Projeto'}" (${saved.type||'app'}), de ${when.toLocaleString()}. Deseja restaurá-lo?`;
+ dlg.dataset.payload=saved.json;
+ dlg.showModal();
+ return true;
+}
+function ffInstallAutosaveUI(){
+ const restore=$('#recoveryRestore'),discard=$('#recoveryDiscard');
+ if(restore&&!restore.__ffWired)restore.__ffWired=true,restore.onclick=async()=>{
+  const dlg=$('#recoveryDlg');const json=dlg?.dataset.payload||'';
+  try{
+   let parsed=JSON.parse(json);
+   if(window.FFSecurity?.validateProject)parsed=FFSecurity.validateProject(parsed);
+   parsed.active=Number.isInteger(parsed.active)?Math.max(0,Math.min(parsed.active,parsed.pages.length-1)):0;
+   parsed.activePage=parsed.pages[parsed.active]?.id;
+   project=parsed;selected=null;undoStack=[];future=[];ensureSiteChrome(project);ensureProjectNames(project);render();if(dlg)dlg.dataset.action='restore';dlg.close();await ffAutosaveDelete();ffScheduleAutosave();ideMessage('Projeto restaurado',`"${project.name}" foi recuperado do autosave.`);
+  }catch(err){ideMessage('Não foi possível restaurar','O autosave está corrompido ou inválido: '+(err?.message||'erro desconhecido'),'error')}
+ };
+ if(discard&&!discard.__ffWired)discard.__ffWired=true,discard.onclick=async()=>{
+  $('#recoveryDlg').close();await ffAutosaveDelete();
+ };
+ if(!ffInstallAutosaveUI.__closeHooked){
+  ffInstallAutosaveUI.__closeHooked=true;
+  const recDlg=$('#recoveryDlg'),newDlg=$('#newDlg');
+  const closedByAny=()=>{
+   if(!recDlg||recDlg.open||recDlg.dataset.closedHandled==='1')return;
+   recDlg.dataset.closedHandled='1';
+   const action=recDlg.dataset.action||'';
+   delete recDlg.dataset.action;
+   if(action!=='restore'&&!newDlg.open)newDlg.showModal();
+  };
+  recDlg?.addEventListener('close',closedByAny);
+  if(recDlg)new MutationObserver(()=>{if(recDlg.open)recDlg.dataset.closedHandled='';else closedByAny()}).observe(recDlg,{attributes:true,attributeFilter:['open']});
+ }
+ if(!ffInstallAutosaveUI.__hooks){
+  ffInstallAutosaveUI.__hooks=true;
+  window.addEventListener('pagehide',()=>{try{if(project)ffAutosavePut({savedAt:Date.now(),name:project.name||'Projeto',type:project.type||'app',json:JSON.stringify(project)})}catch(_){}});
+ }
+}
 const META={gamesound:['Sons',90,34],header:['Minha Marca',1200,72],pagenav:['Navegação de páginas',260,44],combobox:['Selecione',200,44],listbox:['Item 1\nItem 2\nItem 3',220,120],label:['Texto',120,40],heading:['Título',220,52],button:['Botão',120,44],link:['Link',100,36],image:['Imagem',180,120],picturebox:['PictureBox',220,160],icon:['★',64,64],divider:['',240,16],spacer:['',120,48],input:['Digite aqui',180,44],textarea:['Texto',220,90],checkbox:['Opção',150,40],radio:['Opção',150,40],switch:['Ativar',150,40],select:['Selecione',180,44],range:['',180,40],date:['',180,44],time:['',180,44],file:['',220,44],form:['Formulário',280,180],container:['Container',260,180],section:['Seção',320,180],card:['Card',240,140],row:['Row / Flex',300,100],columns:['Columns / Grid',320,140],hero:['Seu grande título',340,150],navbar:['Minha Marca',360,56],bottomnav:['Home   Buscar   Perfil',360,60],tabs:['Aba 1   Aba 2   Aba 3',300,48],tabcontrol:['Abas',340,190],drawer:['Menu',250,300],bottomsheet:['Bottom Sheet',340,160],sidebar:['Sidebar',240,300],toolbar:['Toolbar',360,50],footer:['Rodapé',400,70],breadcrumb:['Home / Página',260,40],pagination:['‹  1  2  3  ›',220,44],fab:['+',58,58],list:['Item 1',240,120],table:['Tabela',300,130],datagrid:['DataGrid',360,180],chart:['Gráfico',320,180],calendar:['Calendário',300,240],listview:['ListView',300,180],treeview:['TreeView',300,190],statcard:['Indicador',220,120],rating:['★★★★★',220,60],timeline:['Timeline',260,220],stepper:['Etapas',320,80],badge:['Novo',90,38],progress:['',240,32],spinner:['',60,60],accordion:['Clique para expandir',280,90],alert:['Mensagem de alerta',280,64],modalbox:['Título do modal',300,150],video:['Vídeo',300,170],audio:['Áudio',300,54],camera:['Câmera',300,190],fileupload:['Enviar arquivo',280,70],colorpicker:['Cor',160,60],avatar:['Avatar',100,100],modal:['Modal',340,220],toast:['Mensagem',280,70],tooltip:['Dica',180,60],carousel:['Carousel',340,200],timer:['Timer',1,1],http:['HTTP',1,1],websocket:['WebSocket',1,1],storage:['Storage',1,1],geolocation:['Geolocation',1,1],notification:['Notification',1,1],clipboard:['Clipboard',1,1],network:['Network',1,1],vibration:['Vibration',1,1],iframe:['Web / iFrame',300,180],canvas:['Canvas',300,180],map:['Mapa',300,180],qrcode:['QR',160,160],iframe:['Web / iFrame',300,180],canvas:['Canvas',300,180],map:['Mapa',300,180],battery:['78%',180,54],thermometer:['24 °C',90,180],led:['Online',120,42],sevenseg:['12:34',180,72],dotmatrix:['HELLO',220,70],sparkline:['Uso',220,90],valuecard:['1.234',220,110],statuscard:['Sistema OK',240,100],glasspanel:['Glass Panel',260,150],gradientbutton:['Continuar',180,48],iconbutton:['★',56,56],mobilelist:['Item principal',280,150]};
 const DEFAULT_EVENT={header:'click',button:'click',link:'click',fab:'click',navbar:'click',bottomnav:'click',tabs:'click',tabcontrol:'click',drawer:'click',bottomsheet:'click',sidebar:'click',toolbar:'click',footer:'click',pagination:'click',pagenav:'change',accordion:'toggle',input:'input',textarea:'input',select:'change',combobox:'change',listbox:'change',checkbox:'change',radio:'change',switch:'change',range:'input',date:'change',time:'change',file:'change',fileupload:'change',form:'submit',image:'click',picturebox:'click',icon:'click',card:'click',list:'click',table:'click',datagrid:'click',chart:'click',calendar:'change',listview:'click',treeview:'click',statcard:'click',rating:'change',timeline:'click',stepper:'change',badge:'click',alert:'click',modalbox:'click',toast:'click',video:'play',audio:'play',camera:'click',colorpicker:'change',avatar:'click',modal:'click',tooltip:'click',carousel:'change',timer:'tick',http:'response',websocket:'message',storage:'change',geolocation:'change',notification:'click',clipboard:'change',network:'change',vibration:'start',iframe:'load',canvas:'click',map:'click',qrcode:'click',label:'click',heading:'click',container:'click',section:'click',row:'click',columns:'click',hero:'click',divider:'click',spacer:'click',battery:'click',thermometer:'click',led:'click',sevenseg:'click',dotmatrix:'click',sparkline:'click',valuecard:'click',statuscard:'click',glasspanel:'click',gradientbutton:'click',iconbutton:'click',mobilelist:'click'};
 function defaultEvent(kind){return FlowForgeRegistry?.get(kind)?.event||DEFAULT_EVENT[kind]||'click'}
+const NAV_LOOK={header:['#111827','#ffffff'],navbar:['#1f2937','#ffffff'],bottomnav:['#111827','#ffffff'],footer:['#111827','#ffffff']};
 function toolDefaults(kind){
  let m=META[kind]||[kind,140,50],def=FlowForgeRegistry?.get(kind)?.defaults||{},n=project.pages[project.active].items.filter(i=>i.kind===kind).length+1,name=def.name||kind+n;
  if(project.pages[project.active].items.some(i=>i.name===name))name=kind+n;
- let w=def.width??m[1],h=def.height??m[2];
- return {id:uid(),kind,name,text:def.text??m[0],x:def.x??24,y:def.y??24,width:(typeof w==='number'?w+'px':w),height:(typeof h==='number'?h+'px':h),bg:def.bg??'#ffffff',color:def.color??'#222222',src:def.src??(['picturebox','audio','video'].includes(kind)?'':undefined),fit:def.fit??'contain',visible:def.visible!==false,enabled:def.enabled!==false,...def,name,width:(typeof w==='number'?w+'px':w),height:(typeof h==='number'?h+'px':h),...(kind==='listbox'||kind==='combobox'||kind==='select'?{items:Array.isArray(def.items)?def.items:['Item 1','Item 2','Item 3']}:{}) ,events:{[defaultEvent(kind)]:`// ${name}: ação padrão\n`}};
+ let w=def.width??m[1],h=def.height??m[2],look=NAV_LOOK[kind];
+ return {id:uid(),kind,name,text:def.text??m[0],x:def.x??24,y:def.y??24,width:(typeof w==='number'?w+'px':w),height:(typeof h==='number'?h+'px':h),bg:def.bg??(look?look[0]:'#ffffff'),color:def.color??(look?look[1]:'#222222'),src:def.src??(['picturebox','audio','video'].includes(kind)?'':undefined),fit:def.fit??'contain',visible:def.visible!==false,enabled:def.enabled!==false,...def,name,width:(typeof w==='number'?w+'px':w),height:(typeof h==='number'?h+'px':h),...(kind==='listbox'||kind==='combobox'||kind==='select'?{items:Array.isArray(def.items)?def.items:['Item 1','Item 2','Item 3']}:{}) ,events:{[defaultEvent(kind)]:`// ${name}: ação padrão\n`}};
 }
 function ffRenderToolsI18n(){renderTools($('#toolSearch')?.value||'')}
 function renderTools(filter=''){let box=$('#tools');box.innerHTML='';const TI=window.FlowForgeToolI18n;Object.entries(TOOL_GROUPS).forEach(([group,tools])=>{if(group==='Navegação'&&project?.type==='app')return;let matches=tools.filter(t=>{if(['header','navbar','footer'].includes(t[0]) && project?.type==='app')return false;return TI?TI.matches(filter,group,t[0],t[2]):(t[2]+' '+group).toLowerCase().includes(filter.toLowerCase())});if(!matches.length)return;let h=document.createElement('div');h.className='toolGroup';h.textContent=TI?TI.group(group):group;box.append(h);matches.forEach(([kind,icon,name])=>{const label=TI?TI.name(kind,name):name;let b=document.createElement('button');b.className='tool';b.dataset.kind=kind;b.title=label;b.innerHTML=`<span class="toolIcon">${icon}</span><span class="toolLabel"></span>`;b.lastElementChild.textContent=label;b.onclick=()=>addItem(kind);b.ondblclick=e=>{e.preventDefault();addItem(kind);};b.draggable=true;b.dataset.flowKind=kind;b.ondragstart=e=>{window.ffPaletteDragKind=kind;e.dataTransfer.effectAllowed='copy';e.dataTransfer.setData('text/plain',kind);try{e.dataTransfer.setData('application/x-flowforge-kind',kind)}catch(_){}};b.ondragend=()=>{window.ffPaletteDragKind=null};box.append(b)})})}
@@ -110,24 +261,35 @@ function ffFrameworkChromeMarkup(kind,t){
  return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}"></footer>`;
 }
 function ffNavLabel(pg){return esc(String(pg?.name||'').replace(/_/g,' '));}
+// O HTML gerado sempre abre na primeira página; a navegação inicial precisa refletir isso,
+// mesmo quando o projeto foi exportado com outra página ativa no editor.
+let ffExportActivePageId=null;
+function ffActivePageId(){const pages=project.pages||[];return String(ffExportActivePageId||project.activePage||pages[project.active||0]?.id||'');}
+function ffNavBtn(pg,inner=null,extraClass='',attrs=''){
+ const on=String(pg.id)===ffActivePageId();
+ const cls=[extraClass,on?'active':''].filter(Boolean).join(' ');
+ return `<button type="button" data-page-id="${esc(pg.id)}"${cls?` class="${cls}"`:''}${on?' aria-current="page"':''}${attrs?` ${attrs}`:''} onclick="FlowForgeUI.goPage(this,${FFSecurity.jsAttr(pg.id)})">${inner??ffNavLabel(pg)}</button>`;
+}
+function ffNavButtons(){return (project.pages||[]).map(pg=>ffNavBtn(pg)).join('')}
+function ffNavBodyId(prefix,x){return `${prefix}-${FFSecurity.safeId(x?.id,prefix)}`}
 function ffRealContent(x,exportMode=false){
- const t=esc(x.text||'');
+ const rawText=String(x.text??'');
+ const t=esc(rawText);
  const opts=Array.isArray(x.options)?x.options:['Item 1','Item 2','Item 3'];
  switch(x.kind){
-  case'header': return ffFrameworkChromeMarkup('header',t);
-  case'navbar': {const pages=project.pages||[];return `<nav class="ff-real-navbar" aria-label="Navegação principal">${pages.map(pg=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button>`).join('')}</nav>`;}
-  case'bottomnav': {const pages=project.pages||[];return `<nav class="ff-real-bottomnav" aria-label="Navegação de páginas">${pages.map((pg,i)=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.bottomPage(this,'${esc(pg.id)}')"><span>${i===0?'⌂':i===1?'⌕':'•'}</span><small>${ffNavLabel(pg)}</small></button>`).join('')}</nav>`;}
-  case'tabs': {const pages=project.pages||[];return `<div class="ff-real-tabs ff-page-tabs" data-value="0"><div class="ff-tab-buttons">${pages.map((pg,i)=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button>`).join('')}</div></div>`;}
-  case'tabcontrol': {const pages=project.pages||[];return `<div class="ff-real-tabs ff-page-tabs" data-value="0"><div class="ff-tab-buttons">${pages.map((pg,i)=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button>`).join('')}</div></div>`;}
-  case'drawer': {const pages=project.pages||[];return `<aside class="ff-real-drawer ff-real-drawer-collapsible"><button type="button" onclick="FlowForgeUI.toggleDrawer(this)">☰ ${t}</button><div class="ff-drawer-body">${pages.map(pg=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button>`).join('')}</div></aside>`;}
-  case'sidebar': {const pages=project.pages||[];return `<aside class="ff-real-sidebar" aria-label="Navegação de páginas"><div class="ff-sidebar-title">${t||'Navegação'}</div><nav class="ff-sidebar-nav">${pages.map(pg=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button>`).join('')}</nav></aside>`;}
-  case'bottomsheet': {const pages=project.pages||[];return `<section class="ff-real-bottomsheet"><button type="button" onclick="FlowForgeUI.toggleSheet(this)">▲ ${t}</button><div class="ff-sheet-body" hidden>${pages.map(pg=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button>`).join('')}</div></section>`;}
-  case'toolbar': {const pages=project.pages||[];return `<div class="ff-real-toolbar" aria-label="Navegação de páginas">${pages.map(pg=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button>`).join('')}</div>`;}
-  case'footer': {const pages=project.pages||[];const links=pages.map(pg=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button>`).join('');const fw=project.framework||'none';if(fw==='bootstrap')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}"><div class="container-fluid d-flex flex-wrap justify-content-end align-items-center gap-2"><div class="d-flex gap-2">${links}</div></div></footer>`;if(fw==='bulma')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}"><div class="content has-text-centered"><div class="buttons is-centered">${links}</div></div></footer>`;if(fw==='pico')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}"><nav><ul><li><small></small></li></ul><ul>${links}</ul></nav></footer>`;if(fw==='tailwind')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}"><div class="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-end gap-3 px-6 py-5 text-sm"><div class="flex flex-wrap gap-2">${links}</div></div></footer>`;if(fw==='materialize')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}"><div class="container"><div class="right">${links}</div></div></footer>`;if(fw==='foundation')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}"><div class="cell auto"></div><div class="cell shrink"><ul class="menu">${pages.map(pg=>`<li><button type="button" data-page-id="${esc(pg.id)}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button></li>`).join('')}</ul></div></footer>`;if(fw==='uikit')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}"><div class="uk-container uk-flex uk-flex-between uk-flex-middle uk-flex-wrap"><div class="uk-flex uk-flex-wrap uk-grid-small" uk-grid>${links}</div></div></footer>`;if(fw==='semantic')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}"><div class="ui container"><div class="ui secondary menu">${links}</div></div></footer>`;return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}" aria-label="Navegação de páginas">${links}</footer>`;}
-  case'breadcrumb': {const pages=project.pages||[];return `<nav class="ff-real-breadcrumb" aria-label="Navegação de páginas">${pages.map((pg,i)=>`${i?' <span>›</span> ':''}<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button>`).join('')}</nav>`;}
-  case'pagination': {const pages=project.pages||[];const active=project.activePage;return `<nav class="ff-real-pagination" aria-label="Navegação de páginas"><button type="button" aria-label="Página anterior" onclick="FlowForgeUI.page(this,-1)">‹</button>${pages.map(pg=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===active?'active':''}" aria-current="${pg.id===active?'page':'false'}" onclick="FlowForgeUI.page(this,0)">${ffNavLabel(pg)}</button>`).join('')}<button type="button" aria-label="Próxima página" onclick="FlowForgeUI.page(this,1)">›</button></nav>`;}
-  case'pagenav': {const pages=project.pages||[];return `<select class="ff-page-nav" aria-label="Navegação de páginas" onchange="FlowForgeUI.goPage(this,this.value)">${pages.map(pg=>`<option value="${esc(pg.id)}"${pg.id===project.activePage?' selected':''}>${ffNavLabel(pg)}</option>`).join('')}</select>`;}
-  case'fab': {const pages=project.pages||[];return `<div class="ff-real-fabnav"><button type="button" class="ff-real-fab" aria-label="Abrir páginas" onclick="FlowForgeUI.toggleFab(this)">+</button><div class="ff-fab-menu" hidden>${pages.map(pg=>`<button type="button" data-page-id="${esc(pg.id)}" class="${pg.id===project.activePage?'active':''}" onclick="FlowForgeUI.goPage(this,'${esc(pg.id)}')">${ffNavLabel(pg)}</button>`).join('')}</div></div>`;}
+  case'header': return ffFrameworkChromeMarkup('header',rawText);
+  case'navbar': {return `<nav class="ff-real-navbar" data-ff-nav="navbar" aria-label="Navegação principal">${ffNavButtons()}</nav>`;}
+  case'bottomnav': {const icons=['⌂','⌕','▤','☺'];return `<nav class="ff-real-bottomnav" data-ff-nav="bottomnav" aria-label="Navegação de páginas">${(project.pages||[]).map((pg,i)=>ffNavBtn(pg,`<span class="ff-nav-icon" aria-hidden="true">${icons[i%icons.length]}</span><small>${ffNavLabel(pg)}</small>`)).join('')}</nav>`;}
+  case'tabs':case'tabcontrol': {return `<nav class="ff-real-tabs ff-page-tabs" data-ff-nav="tabs" data-value="0" aria-label="Navegação por páginas"><div class="ff-tab-buttons">${ffNavButtons()}</div></nav>`;}
+  case'drawer': {const bodyId=ffNavBodyId('ff-drawer',x);return `<aside class="ff-real-drawer ff-real-drawer-collapsible" data-ff-nav="drawer"><button type="button" class="ff-nav-toggle" aria-expanded="false" aria-controls="${esc(bodyId)}" onclick="FlowForgeUI.toggleDrawer(this)"><span aria-hidden="true">☰</span> <span>${t||'Menu'}</span></button><div class="ff-drawer-body" id="${esc(bodyId)}">${ffNavButtons()}</div></aside>`;}
+  case'sidebar': {return `<aside class="ff-real-sidebar" data-ff-nav="sidebar" aria-label="Navegação de páginas"><div class="ff-sidebar-title">${t||'Navegação'}</div><nav class="ff-sidebar-nav">${ffNavButtons()}</nav></aside>`;}
+  case'bottomsheet': {const bodyId=ffNavBodyId('ff-sheet',x);return `<section class="ff-real-bottomsheet" data-ff-nav="sheet"><button type="button" class="ff-nav-toggle" aria-expanded="false" aria-controls="${esc(bodyId)}" onclick="FlowForgeUI.toggleSheet(this)"><span aria-hidden="true">▲</span> <span>${t||'Menu'}</span></button><div class="ff-sheet-body" id="${esc(bodyId)}" hidden>${ffNavButtons()}</div></section>`;}
+  case'toolbar': {return `<div class="ff-real-toolbar" data-ff-nav="toolbar" role="toolbar" aria-label="Navegação de páginas">${ffNavButtons()}</div>`;}
+  case'footer': {const pages=project.pages||[];const links=ffNavButtons();const list=pages.map(pg=>`<li>${ffNavBtn(pg)}</li>`).join('');const fw=project.framework||'none';if(fw==='bootstrap')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}" data-ff-nav="footer" aria-label="Navegação de páginas"><div class="container-fluid d-flex flex-wrap justify-content-end align-items-center gap-2"><div class="d-flex flex-wrap gap-2">${links}</div></div></footer>`;if(fw==='bulma')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}" data-ff-nav="footer" aria-label="Navegação de páginas"><div class="content has-text-centered"><div class="buttons is-centered">${links}</div></div></footer>`;if(fw==='pico')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}" data-ff-nav="footer" aria-label="Navegação de páginas"><nav><ul>${list}</ul></nav></footer>`;if(fw==='tailwind')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}" data-ff-nav="footer" aria-label="Navegação de páginas"><div class="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-end gap-3 px-6 py-5 text-sm"><div class="flex flex-wrap gap-2">${links}</div></div></footer>`;if(fw==='materialize')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}" data-ff-nav="footer" aria-label="Navegação de páginas"><div class="container"><div class="right">${links}</div></div></footer>`;if(fw==='foundation')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}" data-ff-nav="footer" aria-label="Navegação de páginas"><div class="cell auto"></div><div class="cell shrink"><ul class="menu">${list}</ul></div></footer>`;if(fw==='uikit')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}" data-ff-nav="footer" aria-label="Navegação de páginas"><div class="uk-container uk-flex uk-flex-between uk-flex-middle uk-flex-wrap"><div class="uk-flex uk-flex-wrap uk-grid-small" uk-grid>${links}</div></div></footer>`;if(fw==='semantic')return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}" data-ff-nav="footer" aria-label="Navegação de páginas"><div class="ui container"><div class="ui secondary menu">${links}</div></div></footer>`;return `<footer class="ff-real-footer ${ffFrameworkChrome('footer')}" data-ff-nav="footer" aria-label="Navegação de páginas">${links}</footer>`;}
+  case'breadcrumb': {const pages=project.pages||[];return `<nav class="ff-real-breadcrumb" data-ff-nav="breadcrumb" aria-label="Trilha de navegação"><ol>${pages.map((pg,i)=>`${i?'<li class="ff-crumb-sep" aria-hidden="true">›</li>':''}<li>${ffNavBtn(pg)}</li>`).join('')}</ol></nav>`;}
+  case'pagination': {const pages=project.pages||[];const active=ffActivePageId();const at=Math.max(0,pages.findIndex(pg=>String(pg.id)===active));return `<nav class="ff-real-pagination" data-ff-nav="pagination" aria-label="Paginação de páginas"><button type="button" class="ff-page-step" data-ff-page-prev aria-label="Página anterior"${at<=0?' disabled':''} onclick="FlowForgeUI.page(this,-1)">‹</button>${pages.map(pg=>`<button type="button" data-page-id="${esc(pg.id)}"${String(pg.id)===active?' class="active" aria-current="page"':''} onclick="FlowForgeUI.page(this,0)">${ffNavLabel(pg)}</button>`).join('')}<button type="button" class="ff-page-step" data-ff-page-next aria-label="Próxima página"${at>=pages.length-1?' disabled':''} onclick="FlowForgeUI.page(this,1)">›</button></nav>`;}
+  case'pagenav': {const pages=project.pages||[];const active=ffActivePageId();return `<select class="ff-page-nav" data-ff-nav="pagenav" aria-label="Selecionar página" onchange="FlowForgeUI.goPage(this,this.value)">${pages.map(pg=>`<option value="${esc(pg.id)}"${String(pg.id)===active?' selected':''}>${ffNavLabel(pg)}</option>`).join('')}</select>`;}
+  case'fab': {const pages=project.pages||[];const menuId=ffNavBodyId('ff-fab',x);return `<button type="button" class="ff-real-fab" aria-label="Abrir navegação de páginas" aria-haspopup="menu" aria-expanded="false" aria-controls="${esc(menuId)}" onclick="FlowForgeUI.toggleFab(this)"><span aria-hidden="true">＋</span></button><div class="ff-fab-menu" id="${esc(menuId)}" data-ff-nav="fab" role="menu" hidden>${pages.map(pg=>ffNavBtn(pg,null,'',`role="menuitem"`)).join('')}</div>`;}
   case'list':case'listview':case'mobilelist': return `<div class="ff-real-list">${opts.map((o,i)=>`<button type="button" data-index="${i}" onclick="FlowForgeUI.selectItem(this)"><b>${esc(o)}</b><small>${i===0?t:''}</small><span>›</span></button>`).join('')}</div>`;
   case'table':case'datagrid': return `<div class="ff-real-table-wrap"><table class="ff-real-table"><thead><tr><th>Nome</th><th>Status</th><th>Valor</th></tr></thead><tbody><tr><td>Item A</td><td>Ativo</td><td>120</td></tr><tr><td>Item B</td><td>Pendente</td><td>85</td></tr></tbody></table></div>`;
   case'chart': return window.FlowForgeChartMarkup?FlowForgeChartMarkup(x):`<canvas class="ff-real-chart" width="640" height="320" data-ff-chart="true"></canvas>`;
@@ -156,10 +318,10 @@ function ffRealContent(x,exportMode=false){
   default:return null;
  }
 }
-function content(x,exportMode=false){const chromeKinds=['header','navbar','bottomnav','tabs','tabcontrol','drawer','bottomsheet','sidebar','toolbar','breadcrumb','pagination','pagenav','footer'];if(chromeKinds.includes(x.kind)){let realChrome=ffRealContent(x,exportMode);if(realChrome!==null)return realChrome;}let reg=FlowForgeRegistry?.get(x.kind);if(reg?.render){try{return reg.render({item:x,exportMode,project,esc})}catch(err){console.error('[FlowForge render]',x.kind,err)}}let real=ffRealContent(x,exportMode);if(real!==null)return real;let t=esc(x.text),fw=project.framework||'none',F=window.FlowForgeFrameworks?.[fw]||window.FlowForgeFrameworks?.none||{},btn=F.button||'',inp=F.input||'',sel=F.select||'',ta=F.textarea||'',fileCls=F.file||'',badgeCls=F.badge||'',alertCls=F.alert||'',cardCls=F.card||'';switch(x.kind){case'button':{/* custom colors live on the wrapper; the inner <button> would hide them with the browser default */const bs=(x.bg&&String(x.bg).toLowerCase()!=='#ffffff'?`background:${esc(x.bg)};`:'')+(x.color&&String(x.color).toLowerCase()!=='#222222'?`color:${esc(x.color)};`:'');return `<button class="${btn}"${bs?` style="${bs}"`:''} data-ff-control="true">${t}</button>`}case'input':return `<input class="${inp}" placeholder="${t}">`;case'textarea':return `<textarea class="${ta}" placeholder="${t}"></textarea>`;case'image':return x.src?`<img src="${esc(x.src)}" alt="${t}" style="display:block;width:100%;height:100%;object-fit:${x.fit||'cover'};border-radius:${x.borderRadius||0}px"${x.lazy?' loading="lazy"':''}>`:`<div class="ph">▧<small>${t||'Imagem'}</small></div>`;
-case'picturebox':return `<img${x.src?` src="${esc(x.src)}"`:''} alt="${t}" style="display:block;width:100%;height:100%;object-fit:${x.fit||'contain'}">`;case'checkbox':return `<label><input type="checkbox"> ${t}</label>`;case'radio':return `<label><input type="radio"> ${t}</label>`;case'switch':return `<label class="sw"><input type="checkbox" role="switch"><i></i>${t}</label>`;case'select':case'combobox':{let opts=Array.isArray(x.items)?x.items:(Array.isArray(x.options)?x.options:[t||'Opção 1','Opção 2','Opção 3']);return `<select class="${sel}">${opts.map((o,i)=>{let it=(o&&typeof o==='object')?o:{text:String(o),value:o};return `<option value="${esc(it.value??it.text??'')}">${esc(it.text??it.value??'')}</option>`}).join('')}</select>`;}case'listbox':{let opts=Array.isArray(x.items)?x.items:(Array.isArray(x.options)?x.options:['Item 1','Item 2','Item 3']);return `<select multiple class="${sel}" size="${Math.min(8,Math.max(3,opts.length))}">${opts.map(o=>{let it=(o&&typeof o==='object')?o:{text:String(o),value:o};return `<option value="${esc(it.value??it.text??'')}">${esc(it.text??it.value??'')}</option>`}).join('')}</select>`;}case'range':return `<input type="range">`;case'date':return `<input type="date" class="${inp}">`;case'time':return `<input type="time" class="${inp}">`;case'fileupload':case'file':return `<input type="file" class="${fileCls}">`;case'form':return `<b>${t}</b><br><input placeholder="Nome"><br><button>Enviar</button>`;case'pagenav':return `<select class="ff-page-nav" aria-label="Navegação de páginas" onchange="FlowForgeUI.goPage(this,this.value)">${(project.pages||[]).map(pg=>`<option value="${esc(pg.id)}"${pg.id===project.activePage?' selected':''}>${ffNavLabel(pg)}</option>`).join('')}</select>`;case'link':{let h=x.targetPage?`#/page/${esc((project.pages||[]).find(p=>p.id===x.targetPage)?.slug||x.targetPage)}`:(x.href||'#');return `<a href="${esc(h)}">${t}</a>`;}case'label':{let s='';if(x.fontFamily)s+=`font-family:${x.fontFamily};`;if(x.fontSize)s+=`font-size:${x.fontSize}px;`;if(x.bold)s+='font-weight:bold;';if(x.italic)s+='font-style:italic;';if(x.underline)s+='text-decoration:underline;';if(x.multiline)s+='white-space:pre-wrap;';let body=x.allowHtml?String(x.text??''):esc(x.text);return s?`<span style="${s}">${body}</span>`:body}
-case'heading':{let s='';if(x.fontFamily)s+=`font-family:${x.fontFamily};`;if(x.fontSize)s+=`font-size:${x.fontSize}px;`;if(x.italic)s+='font-style:italic;';if(x.underline)s+='text-decoration:underline;';return `<h2${s?` style="${s}"`:''}>${t}</h2>`}
-case'divider':return `<hr>`;case'navbar':return `<div class="ff-nav"><b>${t}</b><span>☰</span></div>`;case'bottomnav':return `<div class="ff-nav"><span>⌂ Home</span><span>⌕ Buscar</span><span>☺ Perfil</span></div>`;case'tabs':return `<div class="ff-nav"><b>Aba 1</b><span>Aba 2</span><span>Aba 3</span></div>`;case'tabcontrol':return `<div class="ff-tabcontrol"><nav><b>Aba 1</b><span>Aba 2</span><span>＋</span></nav><section>Conteúdo da aba selecionada</section></div>`;case'drawer':return `<div class="ff-drawer"><b>${t}</b><span>⌂ Início</span><span>▦ Projetos</span><span>⚙ Configurações</span></div>`;case'bottomsheet':return `<div class="ff-bottomsheet"><i></i><b>${t}</b><p>Conteúdo deslizante para interfaces mobile.</p></div>`;case'sidebar':return `<div class="ff-drawer"><b>${t}</b><span>⌂ Início</span><span>▦ Conteúdo</span><span>⚙ Ajustes</span></div>`;case'toolbar':return `<div class="ff-nav"><button>＋</button><button>✎</button><button>↥</button><span>${t}</span></div>`;case'footer':return `<div class="ff-footer">${t} • 2026</div>`;case'breadcrumb':return `<span>${t}</span>`;case'pagination':return `<div class="ff-nav"><span>‹</span><b>1</b><span>2</span><span>3</span><span>›</span></div>`;case'fab':return `<button class="ff-fab ${btn}">+</button>`;case'list':return `<ul class="ff-list"><li>${t}</li><li>Item 2</li><li>Item 3</li></ul>`;case'table':return `<table><tr><th>Nome</th><th>Valor</th></tr><tr><td>Item</td><td>123</td></tr><tr><td>Outro</td><td>456</td></tr></table>`;case'datagrid':return `<table class="ff-datagrid"><tr><th>Nome</th><th>Status</th><th>Valor</th></tr><tr><td>Item A</td><td>Ativo</td><td>120</td></tr><tr><td>Item B</td><td>Pendente</td><td>85</td></tr></table>`;case'chart':return `<div class="ff-chart"><i style="height:35%"></i><i style="height:62%"></i><i style="height:48%"></i><i style="height:82%"></i><i style="height:68%"></i></div>`;case'calendar':return `<div class="ff-calendar"><b>${t}</b><div>DOM SEG TER QUA QUI SEX SÁB</div><p>1 2 3 4 5 6 7<br>8 9 10 11 12 13 14<br>15 16 17 18 19 20 21<br>22 23 24 25 26 27 28</p></div>`;case'listview':return `<div class="ff-listview"><span>Item 1</span><span>Item 2</span><span>Item 3</span></div>`;case'treeview':return `<div class="ff-treeview">▾ Projeto<br>　├ Página inicial<br>　├ Assets<br>　└ Scripts</div>`;case'statcard':return `<div class="ff-statcard"><small>${t}</small><b>1.284</b><em>+12,4%</em></div>`;case'rating':return `<div class="ff-rating">★★★★★</div>`;case'timeline':return `<div class="ff-timeline"><p>● Início</p><p>● Desenvolvimento</p><p>● Publicação</p></div>`;case'stepper':return `<div class="ff-stepper"><b>1</b><i></i><b>2</b><i></i><b>3</b></div>`;case'badge':return `<span class="ff-badge ${badgeCls}">${t}</span>`;case'progress':{let min=Number(x.min??0),max=Number(x.max??100),val=Math.max(min,Math.min(max,Number(x.value??50))),pct=max>min?((val-min)/(max-min))*100:0;return `<div class="ff-progress ${fw==='bootstrap'?'progress':''}" role="progressbar" aria-valuemin="${min}" aria-valuemax="${max}" aria-valuenow="${val}"><i class="${fw==='bootstrap'?'progress-bar':''}" style="width:${pct}%;background:${x.barColor||'#22c55e'}"></i>${x.showText!==false?`<span>${Math.round(pct)}%</span>`:''}</div>`}case'spinner':return `<div class="ff-spinner ${fw==='bootstrap'?'spinner-border':''}"></div>`;case'accordion':return `<details><summary>${t}</summary><p>Conteúdo do accordion.</p></details>`;case'alert':return `<div class="${alertCls}">${t}</div>`;case'modalbox':return `<div class="ff-modal"><b>${t}</b><p>Conteúdo do modal</p><button>OK</button></div>`;case'toast':return `<div class="ff-modal">${t}</div>`;case'hero':return `<div class="ff-hero">${t}<small style="display:block;font-size:13px;font-weight:400">Subtítulo da seção principal</small></div>`;case'video':{let a=x.autoplay?' autoplay':'';let l=x.loop?' loop':'';let m=x.muted?' muted':'';let c=x.controls!==false?' controls':'';let po=x.poster?` poster="${esc(x.poster)}"`:'';let src=x.src?` src="${esc(x.src)}"`:'';let v=Number.isFinite(Number(x.volume))?` data-ff-volume="${Math.max(0,Math.min(1,Number(x.volume)))}"`:'';return `<video${src}${c}${a}${l}${m}${po}${v} playsinline preload="metadata" style="display:block;width:100%;height:100%;object-fit:${x.fit||'contain'};background:#111"></video>`;}case'audio':{let a=x.autoplay?' autoplay':'';let l=x.loop?' loop':'';let m=x.muted?' muted':'';let c=x.controls!==false?' controls':'';let src=x.src?` src="${esc(x.src)}"`:'';let v=Number.isFinite(Number(x.volume))?` data-ff-volume="${Math.max(0,Math.min(1,Number(x.volume)))}"`:'';return `<audio${src}${c}${a}${l}${m}${v} preload="metadata" style="display:block;width:100%;height:100%"></audio>`;}case'camera':return exportMode ? `<video playsinline data-ff-camera="true" data-ff-facing="${esc(x.facingMode||'environment')}"${x.autoplay!==false?' autoplay data-ff-autostart="true"':''}${x.hideCameraButton?' data-ff-camera-ui="false"':''}${x.muted!==false?' muted':''} style="width:100%;height:100%;object-fit:${x.fit||'cover'};background:#111"></video>` : `<div class="ff-camera-design"><span>◉</span><small>${t}<br>${x.facingMode||'environment'} • ativa no Preview</small></div>`;case'fileupload':return `<label class="ff-upload">↥ ${t}<input type="file"></label>`;case'colorpicker':return `<input type="color" value="#4285f4" style="width:100%;height:100%">`;case'avatar':return `<div class="ff-avatar">👤</div>`;case'modal':return `<div class="ff-modal"><b>${t}</b><p>Conteúdo da janela modal</p><button>OK</button></div>`;case'toast':return `<div class="ff-toast">${t}</div>`;case'tooltip':return `<div class="ff-tooltip">${t}</div>`;case'carousel':return `<div class="ff-carousel">‹ <b>${t}</b> ›</div>`;case'timer':case'http':case'websocket':case'storage':case'geolocation':case'notification':case'clipboard':case'network':case'vibration':return `<div class="ff-nonvisual">${t}</div>`;case'iframe':{let u=x.src||x.iframeUrl||'about:blank';return `<iframe src="${esc(u)}" title="${t||'Conteúdo externo'}" loading="${x.lazy?'lazy':'eager'}" style="display:block;width:100%;height:100%;border:0;background:#fff" allowfullscreen></iframe>`;}case'canvas':return `<canvas width="${Math.max(1,parseInt(x.canvasWidth||x.width)||300)}" height="${Math.max(1,parseInt(x.canvasHeight||x.height)||180)}" style="display:block;width:100%;height:100%;background:${x.canvasBackground||'#fff'}" aria-label="${t||'Canvas'}"></canvas>`;case'map':{let lat=Number.isFinite(Number(x.mapLat))?Number(x.mapLat):0,lng=Number.isFinite(Number(x.mapLng))?Number(x.mapLng):0,z=Math.max(1,Math.min(20,Number(x.mapZoom)||13));let delta=Math.max(.0005,180/Math.pow(2,z-1));let bbox=[lng-delta,lat-delta,lng+delta,lat+delta].join('%2C');let u=x.src||`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;return `<iframe src="${esc(u)}" title="${t||'Mapa'}" style="display:block;width:100%;height:100%;border:0;background:#e5e7eb" loading="lazy"></iframe>`;}case'qrcode':{let text=x.textContent??x.qrcodeText??x.text??'';let size=Math.max(64,Math.min(2048,Number(x.qrcodeSize)||160));let u=`https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}`;return `<img src="${u}" alt="QR Code: ${esc(text)}" data-ff-qr-text="${esc(text)}" data-ff-qr-size="${size}" style="display:block;width:100%;height:100%;object-fit:contain;background:#fff">`;}case'battery':return `<div class="ff-battery"><span><i style="width:78%"></i></span><b>${t}</b></div>`;case'thermometer':return `<div class="ff-thermo"><span><i></i></span><b>${t}</b></div>`;case'led':return `<div class="ff-led"><i></i><span>${t}</span></div>`;case'sevenseg':return `<div class="ff-sevenseg">${t}</div>`;case'dotmatrix':return `<div class="ff-dotmatrix">${t}</div>`;case'sparkline':return `<div class="ff-spark"><small>${t}</small><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,24 12,18 25,22 38,9 50,14 63,5 76,12 88,7 100,10"/></svg></div>`;case'valuecard':return `<div class="ff-valuecard"><small>VALOR</small><strong>${t}</strong><span>+12%</span></div>`;case'statuscard':return `<div class="ff-statuscard"><i></i><div><b>${t}</b><small>Funcionando normalmente</small></div></div>`;case'glasspanel':return `<div class="ff-glasspanel"><b>${t}</b><small>Componente customizado</small></div>`;case'gradientbutton':return `<button class="ff-gradientbutton">${t}</button>`;case'iconbutton':return `<button class="ff-iconbutton">${t}</button>`;case'mobilelist':return `<div class="ff-mobilelist"><div><b>${t}</b><small>Descrição do item</small><span>›</span></div><div><b>Segundo item</b><small>Outra opção</small><span>›</span></div></div>`;case'icon':return `<div class="ff-icon">${t}</div>`;default:return t}}
+function content(x,exportMode=false){const chromeKinds=['header','navbar','bottomnav','tabs','tabcontrol','drawer','bottomsheet','sidebar','toolbar','breadcrumb','pagination','pagenav','footer'];if(chromeKinds.includes(x.kind)){let realChrome=ffRealContent(x,exportMode);if(realChrome!==null)return realChrome;}let reg=FlowForgeRegistry?.get(x.kind);if(reg?.render){try{return reg.render({item:x,exportMode,project,esc})}catch(err){console.error('[FlowForge render]',x.kind,err)}}let real=ffRealContent(x,exportMode);if(real!==null)return real;let t=esc(x.text),fw=project.framework||'none',F=window.FlowForgeFrameworks?.[fw]||window.FlowForgeFrameworks?.none||{},btn=F.button||'',inp=F.input||'',sel=F.select||'',ta=F.textarea||'',fileCls=F.file||'',badgeCls=F.badge||'',alertCls=F.alert||'',cardCls=F.card||'';switch(x.kind){case'button':{/* custom colors live on the wrapper; the inner <button> would hide them with the browser default */const bg=FFSecurity.safeColor(x.bg),fg=FFSecurity.safeColor(x.color);const bs=(bg&&bg.toLowerCase()!=='#ffffff'?`background:${bg};`:'')+(fg&&fg.toLowerCase()!=='#222222'?`color:${fg};`:'');return `<button class="${btn}"${bs?` style="${bs}"`:''} data-ff-control="true">${t}</button>`}case'input':return `<input class="${inp}" placeholder="${t}">`;case'textarea':return `<textarea class="${ta}" placeholder="${t}"></textarea>`;case'image':{const src=FFSecurity.safeMediaUrl(x.src),fit=FFSecurity.safeFit(x.fit||'cover'),radius=FFSecurity.safeNumber(x.borderRadius,0,0,2000);return src?`<img src="${esc(src)}" alt="${t}" style="display:block;width:100%;height:100%;object-fit:${fit};border-radius:${radius}px"${x.lazy?' loading="lazy"':''}>`:`<div class="ph">▧<small>${t||'Imagem'}</small></div>`}
+case'picturebox':{const src=FFSecurity.safeMediaUrl(x.src),fit=FFSecurity.safeFit(x.fit||'contain');return `<img${src?` src="${esc(src)}"`:''} alt="${t}" style="display:block;width:100%;height:100%;object-fit:${fit}">`}case'checkbox':return `<label><input type="checkbox"> ${t}</label>`;case'radio':return `<label><input type="radio"> ${t}</label>`;case'switch':return `<label class="sw"><input type="checkbox" role="switch"><i></i>${t}</label>`;case'select':case'combobox':{let opts=Array.isArray(x.items)?x.items:(Array.isArray(x.options)?x.options:[t||'Opção 1','Opção 2','Opção 3']);return `<select class="${sel}">${opts.map((o,i)=>{let it=(o&&typeof o==='object')?o:{text:String(o),value:o};return `<option value="${esc(it.value??it.text??'')}">${esc(it.text??it.value??'')}</option>`}).join('')}</select>`;}case'listbox':{let opts=Array.isArray(x.items)?x.items:(Array.isArray(x.options)?x.options:['Item 1','Item 2','Item 3']);return `<select multiple class="${sel}" size="${Math.min(8,Math.max(3,opts.length))}">${opts.map(o=>{let it=(o&&typeof o==='object')?o:{text:String(o),value:o};return `<option value="${esc(it.value??it.text??'')}">${esc(it.text??it.value??'')}</option>`}).join('')}</select>`;}case'range':return `<input type="range">`;case'date':return `<input type="date" class="${inp}">`;case'time':return `<input type="time" class="${inp}">`;case'fileupload':case'file':return `<input type="file" class="${fileCls}">`;case'form':return `<b>${t}</b><br><input placeholder="Nome"><br><button>Enviar</button>`;case'pagenav':return `<select class="ff-page-nav" aria-label="Navegação de páginas" onchange="FlowForgeUI.goPage(this,this.value)">${(project.pages||[]).map(pg=>`<option value="${esc(pg.id)}"${pg.id===project.activePage?' selected':''}>${ffNavLabel(pg)}</option>`).join('')}</select>`;case'link':{let h=x.targetPage?'#/page/'+encodeURIComponent((project.pages||[]).find(p=>p.id===x.targetPage)?.slug||x.targetPage):(FFSecurity.safeHref(x.href)||'#');return `<a href="${esc(h)}">${t}</a>`;}case'label':{let s='';const ff=FFSecurity.safeFontFamily(x.fontFamily);if(ff)s+=`font-family:${ff};`;if(x.fontSize)s+=`font-size:${FFSecurity.safeNumber(x.fontSize,16,6,200)}px;`;if(x.bold)s+='font-weight:bold;';if(x.italic)s+='font-style:italic;';if(x.underline)s+='text-decoration:underline;';if(x.multiline)s+='white-space:pre-wrap;';let body=x.allowHtml?FFSecurity.sanitizeHtml(x.text):esc(x.text);return s?`<span style="${esc(s)}">${body}</span>`:body}
+case'heading':{let s='';const ff=FFSecurity.safeFontFamily(x.fontFamily);if(ff)s+=`font-family:${ff};`;if(x.fontSize)s+=`font-size:${FFSecurity.safeNumber(x.fontSize,24,6,200)}px;`;if(x.italic)s+='font-style:italic;';if(x.underline)s+='text-decoration:underline;';return `<h2${s?` style="${esc(s)}"`:''}>${t}</h2>`}
+case'divider':return `<hr>`;case'navbar':return `<div class="ff-nav"><b>${t}</b><span>☰</span></div>`;case'bottomnav':return `<div class="ff-nav"><span>⌂ Home</span><span>⌕ Buscar</span><span>☺ Perfil</span></div>`;case'tabs':return `<div class="ff-nav"><b>Aba 1</b><span>Aba 2</span><span>Aba 3</span></div>`;case'tabcontrol':return `<div class="ff-tabcontrol"><nav><b>Aba 1</b><span>Aba 2</span><span>＋</span></nav><section>Conteúdo da aba selecionada</section></div>`;case'drawer':return `<div class="ff-drawer"><b>${t}</b><span>⌂ Início</span><span>▦ Projetos</span><span>⚙ Configurações</span></div>`;case'bottomsheet':return `<div class="ff-bottomsheet"><i></i><b>${t}</b><p>Conteúdo deslizante para interfaces mobile.</p></div>`;case'sidebar':return `<div class="ff-drawer"><b>${t}</b><span>⌂ Início</span><span>▦ Conteúdo</span><span>⚙ Ajustes</span></div>`;case'toolbar':return `<div class="ff-nav"><button>＋</button><button>✎</button><button>↥</button><span>${t}</span></div>`;case'footer':return `<div class="ff-footer">${t} • 2026</div>`;case'breadcrumb':return `<span>${t}</span>`;case'pagination':return `<div class="ff-nav"><span>‹</span><b>1</b><span>2</span><span>3</span><span>›</span></div>`;case'fab':return `<button class="ff-fab ${btn}">+</button>`;case'list':return `<ul class="ff-list"><li>${t}</li><li>Item 2</li><li>Item 3</li></ul>`;case'table':return `<table><tr><th>Nome</th><th>Valor</th></tr><tr><td>Item</td><td>123</td></tr><tr><td>Outro</td><td>456</td></tr></table>`;case'datagrid':return `<table class="ff-datagrid"><tr><th>Nome</th><th>Status</th><th>Valor</th></tr><tr><td>Item A</td><td>Ativo</td><td>120</td></tr><tr><td>Item B</td><td>Pendente</td><td>85</td></tr></table>`;case'chart':return `<div class="ff-chart"><i style="height:35%"></i><i style="height:62%"></i><i style="height:48%"></i><i style="height:82%"></i><i style="height:68%"></i></div>`;case'calendar':return `<div class="ff-calendar"><b>${t}</b><div>DOM SEG TER QUA QUI SEX SÁB</div><p>1 2 3 4 5 6 7<br>8 9 10 11 12 13 14<br>15 16 17 18 19 20 21<br>22 23 24 25 26 27 28</p></div>`;case'listview':return `<div class="ff-listview"><span>Item 1</span><span>Item 2</span><span>Item 3</span></div>`;case'treeview':return `<div class="ff-treeview">▾ Projeto<br>　├ Página inicial<br>　├ Assets<br>　└ Scripts</div>`;case'statcard':return `<div class="ff-statcard"><small>${t}</small><b>1.284</b><em>+12,4%</em></div>`;case'rating':return `<div class="ff-rating">★★★★★</div>`;case'timeline':return `<div class="ff-timeline"><p>● Início</p><p>● Desenvolvimento</p><p>● Publicação</p></div>`;case'stepper':return `<div class="ff-stepper"><b>1</b><i></i><b>2</b><i></i><b>3</b></div>`;case'badge':return `<span class="ff-badge ${badgeCls}">${t}</span>`;case'progress':{let min=Number(x.min??0),max=Number(x.max??100),val=Math.max(min,Math.min(max,Number(x.value??50))),pct=max>min?((val-min)/(max-min))*100:0;return `<div class="ff-progress ${fw==='bootstrap'?'progress':''}" role="progressbar" aria-valuemin="${min}" aria-valuemax="${max}" aria-valuenow="${val}"><i class="${fw==='bootstrap'?'progress-bar':''}" style="width:${pct}%;background:${FFSecurity.safeColor(x.barColor,'#22c55e')}"></i>${x.showText!==false?`<span>${Math.round(pct)}%</span>`:''}</div>`}case'spinner':return `<div class="ff-spinner ${fw==='bootstrap'?'spinner-border':''}"></div>`;case'accordion':return `<details><summary>${t}</summary><p>Conteúdo do accordion.</p></details>`;case'alert':return `<div class="${alertCls}">${t}</div>`;case'modalbox':return `<div class="ff-modal"><b>${t}</b><p>Conteúdo do modal</p><button>OK</button></div>`;case'toast':return `<div class="ff-modal">${t}</div>`;case'hero':return `<div class="ff-hero">${t}<small style="display:block;font-size:13px;font-weight:400">Subtítulo da seção principal</small></div>`;case'video':{let a=x.autoplay?' autoplay':'';let l=x.loop?' loop':'';let m=x.muted?' muted':'';let c=x.controls!==false?' controls':'';let po=x.poster?` poster="${esc(FFSecurity.safeMediaUrl(x.poster))}"`:'';let src=x.src?` src="${esc(FFSecurity.safeMediaUrl(x.src))}"`:'';let v=Number.isFinite(Number(x.volume))?` data-ff-volume="${Math.max(0,Math.min(1,Number(x.volume)))}"`:'';return `<video${src}${c}${a}${l}${m}${po}${v} playsinline preload="metadata" style="display:block;width:100%;height:100%;object-fit:${FFSecurity.safeFit(x.fit||'contain')};background:#111"></video>`;}case'audio':{let a=x.autoplay?' autoplay':'';let l=x.loop?' loop':'';let m=x.muted?' muted':'';let c=x.controls!==false?' controls':'';let src=x.src?` src="${esc(FFSecurity.safeMediaUrl(x.src))}"`:'';let v=Number.isFinite(Number(x.volume))?` data-ff-volume="${Math.max(0,Math.min(1,Number(x.volume)))}"`:'';return `<audio${src}${c}${a}${l}${m}${v} preload="metadata" style="display:block;width:100%;height:100%"></audio>`;}case'camera':return exportMode ? `<video playsinline data-ff-camera="true" data-ff-facing="${esc(x.facingMode||'environment')}"${x.autoplay!==false?' autoplay data-ff-autostart="true"':''}${x.hideCameraButton?' data-ff-camera-ui="false"':''}${x.muted!==false?' muted':''} style="width:100%;height:100%;object-fit:${FFSecurity.safeFit(x.fit||'cover')};background:#111"></video>` : `<div class="ff-camera-design"><span>◉</span><small>${t}<br>${esc(x.facingMode||'environment')} • ativa no Preview</small></div>`;case'fileupload':return `<label class="ff-upload">↥ ${t}<input type="file"></label>`;case'colorpicker':return `<input type="color" value="${esc(FFSecurity.safeColor(x.value,'#4285f4'))}" style="width:100%;height:100%">`;case'avatar':return `<div class="ff-avatar">👤</div>`;case'modal':return `<div class="ff-modal"><b>${t}</b><p>Conteúdo da janela modal</p><button>OK</button></div>`;case'toast':return `<div class="ff-toast">${t}</div>`;case'tooltip':return `<div class="ff-tooltip">${t}</div>`;case'carousel':return `<div class="ff-carousel">‹ <b>${t}</b> ›</div>`;case'timer':case'http':case'websocket':case'storage':case'geolocation':case'notification':case'clipboard':case'network':case'vibration':return `<div class="ff-nonvisual">${t}</div>`;case'iframe':{let u=FFSecurity.safeFrameUrl(x.src||x.iframeUrl||'about:blank')||'about:blank';return `<iframe src="${esc(u)}" title="${t||'Conteúdo externo'}" loading="${x.lazy?'lazy':'eager'}" style="display:block;width:100%;height:100%;border:0;background:#fff" allowfullscreen></iframe>`;}case'canvas':return `<canvas width="${Math.max(1,Math.min(8000,parseInt(x.canvasWidth||x.width)||300))}" height="${Math.max(1,Math.min(8000,parseInt(x.canvasHeight||x.height)||180))}" style="display:block;width:100%;height:100%;background:${FFSecurity.safeColor(x.canvasBackground,'#ffffff')}" aria-label="${t||'Canvas'}"></canvas>`;case'map':{let lat=Number.isFinite(Number(x.mapLat))?Number(x.mapLat):0,lng=Number.isFinite(Number(x.mapLng))?Number(x.mapLng):0,z=Math.max(1,Math.min(20,Number(x.mapZoom)||13));let delta=Math.max(.0005,180/Math.pow(2,z-1));let bbox=[lng-delta,lat-delta,lng+delta,lat+delta].join('%2C');let u=x.src?FFSecurity.safeFrameUrl(x.src):`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;if(!u)u='about:blank';return `<iframe src="${esc(u)}" title="${t||'Mapa'}" style="display:block;width:100%;height:100%;border:0;background:#e5e7eb" loading="lazy"></iframe>`;}case'qrcode':{let text=x.textContent??x.qrcodeText??x.text??'';let size=Math.max(64,Math.min(2048,Number(x.qrcodeSize)||160));let u=window.FlowForgeQRCode?FlowForgeQRCode.render(text,size):'';return u?`<img src="${esc(u)}" alt="QR Code: ${esc(text)}" data-ff-qr-text="${esc(text)}" data-ff-qr-size="${size}" style="display:block;width:100%;height:100%;object-fit:contain;background:#fff">`:`<div class="ph">▦<small>${esc(text)||'QR Code'}</small></div>`;}case'battery':return `<div class="ff-battery"><span><i style="width:78%"></i></span><b>${t}</b></div>`;case'thermometer':return `<div class="ff-thermo"><span><i></i></span><b>${t}</b></div>`;case'led':return `<div class="ff-led"><i></i><span>${t}</span></div>`;case'sevenseg':return `<div class="ff-sevenseg">${t}</div>`;case'dotmatrix':return `<div class="ff-dotmatrix">${t}</div>`;case'sparkline':return `<div class="ff-spark"><small>${t}</small><svg viewBox="0 0 100 30" preserveAspectRatio="none"><polyline points="0,24 12,18 25,22 38,9 50,14 63,5 76,12 88,7 100,10"/></svg></div>`;case'valuecard':return `<div class="ff-valuecard"><small>VALOR</small><strong>${t}</strong><span>+12%</span></div>`;case'statuscard':return `<div class="ff-statuscard"><i></i><div><b>${t}</b><small>Funcionando normalmente</small></div></div>`;case'glasspanel':return `<div class="ff-glasspanel"><b>${t}</b><small>Componente customizado</small></div>`;case'gradientbutton':return `<button class="ff-gradientbutton">${t}</button>`;case'iconbutton':return `<button class="ff-iconbutton">${t}</button>`;case'mobilelist':return `<div class="ff-mobilelist"><div><b>${t}</b><small>Descrição do item</small><span>›</span></div><div><b>Segundo item</b><small>Outra opção</small><span>›</span></div></div>`;case'icon':return `<div class="ff-icon">${t}</div>`;default:return t}}
 
 function titlebarContent(t){let fw=project.framework||'none',title=esc(t.text||project.name),menu=t.showMenu?'● ● ●':'';if(fw==='bootstrap')return `<div class="ff-titlebrand"><span class="ff-titleicon">▣</span><b>${title}</b></div><span class="ff-titlemenu">${menu}</span>`;if(fw==='bulma')return `<div class="ff-titlebrand"><b>${title}</b></div><span class="ff-titlemenu">${menu}</span>`;if(fw==='pico')return `<div class="ff-titlebrand"><b>${title}</b></div><span class="ff-titlemenu">${menu}</span>`;return `<b>${title}</b><span>${menu}</span>`}
 function ffInitCanvasElement(d,x){if(x.kind!=='canvas')return;const c=d.querySelector('canvas');if(!c)return;const ctx=c.getContext('2d');if(!ctx)return;ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle=x.canvasBackground||'#fff';ctx.fillRect(0,0,c.width,c.height);ctx.strokeStyle='#cbd5e1';ctx.strokeRect(.5,.5,c.width-1,c.height-1);ctx.fillStyle=x.color||'#334155';ctx.font='14px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(x.text||'Canvas',c.width/2,c.height/2);}
@@ -168,17 +330,68 @@ function makeEl(x){let d=document.createElement('div');d.className='component '+
 function select(x){selected=x;render()}function markSelected(x,d){selected=x;document.querySelectorAll('.component.selected,.app-titlebar.selected').forEach(el=>{el.classList.remove('selected');el.querySelectorAll(':scope > .handle').forEach(h=>h.remove())});d.classList.add('selected');if(x.kind!=='titlebar')['nw','ne','sw','se'].forEach(pos=>{let h=document.createElement('i');h.className='handle '+pos;h.onpointerdown=e=>startResize(e,x,d,pos);d.append(h)});props();$('#selectionInfo').textContent=x.kind==='titlebar'?`${x.name} • TitleBar`:`${x.name}  ${x.x},${x.y}  ${x.width}×${x.height}`}function applyFrameworkChromeDesignerCSS(){
  const id='ff-framework-chrome-designer-css',fw=project.framework||'none';
  const base=`
-#stage .ff-real-sidebar{height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;overflow:auto;background:#f8fafc;color:#111827;border-right:1px solid rgba(100,116,139,.25)}
-#stage .ff-real-sidebar .ff-sidebar-title{flex:0 0 auto;display:block;width:100%;box-sizing:border-box;padding:12px 14px;font-weight:700;border-bottom:1px solid rgba(100,116,139,.2)}
+#stage .ff-real-navbar{display:flex;align-items:stretch;justify-content:center;gap:4px;width:100%;height:100%;box-sizing:border-box;overflow:auto;background:transparent;color:inherit}
+#stage .ff-real-navbar button{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:inherit;padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit;white-space:nowrap}
+#stage .ff-real-navbar button:hover{background:rgba(127,127,127,.16)}
+#stage .ff-real-navbar button.active{background:rgba(127,127,127,.28);font-weight:700}
+#stage .ff-real-toolbar{display:flex;align-items:center;justify-content:flex-start;gap:6px;width:100%;height:100%;box-sizing:border-box;overflow:auto;background:transparent;color:inherit;padding:5px}
+#stage .ff-real-toolbar button{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:inherit;padding:8px 12px;border-radius:8px;font:inherit;white-space:nowrap;cursor:pointer}
+#stage .ff-real-toolbar button:hover{background:rgba(127,127,127,.16)}
+#stage .ff-real-toolbar button.active{background:rgba(127,127,127,.28);font-weight:700}
+#stage .ff-real-bottomnav{display:flex;justify-content:space-around;align-items:stretch;height:100%;padding:4px;background:transparent;color:inherit}
+#stage .ff-real-bottomnav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:1 1 0;min-width:0;border:0;border-radius:8px;background:transparent;color:inherit;padding:6px 4px;font:inherit;cursor:pointer}
+#stage .ff-real-bottomnav button:hover{background:rgba(127,127,127,.14)}
+#stage .ff-real-bottomnav button.active{background:rgba(127,127,127,.24);font-weight:700}
+#stage .ff-real-bottomnav small{font-size:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#stage .ff-nav-icon{font-size:20px;line-height:1}
+#stage .ff-real-tabs{width:100%;height:100%;overflow:auto;background:transparent;color:inherit}
+#stage .ff-tab-buttons{display:flex;align-items:stretch;width:100%;height:100%;border-bottom:1px solid rgba(127,127,127,.3)}
+#stage .ff-tab-buttons button{display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:max-content;border:0;border-bottom:2px solid transparent;background:transparent;color:inherit;padding:8px 12px;font:inherit;white-space:nowrap;cursor:pointer}
+#stage .ff-tab-buttons button:hover{background:rgba(127,127,127,.12)}
+#stage .ff-tab-buttons button.active{border-bottom-color:currentColor;font-weight:700}
+#stage .ff-real-footer{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;width:100%;height:100%;box-sizing:border-box;padding:12px 16px;background:transparent;color:inherit}
+#stage .ff-real-footer button{border:0;background:transparent;color:inherit;padding:7px 12px;border-radius:6px;cursor:pointer;font:inherit}
+#stage .ff-real-footer button:hover{background:rgba(127,127,127,.18)}
+#stage .ff-real-footer button.active{background:rgba(127,127,127,.24);font-weight:600}
+#stage .ff-real-breadcrumb{display:flex;align-items:center;height:100%;padding:0 4px;overflow:auto;background:transparent;color:inherit}
+#stage .ff-real-breadcrumb ol{display:flex;align-items:center;flex-wrap:wrap;gap:2px;margin:0;padding:0;list-style:none}
+#stage .ff-real-breadcrumb li{display:flex;align-items:center;gap:2px}
+#stage .ff-real-breadcrumb button{border:0;background:transparent;color:inherit;padding:6px 8px;border-radius:6px;font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+#stage .ff-real-breadcrumb button:hover{background:rgba(127,127,127,.14)}
+#stage .ff-real-breadcrumb button.active{font-weight:700;text-decoration:none}
+#stage .ff-crumb-sep{opacity:.45;padding:0 2px}
+#stage .ff-real-pagination{display:flex;gap:4px;justify-content:center;align-items:center;width:100%;height:100%;padding:4px;overflow:auto;background:transparent;color:inherit}
+#stage .ff-real-pagination button{min-width:34px;height:34px;padding:0 10px;border:1px solid rgba(127,127,127,.35);border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+#stage .ff-real-pagination button:hover:not(:disabled){background:rgba(127,127,127,.14)}
+#stage .ff-real-pagination button.active{background:rgba(59,130,246,.18);border-color:#3b82f6;font-weight:700}
+#stage .ff-real-pagination button:disabled{opacity:.35;cursor:not-allowed}
+#stage .ff-page-nav{width:100%;height:100%;padding:8px 10px;border:1px solid rgba(127,127,127,.45);border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+#stage .ff-real-fab{display:grid;place-items:center;width:100%;height:100%;min-width:44px;min-height:44px;border:0;border-radius:50%;background:#2563eb;color:#fff;font-size:26px;line-height:1;font-family:inherit;box-shadow:0 8px 24px rgba(37,99,235,.35);cursor:pointer}
+#stage .ff-real-fab:hover{background:#1d4ed8}
+#stage .ff-fab-menu{position:absolute;right:0;bottom:calc(100% + 8px);z-index:40;display:flex;flex-direction:column;min-width:170px;max-width:min(80vw,260px);padding:6px;border:1px solid rgba(127,127,127,.25);border-radius:12px;background:#fff;color:#111827;box-shadow:0 18px 48px rgba(0,0,0,.28)}
+#stage .ff-fab-menu[hidden]{display:none}
+#stage .ff-fab-menu button{display:block;width:100%;padding:10px 12px;border:0;border-radius:8px;background:transparent;color:inherit;text-align:left;font:inherit;white-space:nowrap;cursor:pointer}
+#stage .ff-fab-menu button.active{background:#e0ecff;font-weight:700}
+#stage .ff-real-drawer{height:100%;width:100%;box-sizing:border-box;overflow:auto;background:transparent;color:inherit}
+#stage .ff-real-drawer>button{width:100%;padding:10px;border:0;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer}
+#stage .ff-drawer-body{display:grid;gap:4px;padding:8px}
+#stage .ff-drawer-body button{padding:8px;border:0;border-radius:6px;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer}
+#stage .ff-drawer-body button:hover{background:rgba(127,127,127,.14)}
+#stage .ff-drawer-body button.active{background:rgba(59,130,246,.18);font-weight:700}
+#stage .ff-real-drawer-collapsible:not(.open) .ff-drawer-body{display:none}
+#stage .ff-real-bottomsheet{height:100%;width:100%;box-sizing:border-box;overflow:auto;background:transparent;color:inherit}
+#stage .ff-real-bottomsheet>button{width:100%;padding:10px;border:0;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer}
+#stage .ff-sheet-body{display:grid;gap:4px;padding:10px}
+#stage .ff-sheet-body[hidden]{display:none}
+#stage .ff-sheet-body button{padding:9px 10px;border:0;border-radius:6px;background:transparent;color:inherit;text-align:left;font:inherit;cursor:pointer}
+#stage .ff-sheet-body button:hover{background:rgba(127,127,127,.14)}
+#stage .ff-sheet-body button.active{background:rgba(59,130,246,.18);font-weight:700}
+#stage .ff-real-sidebar{height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;overflow:auto;background:transparent;color:inherit;border-right:1px solid rgba(127,127,127,.25)}
+#stage .ff-real-sidebar .ff-sidebar-title{flex:0 0 auto;display:block;width:100%;box-sizing:border-box;padding:12px 14px;font-weight:700;border-bottom:1px solid rgba(127,127,127,.2)}
 #stage .ff-real-sidebar .ff-sidebar-nav{display:grid;grid-template-columns:1fr;grid-auto-rows:min-content;align-content:start;gap:3px;padding:8px;width:100%;box-sizing:border-box}
 #stage .ff-real-sidebar .ff-sidebar-nav button{display:block!important;width:100%!important;box-sizing:border-box;padding:10px 12px;border:0;border-radius:6px;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit;white-space:nowrap}
-#stage .ff-real-sidebar .ff-sidebar-nav button:hover{background:rgba(100,116,139,.12)}
+#stage .ff-real-sidebar .ff-sidebar-nav button:hover{background:rgba(127,127,127,.12)}
 #stage .ff-real-sidebar .ff-sidebar-nav button.active{background:rgba(59,130,246,.16);font-weight:700}
-#stage .ff-real-drawer{height:100%;width:100%;box-sizing:border-box;overflow:auto}
-#stage .ff-real-bottomnav{display:flex;justify-content:space-around;align-items:center;height:100%;padding:4px}
-#stage .ff-real-navbar{display:flex;align-items:stretch;justify-content:center;gap:4px;width:100%;height:100%;box-sizing:border-box;overflow:auto}
-#stage .ff-real-navbar button{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
-#stage .ff-real-footer{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;width:100%;height:100%;box-sizing:border-box}
 `;
  let css={
   none:base,
@@ -192,16 +405,26 @@ function select(x){selected=x;render()}function markSelected(x,d){selected=x;doc
   semantic:'#stage[data-framework=\"semantic\"] .ff-real-header{background:#f9fafb;color:rgba(0,0,0,.87)}#stage[data-framework=\"semantic\"] .ff-real-footer{background:#1b1c1d;color:#fff}'
  }[fw]||'';
  css=base+css;
+ css+='#stage .ff-real-header,#stage .ff-real-footer{background:transparent!important;color:inherit!important}#stage .ff-real-footer button{background:transparent!important;color:inherit!important;border:0}';
  let el=document.getElementById(id);if(!el){el=document.createElement('style');el.id=id;document.head.appendChild(el)}el.textContent=css;
 }
 function applyFrameworkDesignerCSS(){let id='ff-framework-designer-css',fw=project.framework||'none',mode=project.designerMode||'framework',css=mode==='framework'?(window.FlowForgeFrameworkDesignerCSS?.[fw]||''):'';let el=document.getElementById(id);if(!el){el=document.createElement('style');el.id=id;document.head.appendChild(el)}el.textContent=css}
 function render(){renderPages();renderTopPagePicker();project.titlebar??={name:'titlebar1',text:project.name,height:'52px',bg:'#20242a',color:'#ffffff',showMenu:true,autoStyle:true};project.titlebar.autoStyle??=true;project.headerLogo??='';applyFrameworkDesignerCSS();applyFrameworkChromeDesignerCSS();$('#projectName').value=project.name;$('#projectType').value=project.type;$('#framework').value=project.framework||'none';$('#projectHeaderLogoField').style.display=(project.type==='site'||project.type==='landing')?'flex':'none';$('#frameworkTop').value=project.framework||'none';$('#designerMode').value=project.designerMode||'framework';$('#designerModeTop').value=project.designerMode||'framework';let stage=$('#stage');stage.dataset.framework=project.framework||'none';stage.dataset.designerMode=project.designerMode||'framework';stage.dataset.projectType=project.type;stage.innerHTML='';if(project.type==='app' && project.siteLayout?.titlebar!==false){let t=project.titlebar,tb=document.createElement('div');tb.className='app-titlebar'+(selected?.kind==='titlebar'?' selected':'');tb.style.height=t.height;if(!t.autoStyle){tb.style.background=t.bg;tb.style.color=t.color}else{tb.style.background='';tb.style.color=''}tb.innerHTML=titlebarContent(t);tb.onclick=e=>{e.stopPropagation();selected=t;selected.kind='titlebar';render()};stage.append(tb)}project.pages[project.active].items.forEach(x=>{if(x.ffSystem==='siteChrome'&&x.kind==='header'&&(!x.text||x.text==='Minha Marca'))x.text=project.name||'Minha Marca';stage.append(makeEl(x))});props();updateCode();$('#selectionInfo').textContent=selected?(selected.kind==='titlebar'?`${selected.name} • TitleBar`:`${selected.name}  ${selected.x},${selected.y}  ${selected.width}×${selected.height}`):'';window.FFDesignerViewport?.restore?.();window.FFProjectModes?.responsive?.()}
 
-const EVENT_OPTIONS={button:['click','dblclick','mousedown','mouseup','mouseenter','mouseleave','focus','blur'],link:['click','focus','blur'],input:['input','change','focus','blur','keydown','keyup'],textarea:['input','change','focus','blur','keydown','keyup'],select:['change','focus','blur'],checkbox:['change','click'],radio:['change','click'],switch:['change','click'],range:['input','change'],form:['submit','reset'],image:['click','load','error'],picturebox:['click','load','error'],video:['play','pause','ended','timeupdate','volumechange'],audio:['play','pause','ended','timeupdate','volumechange'],file:['change'],fileupload:['change'],camera:['click','camerastart','camerastop','cameraerror'],iframe:['load'],calendar:['change','click'],rating:['change','click'],progress:['change','complete'],tabcontrol:['click'],drawer:['click'],bottomsheet:['click'],timer:['tick','start','stop'],http:['request','response','error'],websocket:['open','message','close','error'],storage:['change'],geolocation:['change','error'],notification:['click','close','error'],network:['change','online','offline'],default:['click','dblclick','mouseenter','mouseleave','focus','blur']};
-function eventsFor(kind){let base=EVENT_OPTIONS[kind]||EVENT_OPTIONS.default,def=defaultEvent(kind);return [...new Set([def,...base])]}
-function actionLabel(ev){return ({click:'Click',dblclick:'Double Click',change:'Change',input:'Input',submit:'Submit',reset:'Reset',load:'Load',error:'Error',play:'Play',pause:'Pause',ended:'Ended',timeupdate:'Time Update',volumechange:'Volume Change',focus:'Focus',blur:'Blur',keydown:'Key Down',keyup:'Key Up',mousedown:'Mouse Down',mouseup:'Mouse Up',mouseenter:'Mouse Enter',mouseleave:'Mouse Leave',toggle:'Toggle'})[ev]||ev}
-function openAction(x,ev){selected=x;x.events??={};if(!(ev in x.events))x.events[ev]=`// ${x.name}: ${ev}\n`;updateCode();activateTab('code');let ta=$('#code'),mark=eventMarker(x,ev),i=ta.value.indexOf(mark);if(i>=0){let fn=ta.value.indexOf('function ',i),brace=ta.value.indexOf('{',fn),start=ta.value.indexOf('\n',brace)+1,end=ta.value.indexOf('\n}',start);ta.focus();ta.setSelectionRange(start,end>start?end:start);ta.scrollTop=Math.max(0,(ta.value.slice(0,start).split('\n').length-6)*21.7);syncCodeHighlight()}$('#selectionInfo').textContent=`${x.name} → ${ev}()`}
-function renderActions(){refreshVisualTargets();let empty=$('#actionEmpty'),editor=$('#actionEditor'),list=$('#actionList'),sel=$('#actionEventSelect'),quick=$('#quickActions');if(!empty)return;let valid=selected&&selected.kind!=='titlebar';empty.hidden=valid;editor.hidden=!valid;if(!valid)return;selected.events??={};let options=eventsFor(selected.kind);sel.innerHTML=options.filter(ev=>!(ev in selected.events)).map(ev=>`<option value="${ev}">${actionLabel(ev)} (${ev})</option>`).join('');$('#addActionBtn').disabled=!sel.options.length;list.innerHTML='';Object.keys(selected.events).forEach(ev=>{let row=document.createElement('div');row.className='actionRow';let info=document.createElement('div');info.innerHTML=`<b>${actionLabel(ev)}</b><small>${ev} → ${selected.name}_${ev}()</small>`;let edit=document.createElement('button');edit.type='button';edit.textContent='Código';edit.onclick=()=>openAction(selected,ev);let remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.title='Remover ação';remove.onclick=()=>{snapshot();delete selected.events[ev];renderActions();updateCode()};row.append(info,edit,remove);list.append(row)});quick.innerHTML='';[['Abrir ação padrão',()=>openDefaultAction(selected)],['Duplicar componente',duplicate],['Excluir componente',del]].forEach(([txt,fn])=>{let b=document.createElement('button');b.type='button';b.textContent=txt;b.onclick=fn;quick.append(b)})}
+const EVENT_OPTIONS={button:['click','dblclick','mousedown','mouseup','mouseenter','mouseleave','focus','blur'],link:['click','focus','blur'],input:['input','change','focus','blur','keydown','keyup'],textarea:['input','change','focus','blur','keydown','keyup'],select:['change','focus','blur'],checkbox:['change','click'],radio:['change','click'],switch:['change','click'],range:['input','change'],form:['submit','reset'],image:['click','load','error'],picturebox:['click','load','error'],video:['play','pause','ended','timeupdate','volumechange'],audio:['play','pause','ended','timeupdate','volumechange'],file:['change'],fileupload:['change'],camera:['click','camerastart','camerastop','cameraerror'],iframe:['load'],calendar:['change','click'],rating:['change','click'],progress:['change','complete'],tabcontrol:['click'],drawer:['click'],bottomsheet:['click'],timer:['tick','start','stop'],http:['request','response','error'],websocket:['open','message','close','error'],storage:['change'],geolocation:['change','error'],notification:['click','close','error'],clipboard:['change','error'],network:['change','online','offline'],vibration:['start','end','error'],default:['click','dblclick','mouseenter','mouseleave','focus','blur']};
+function eventsFor(kind){
+ const base=EVENT_OPTIONS[kind]||EVENT_OPTIONS.default;
+ const regEvents=FlowForgeRegistry?.get?.(kind)?.events||[];
+ const all=[defaultEvent(kind),...base,...regEvents];
+ const seen=new Set();
+ return all.filter(ev=>{const k=String(ev).toLowerCase();if(seen.has(k))return false;seen.add(k);return true});
+}
+function actionLabel(ev){return ({click:'Click',dblclick:'Double Click',change:'Change',input:'Input',submit:'Submit',reset:'Reset',load:'Load',error:'Error',play:'Play',pause:'Pause',ended:'Ended',timeupdate:'Time Update',volumechange:'Volume Change',focus:'Focus',blur:'Blur',keydown:'Key Down',keyup:'Key Up',mousedown:'Mouse Down',mouseup:'Mouse Up',mouseenter:'Mouse Enter',mouseleave:'Mouse Leave',toggle:'Toggle',
+ gameStart:'Início do jogo',gameUpdate:'Atualização do jogo',gameOver:'Fim do jogo',animationStart:'Início da animação',animationEnd:'Fim da animação',frame:'Troca de quadro',
+ collision:'Colisão',enter:'Entrada na área',leave:'Saída da área',connected:'Controle conectado',disconnected:'Controle desconectado',buttondown:'Botão pressionado',buttonup:'Botão solto',axis:'Eixo do controle',move:'Movimento',end:'Fim',empty:'Vazio',show:'Mostrar',hide:'Ocultar',
+ request:'Requisição',response:'Resposta',open:'Conexão aberta',message:'Mensagem recebida',close:'Fechado',online:'Online',offline:'Offline',complete:'Concluído',start:'Início',stop:'Parada',tick:'Tick'})[ev]||ev}
+function openAction(x,ev){selected=x;x.events??={};if(!(ev in x.events))x.events[ev]=`// ${x.name}: ${ev}\n`;updateCode();activateTab('code');let ta=$('#code'),mark=eventMarker(x,ev),i=ta.value.indexOf(mark);if(i>=0){ffSelectEventBody(ta,x,ev,i);syncCodeHighlight()}$('#selectionInfo').textContent=`${x.name} → ${ev}()`}
+function renderActions(){refreshVisualTargets();let empty=$('#actionEmpty'),editor=$('#actionEditor'),list=$('#actionList'),sel=$('#actionEventSelect'),quick=$('#quickActions');if(!empty)return;let valid=selected&&selected.kind!=='titlebar';empty.hidden=valid;editor.hidden=!valid;if(!valid)return;selected.events??={};let options=eventsFor(selected.kind);const used=new Set(Object.keys(selected.events).map(k=>k.toLowerCase()));sel.innerHTML=options.filter(ev=>!used.has(ev.toLowerCase())).map(ev=>`<option value="${ev}">${actionLabel(ev)} (${ev})</option>`).join('');$('#addActionBtn').disabled=!sel.options.length;list.innerHTML='';Object.keys(selected.events).forEach(ev=>{let row=document.createElement('div');row.className='actionRow';let info=document.createElement('div');info.innerHTML=`<b>${actionLabel(ev)}</b><small>${ev} → ${selected.name}_${ev}()</small>`;let edit=document.createElement('button');edit.type='button';edit.textContent='Código';edit.onclick=()=>openAction(selected,ev);let remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.title='Remover ação';remove.onclick=()=>{snapshot();delete selected.events[ev];renderActions();updateCode()};row.append(info,edit,remove);list.append(row)});quick.innerHTML='';[['Abrir ação padrão',()=>openDefaultAction(selected)],['Duplicar componente',duplicate],['Excluir componente',del]].forEach(([txt,fn])=>{let b=document.createElement('button');b.type='button';b.textContent=txt;b.onclick=fn;quick.append(b)})}
 const FF_COMMON_PROPS=new Set(['name','text','x','y','width','height','visible','enabled','background','bg','color']);
 const FF_FIELD_META={
  src:{label:'Origem (URL)',type:'text'},fit:{label:'Ajuste',type:'select',options:['cover','contain','fill','none']},
@@ -230,6 +453,13 @@ const FF_FIELD_META={
  oneShot:{label:'Executar uma vez',type:'checkbox'},url:{label:'URL',type:'text'},
  method:{label:'Método',type:'select',options:['GET','POST','PUT','PATCH','DELETE']},headers:{label:'Cabeçalhos (JSON)',type:'textarea'},
  protocol:{label:'Protocolo',type:'text'},key:{label:'Chave de armazenamento',type:'text'},iframeUrl:{label:'URL do iFrame',type:'text'},mapLat:{label:'Latitude',type:'number',step:0.000001},mapLng:{label:'Longitude',type:'number',step:0.000001},mapZoom:{label:'Zoom',type:'number',min:1,max:20},textContent:{label:'Texto do QR Code',type:'text'},qrcodeSize:{label:'Tamanho do QR',type:'number',min:64,max:2048},
+ canvasWidth:{label:'Largura do canvas (px)',type:'number',min:32,max:8000},canvasHeight:{label:'Altura do canvas (px)',type:'number',min:32,max:8000},fps:{label:'Quadros por segundo',type:'number',min:1,max:240},
+ frameWidth:{label:'Largura do quadro (px)',type:'number',min:1,max:4096},frameHeight:{label:'Altura do quadro (px)',type:'number',min:1,max:4096},frames:{label:'Total de quadros (0 = automático)',type:'number',min:0,max:10000},frame:{label:'Quadro atual',type:'number',min:0},
+ rotation:{label:'Rotação (°)',type:'number',step:1},vx:{label:'Velocidade X (px/s)',type:'number',step:1},vy:{label:'Velocidade Y (px/s)',type:'number',step:1},
+ collidable:{label:'Colide com outros objetos',type:'checkbox'},tag:{label:'Tag de colisão',type:'text'},debug:{label:'Mostrar área no jogo',type:'checkbox'},
+ preventDefault:{label:'Bloquear ação padrão da tecla',type:'checkbox'},index:{label:'Índice do controle',type:'number',min:0,max:15},deadZone:{label:'Zona morta (0 a 1)',type:'number',min:0,max:1,step:0.05},
+ prefix:{label:'Prefixo do placar',type:'text'},autoConnect:{label:'Conectar automaticamente',type:'checkbox'},highAccuracy:{label:'Alta precisão',type:'checkbox'},watch:{label:'Monitorar posição continuamente',type:'checkbox'},timeout:{label:'Timeout (ms)',type:'number',min:0},maximumAge:{label:'Idade máxima do cache (ms)',type:'number',min:0},
+ title:{label:'Título',type:'text'},body:{label:'Mensagem',type:'text'},pattern:{label:'Padrão de vibração (ms ou [ms, pausa, ...])',type:'text'},knobColor:{label:'Cor do manche',type:'color'},
  closeOnBackdrop:{label:'Fechar ao clicar fora',type:'checkbox'},activeIndex:{label:'Índice ativo',type:'number'},
  fontFamily:{label:'Fonte',type:'select',options:['Arial, sans-serif','Georgia, serif','"Courier New", monospace','Verdana, sans-serif','"Segoe UI", sans-serif','"Times New Roman", serif','"Trebuchet MS", sans-serif','cursive']},
  fontSize:{label:'Tamanho da fonte (px)',type:'number',min:6,max:200},
@@ -246,7 +476,7 @@ function ffDynamicSchema(kind){
 function renderDynamicProps(){
  const c=$('#propDynamic');if(!c)return;
  if(!selected||selected.kind==='titlebar'){c.innerHTML='';return}
- let fields=ffDynamicSchema(selected.kind);if(selected.kind!=='titlebar' && !fields.some(f=>f.key==='dock') && selected.kind!=='timer' && selected.kind!=='gamesound' && selected.kind!=='http' && selected.kind!=='websocket' && selected.kind!=='storage' && selected.kind!=='geolocation' && selected.kind!=='notification' && selected.kind!=='clipboard' && selected.kind!=='network' && selected.kind!=='vibration') fields=[{key:'dock',label:'Encaixe (Dock)',type:'select',options:['none','top','bottom','left','right','fill']},...fields];
+ let fields=ffDynamicSchema(selected.kind);if(selected.kind!=='titlebar' && !FF_NO_DOCK.has(selected.kind) && !fields.some(f=>f.key==='dock')) fields=[{key:'dock',label:'Encaixe (Dock)',type:'select',options:['none','top','bottom','left','right','fill']},...fields];
  if(['button','gradientbutton','iconbutton','fab'].includes(selected.kind)) fields=[...fields,{key:'targetPage',label:'Página de destino',type:'page'}];
  if(selected.kind==='link') fields=[...fields,{key:'href',label:'Href',type:'text'},{key:'targetPage',label:'Página de destino',type:'page'}];
  if(['select','combobox','listbox'].includes(selected.kind)) fields=[...fields,{key:'items',label:'Itens (JSON)',type:'textarea'}];
@@ -314,9 +544,19 @@ function startResize(e,x,d,pos){e.preventDefault();e.stopPropagation();let sx=e.
 function addItem(kind,x=null,y=null){snapshot();let it=toolDefaults(kind),items=project.pages[project.active].items;if(x==null||y==null){let n=items.length;x=24+(n%8)*16;y=(project.type==='app'?72:160)+(n%10)*16}it.x=snap(x);it.y=snap(y);items.push(it);selected=it;render();let el=document.querySelector(`.component[data-id="${it.id}"]`);el?.scrollIntoView({block:'nearest',inline:'nearest'});$('#selectionInfo').textContent=`Adicionado: ${it.name} • duplo clique abre ${defaultEvent(kind)}()`}
 function activateTab(name){$$('#tabs button').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));$('#stageWrap').style.display=name==='design'?'block':'none';$('#codeEditor').style.display=name==='code'?'block':'none';$('#blocksEditor').style.display=name==='blocks'?'flex':'none';$('#preview').style.display=name==='preview'?'block':'none';if(name==='blocks')window.FlowForgeBlocks?.render()}
 function eventMarker(x,ev){return `// @flow-event:${x.id}:${ev}`}
-function openDefaultAction(x){selected=x;let ev=defaultEvent(x.kind);x.events??={};if(!(ev in x.events))x.events[ev]=`// ${x.name}: ação padrão\n`;updateCode();activateTab('code');let ta=$('#code'),mark=eventMarker(x,ev),i=ta.value.indexOf(mark);if(i>=0){let fn=ta.value.indexOf('function ',i),brace=ta.value.indexOf('{',fn),start=ta.value.indexOf('\n',brace)+1,end=ta.value.indexOf('\n}',start);ta.focus();ta.setSelectionRange(start,end>start?end:start);ta.scrollTop=Math.max(0,(ta.value.slice(0,start).split('\n').length-6)*21.7);syncCodeHighlight()}$('#selectionInfo').textContent=`${x.name} → ${ev}()`}
+function ffSelectEventBody(ta,x,ev,markIndex){
+ const value=ta.value;let start,end;
+ const sm=value.indexOf(`// @flow-event-body-start:${x.id}:${ev}`,markIndex>=0?markIndex:0);
+ const em=sm>=0?value.indexOf(`// @flow-event-body-end:${x.id}:${ev}`,sm):-1;
+ if(sm>=0&&em>sm){start=value.indexOf('\n',sm)+1;end=em}
+ else{const fn=value.indexOf('function ',markIndex);const brace=value.indexOf('{',fn);start=value.indexOf('\n',brace)+1;end=value.indexOf('\n}',start)}
+ if(start<0)start=0;if(end<start)end=start;
+ ta.focus();ta.setSelectionRange(start,end);
+ ta.scrollTop=Math.max(0,(value.slice(0,start).split('\n').length-6)*21.7);
+}
+function openDefaultAction(x){selected=x;let ev=defaultEvent(x.kind);x.events??={};if(!(ev in x.events))x.events[ev]=`// ${x.name}: ação padrão\n`;updateCode();activateTab('code');let ta=$('#code'),mark=eventMarker(x,ev),i=ta.value.indexOf(mark);if(i>=0){ffSelectEventBody(ta,x,ev,i);syncCodeHighlight()}$('#selectionInfo').textContent=`${x.name} → ${ev}()`}
 window.generated=generated;
-function frameworkHead(){let f=project.framework||'none';if(f==='bootstrap')return '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">';if(f==='bulma')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">';if(f==='pico')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">';if(f==='tailwind')return '<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>';if(f==='materialize')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/materialize-css@1.0.0/dist/css/materialize.min.css">';if(f==='foundation')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.9.0/dist/css/foundation.min.css">';if(f==='uikit')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.23.11/dist/css/uikit.min.css"><script src="https://cdn.jsdelivr.net/npm/uikit@3.23.11/dist/js/uikit.min.js"></script><script src="https://cdn.jsdelivr.net/npm/uikit@3.23.11/dist/js/uikit-icons.min.js"></script>';if(f==='semantic')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css">';return ''}
+function frameworkHead(){let f=project.framework||'none';if(f==='bootstrap')return '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">';if(f==='bulma')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css" integrity="sha384-DCY3M8xLkMu6c9IKcKbe+jHKMjelnwC0p+SBaxfHxoBYZWdJF2X400UdBCgATtAB" crossorigin="anonymous">';if(f==='pico')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css" integrity="sha384-L1dWfspMTHU/ApYnFiMz2QID/PlP1xCW9visvBdbEkOLkSSWsP6ZJWhPw6apiXxU" crossorigin="anonymous">';if(f==='tailwind')return '<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3/dist/index.global.js" integrity="sha384-2ql948lIdLcGEE0/qxNiudyTjgauA3RDJERu5xW75kFCvSl5a9odyQYCb6tEjnmB" crossorigin="anonymous"></script>';if(f==='materialize')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/materialize-css@1.0.0/dist/css/materialize.min.css" integrity="sha384-5KZdSYqynSzIjQGS2M1O3HW6HVDBjfNx0v5Y2eQuE3vvQ9NTiiPK9/GWc0yYCrgw" crossorigin="anonymous">';if(f==='foundation')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.9.0/dist/css/foundation.min.css" integrity="sha384-SwEFMF9is9IXVlZTFMxuzEsxVflSVaYizmWHnNx4aO+UglwnQAbMoytZUlRnClL1" crossorigin="anonymous">';if(f==='uikit')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.23.11/dist/css/uikit.min.css" integrity="sha384-J9OVyqGnSOrzhOrLDdDl4v9DL967HVjiBVrE9AN5pptwiWaZ2DJ6JvGd/8N1HaLP" crossorigin="anonymous"><script src="https://cdn.jsdelivr.net/npm/uikit@3.23.11/dist/js/uikit.min.js" integrity="sha384-IcAIwepMk8TeppojBmDMdKEsQ8rj3ZCzuatfCE7vBW7FGH4pBNimt0xhGMDkYCmZ" crossorigin="anonymous"></script><script src="https://cdn.jsdelivr.net/npm/uikit@3.23.11/dist/js/uikit-icons.min.js" integrity="sha384-bEjHICwtRaUsAUdupFlZPIiTHNNYDWC1Bk7D3LrFXWg7+hIpHhj2jMvcrivhhmgv" crossorigin="anonymous"></script>';if(f==='semantic')return '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.5.0/dist/semantic.min.css" integrity="sha384-MC/DuDYHQs0NorkJdvxXwZeSFDEhHVVrH/XQ/7JQAKKDazcvpRQ7feYib4xf32ZT" crossorigin="anonymous">';return ''}
 function resolveProjectImageRef(value){
  const v=String(value||'');
  if(!v.startsWith('asset://'))return v;
@@ -325,42 +565,82 @@ function resolveProjectImageRef(value){
 }
 function generated(){
  const indent=(n)=>'  '.repeat(n);
+ const namePlan=new Map(),usedNames=new Set();
+ project.pages.flatMap(p=>p.items||[]).forEach(x=>{
+   let base=FFSecurity.sanitizeIdentifier(x.name||x.kind,x.kind||'component'),name=base,n=2;
+   while(usedNames.has(name))name=base+'_'+(n++);
+   usedNames.add(name);namePlan.set(x,name);
+ });
+ const nameOf=x=>namePlan.get(x)||FFSecurity.sanitizeIdentifier(x.name,x.kind||'component');
+ const runtimeItems=project.pages.flatMap(pg=>(pg.items||[]).filter(x=>FF_RUNTIME_KINDS.has(x.kind)).map(x=>{
+   const p={};(FF_RUNTIME_PROP_KEYS[x.kind]||[]).forEach(k=>{if(x[k]!==undefined)p[k]=x[k]});
+   const h={};Object.entries(x.events||{}).forEach(([ev,body])=>{if(FFSecurity.isEventName(ev)&&typeof body==='string')h[ev]=nameOf(x)+'_'+ev});
+   return {id:String(x.id||''),name:nameOf(x),kind:x.kind,pageId:String(pg.id||''),p,h};
+ }));
+ const runtimeConfig=`window.__FLOWFORGE_RUNTIME_CONFIG__ = ${FFSecurity.scriptJson({items:runtimeItems})};`;
+ const usesGameRuntime=runtimeItems.some(x=>FF_GAME_KINDS.has(x.kind));
+ const usesServiceRuntime=runtimeItems.some(x=>FF_SERVICE_KINDS.has(x.kind));
+ const cssSize=(v,fb)=>{const s=FFSecurity.safeCssSize(v,fb);return /^-?\d+(?:\.\d+)?$/.test(s)?s+'px':s};
  const componentHtml=(x,n=0,byParent=null)=>{
+   const safeName=nameOf(x);
+   const eventEntries=Object.entries(x.events||{}).filter(([ev,body])=>FFSecurity.isEventName(ev)&&typeof body==='string');
    // load/error can fire while the page is still being parsed (e.g. an about:blank iframe), before the script that
     // declares the handlers has run. Those two are guarded so they never throw "... is not defined".
-    const events=Object.keys(x.events||{}).map(ev=>(ev==='load'||ev==='error')?` on${ev}="typeof ${x.name}_${ev}==='function'&&${x.name}_${ev}(event)"`:` on${ev}="${x.name}_${ev}(event)"`).join('');
-   const targetPage=(project.pages||[]).find(p=>p.id===x.targetPage); const pageNav=x.targetPage?` onclick="FlowForgeNavigate(${JSON.stringify(x.targetPage)})" data-page-target="${esc(x.targetPage)}"`:'';
+   const events=eventEntries.map(([ev])=>(ev==='load'||ev==='error')?` on${ev}="typeof ${safeName}_${ev}==='function'&&${safeName}_${ev}(event)"`:` on${ev}="${safeName}_${ev}(event)"`).join('');
+   const pageNav=x.targetPage?` onclick="FlowForgeNavigate(${FFSecurity.jsAttr(x.targetPage)})" data-page-target="${esc(x.targetPage)}"`:'';
    // O ID público deve apontar para o elemento interativo real nos controles de formulário/imagem.
    // Assim fileUpload1.files, picturebox1.src, textBox.value etc. funcionam como esperado.
    const direct=['button','fab','gradientbutton','iconbutton','file','fileupload','input','textarea','checkbox','radio','switch','range','date','time','select','combobox','listbox','pagenav','picturebox','image','video','audio','camera','iframe','canvas','map','qrcode','colorpicker'].includes(x.kind);
    let inner=content(x,true);
    const children=(byParent?.get(x.id)||[]).map(c=>componentHtml(c,n+2,byParent)).join('\n');
    const childHost=children?`\n${indent(n+1)}<div class="ff-child-host">${children}\n${indent(n+1)}</div>`:'';
+   const width=cssSize(x.width,'140px'),height=cssSize(x.height,'50px');
+   const bg=FFSecurity.safeColor(x.bg,'transparent'),fg=FFSecurity.safeColor(x.color,'inherit');
+   const align=x.textAlign?` text-align:${FFSecurity.safeAlign(x.textAlign)};`:'';
+   const dockStyle=x.dock==='top'?' position:absolute; left:0; right:0; top:0; width:100%;':x.dock==='bottom'?' position:absolute; left:0; right:0; bottom:0; width:100%;':x.dock==='left'?' position:absolute; left:0; top:0; bottom:0;':x.dock==='right'?' position:absolute; right:0; top:0; bottom:0;':x.dock==='fill'?' position:absolute; inset:0; width:100%; height:100%;':'';
    if(direct){
      const nestedInput=['checkbox','radio','switch','fileupload'].includes(x.kind);
-     if(nestedInput) inner=inner.replace(/<input\b/,`<input id="${x.name}"${events}${x.enabled===false?' disabled':''}`);
-     else inner=inner.replace(/^<([a-zA-Z0-9]+)/,`<$1 id="${x.name}"${events}${pageNav}${x.enabled===false?' disabled':''}`);
-     return `${indent(n)}<div class="ff-component ff-kind-${x.kind}" data-flow-id="${x.id}"\n${indent(n+1)}style="left:${x.x}px; top:${x.y}px; width:${x.width}; height:${x.height}; background:${x.bg}; color:${x.color};${x.dock==='top'?' position:absolute; left:0; right:0; top:0; width:100%;':''}${x.dock==='bottom'?' position:absolute; left:0; right:0; bottom:0; width:100%;':''}${x.dock==='left'?' position:absolute; left:0; top:0; bottom:0;':''}${x.dock==='right'?' position:absolute; right:0; top:0; bottom:0;':''}${x.dock==='fill'?' position:absolute; inset:0; width:100%; height:100%;':''}${x.visible===false?' display:none;':''}">\n${indent(n+1)}${inner}${childHost}\n${indent(n)}</div>`;
+     if(nestedInput) inner=inner.replace(/<input\b/,`<input id="${safeName}"${events}${x.enabled===false?' disabled':''}`);
+     else {
+       // built-in behaviour (e.g. fab toggle, pagenav goPage) lives in inline handlers on the real control;
+       // user event code must run in addition to them, never replace them.
+       const tagEnd=inner.indexOf('>');
+       let open=tagEnd<0?inner:inner.slice(0,tagEnd),extra=events;
+       for(const [ev] of eventEntries){
+         const call=(ev==='load'||ev==='error')?`typeof ${safeName}_${ev}==='function'&&${safeName}_${ev}(event)`:`${safeName}_${ev}(event)`;
+         const re=new RegExp(`on${ev}="([^"]*)"`);
+         const hit=open.match(re);
+         if(hit){open=open.replace(re,`on${ev}="${hit[1]}${/;$/.test(hit[1].trim())?'':';'}${call}"`);extra=extra.replace(` on${ev}="${call}"`,'');}
+       }
+       inner=tagEnd<0?open:open+` id="${safeName}"${extra}${pageNav}${x.enabled===false?' disabled':''}`+inner.slice(tagEnd);
+     }
+     return `${indent(n)}<div class="ff-component ff-kind-${esc(String(x.kind||''))}" data-flow-id="${esc(String(x.id||''))}"\n${indent(n+1)}style="left:${FFSecurity.safeNumber(x.x,0,-20000,20000)}px; top:${FFSecurity.safeNumber(x.y,0,-20000,20000)}px; width:${width}; height:${height}; background:${bg}; color:${fg};${dockStyle}${x.visible===false?' display:none;':''}">\n${indent(n+1)}${inner}${childHost}\n${indent(n)}</div>`;
    }
-   return `${indent(n)}<div id="${x.name}"${pageNav}${x.enabled===false?' aria-disabled="true"':''} class="ff-component ff-kind-${x.kind}" data-flow-id="${x.id}"\n${indent(n+1)}style="left:${x.x}px; top:${x.y}px; width:${x.width}; height:${x.height}; background:${x.bg}; color:${x.color};${x.textAlign?` text-align:${x.textAlign};`:''}${x.dock==='top'?' position:absolute; left:0; right:0; top:0; width:100%;':''}${x.dock==='bottom'?' position:absolute; left:0; right:0; bottom:0; width:100%;':''}${x.dock==='left'?' position:absolute; left:0; top:0; bottom:0;':''}${x.dock==='right'?' position:absolute; right:0; top:0; bottom:0;':''}${x.dock==='fill'?' position:absolute; inset:0; width:100%; height:100%;':''}${x.visible===false?' display:none;':''}${x.enabled===false?' pointer-events:none; opacity:.6;':''}"${events}>\n${indent(n+1)}${inner}${childHost}\n${indent(n)}</div>`;
+   return `${indent(n)}<div id="${safeName}"${pageNav}${x.enabled===false?' aria-disabled="true"':''} class="ff-component ff-kind-${esc(String(x.kind||''))}" data-flow-id="${esc(String(x.id||''))}"\n${indent(n+1)}style="left:${FFSecurity.safeNumber(x.x,0,-20000,20000)}px; top:${FFSecurity.safeNumber(x.y,0,-20000,20000)}px; width:${width}; height:${height}; background:${bg}; color:${fg};${align}${dockStyle}${x.visible===false?' display:none;':''}${x.enabled===false?' pointer-events:none; opacity:.6;':''}"${events}>\n${indent(n+1)}${inner}${childHost}\n${indent(n)}</div>`;
  };
- const pages=project.pages.map((p,i)=>{
+ const navActiveBefore=ffExportActivePageId;
+ ffExportActivePageId=String(project.pages?.[0]?.id||'');
+ let pages;
+ try{
+ pages=project.pages.map((p,i)=>{
    let lines=[`  <section id="page-${i}" data-page-id="${esc(p.id||String(i))}" class="ff-page"${i?' hidden':''}>`];
-   if(project.type==='app' && project.siteLayout?.titlebar!==false){const t=project.titlebar||{text:project.name,height:'52px',bg:'#20242a',color:'#fff',showMenu:true};{const custom=t.autoStyle===false?`;background:${t.bg};color:${t.color}`:'';lines.push(`    <div class="ff-app-titlebar ff-title-${project.framework||'none'}" style="height:${t.height}${custom}">`,`      ${titlebarContent(t)}`,`    </div>`);}}
+   if(project.type==='app' && project.siteLayout?.titlebar!==false){const t=project.titlebar||{text:project.name,height:'52px',bg:'#20242a',color:'#fff',showMenu:true};{const custom=t.autoStyle===false?`;background:${FFSecurity.safeColor(t.bg,'#20242a')};color:${FFSecurity.safeColor(t.color,'#ffffff')}`:'';lines.push(`    <div class="ff-app-titlebar ff-title-${esc(project.framework||'none')}" style="height:${FFSecurity.safeCssSize(t.height,'52px')}${custom}">`,`      ${titlebarContent(t)}`,`    </div>`);}}
    lines.push(`    <div class="ff-page-surface">`);
    const byParent=new Map();p.items.forEach(x=>{const k=x.parentId||'__root__';if(!byParent.has(k))byParent.set(k,[]);byParent.get(k).push(x)});const roots=byParent.get('__root__')||p.items.filter(x=>!x.parentId);roots.forEach(x=>lines.push(componentHtml(x,3,byParent)));
    lines.push(`    </div>`,`  </section>`);
    return lines.join('\n');
  }).join('\n');
+ }finally{ffExportActivePageId=navActiveBefore;}
  const maxw=project.type==='app'?'390px':'1200px';
- const componentRefs=project.pages.flatMap(p=>p.items).filter(x=>x.ffSystem!=='siteChrome'&&/^[A-Za-z_$][\w$]*$/.test(x.name)).map(x=>`window[${JSON.stringify(x.name)}] = FlowForgeComponent(document.getElementById(${JSON.stringify(x.name)})); const ${x.name} = window[${JSON.stringify(x.name)}];`).join('\n');
+ const componentRefs=project.pages.flatMap(p=>p.items).filter(x=>x.ffSystem!=='siteChrome').map(x=>{const n=nameOf(x);return `window[${FFSecurity.scriptJson(n)}] = FlowForgeComponent(document.getElementById(${FFSecurity.scriptJson(n)})); const ${n} = window[${FFSecurity.scriptJson(n)}];`}).join('\n');
  const uiRuntime=`window.FlowForgeUI={
- toggleMenu(b){const m=b.parentElement.querySelector('.ff-real-menu');if(m)m.hidden=!m.hidden;},closeMenu(b){const m=b.closest('.ff-real-menu');if(m)m.hidden=true;},toggleFab(b){const m=b.parentElement.querySelector('.ff-fab-menu');if(m)m.hidden=!m.hidden;},
- goPage(el,value){const ok=window.FlowForgeNavigate?window.FlowForgeNavigate(value):false;if(ok){const root=el.closest('nav')||el.closest('.ff-real-navbar');if(root)root.querySelectorAll('[data-page-id]').forEach(x=>x.classList.toggle('active',x.dataset.pageId===String(value)));const menu=el.closest('.ff-real-menu');if(menu)menu.hidden=true;if(el.tagName==='SELECT')el.value=String(value);}},
- navSelect(b){b.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active');b.dispatchEvent(new CustomEvent('change',{bubbles:true,detail:{index:[...b.parentElement.children].indexOf(b)}}));},bottomPage(b,id){const ok=window.FlowForgeNavigate?window.FlowForgeNavigate(id):false;if(ok){b.parentElement.querySelectorAll('[data-page-id]').forEach(x=>x.classList.toggle('active',x===b));b.dispatchEvent(new CustomEvent('change',{bubbles:true,detail:{pageId:id}}));}},
+ toggleMenu(b){const m=b.parentElement&&b.parentElement.querySelector('.ff-real-menu');if(!m)return;const open=m.hidden;m.hidden=!open;b.setAttribute('aria-expanded',String(open));},closeMenu(b){const m=b.closest('.ff-real-menu');if(m)m.hidden=true;},
+ toggleFab(b){const m=b.parentElement&&b.parentElement.querySelector('.ff-fab-menu');if(!m)return;const open=m.hidden;m.hidden=!open;b.setAttribute('aria-expanded',String(open));if(open){const f=m.querySelector('button');if(f)f.focus();}},
+ goPage(el,value){const id=String(value==null?'':value);const ok=window.FlowForgeNavigate?window.FlowForgeNavigate(id):false;if(ok){if(el&&el.tagName==='SELECT')el.value=id;const menu=el&&el.closest?el.closest('.ff-fab-menu'):null;if(menu){menu.hidden=true;const b=menu.parentElement&&menu.parentElement.querySelector('.ff-real-fab');if(b)b.setAttribute('aria-expanded','false');}}return ok;},
  tab(b,i){const root=b.closest('.ff-real-tabs'),bs=root.querySelectorAll('.ff-tab-buttons button'),ps=root.querySelectorAll('.ff-tab-panel>div');bs.forEach((x,n)=>x.classList.toggle('active',n===i));ps.forEach((x,n)=>x.hidden=n!==i);root.dataset.value=String(i);b.dispatchEvent(new CustomEvent('change',{bubbles:true,detail:{index:i,value:i}}));},
- toggleDrawer(b){const r=b.closest('.ff-real-drawer');r.classList.toggle('open');},toggleSheet(b){const r=b.closest('.ff-real-bottomsheet'),body=r.querySelector('.ff-sheet-body');if(body)body.hidden=!body.hidden;r.classList.toggle('open');},
- page(b,direction){const nav=b.closest('.ff-real-pagination'),links=[...nav.querySelectorAll('[data-page-id]')];if(!links.length)return;let i=links.findIndex(x=>x.classList.contains('active'));if(b.dataset.pageId){i=links.indexOf(b);}else{i=Math.max(0,Math.min(links.length-1,i+(direction<0?-1:1)));}const target=links[i];if(target){const id=target.dataset.pageId;if(window.FlowForgeNavigate)window.FlowForgeNavigate(id);links.forEach(x=>{const on=x===target;x.classList.toggle('active',on);x.setAttribute('aria-current',on?'page':'false');});target.dispatchEvent(new CustomEvent('change',{bubbles:true,detail:{page:i+1,pageId:id}}));}},
+ toggleDrawer(b){const r=b.closest('.ff-real-drawer');if(!r)return;const open=!r.classList.contains('open');r.classList.toggle('open',open);b.setAttribute('aria-expanded',String(open));},
+ toggleSheet(b){const r=b.closest('.ff-real-bottomsheet');if(!r)return;const body=r.querySelector('.ff-sheet-body');if(!body)return;const open=body.hidden;body.hidden=!open;r.classList.toggle('open',open);b.setAttribute('aria-expanded',String(open));},
+ page(b,direction){const nav=b.closest('.ff-real-pagination');if(!nav)return;const links=[...nav.querySelectorAll('[data-page-id]')];if(!links.length)return;let i=links.findIndex(x=>x.classList.contains('active'));if(i<0)i=0;if(b.dataset.pageId)i=links.indexOf(b);else i+=direction<0?-1:1;i=Math.max(0,Math.min(links.length-1,i));const target=links[i];if(!target)return;const id=target.dataset.pageId;if(window.FlowForgeNavigate)window.FlowForgeNavigate(id);target.dispatchEvent(new CustomEvent('change',{bubbles:true,detail:{page:i+1,pageId:id}}));},
  selectItem(b){const r=b.parentElement;r.querySelectorAll('.selected').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');b.dispatchEvent(new CustomEvent('change',{bubbles:true,detail:{index:Number(b.dataset.index||0),value:b.textContent.trim()}}));},
  rate(b,n){const r=b.parentElement;r.querySelectorAll('button').forEach((x,i)=>{const on=i<n;x.classList.toggle('selected',on);x.setAttribute('aria-checked',String(i===n-1));});r.dataset.value=String(n);b.dispatchEvent(new CustomEvent('change',{bubbles:true,detail:{value:n}}));},
  step(b,d){const r=b.closest('.ff-real-stepper');let n=Math.max(1,Math.min(3,Number(r.dataset.step||1)+d));r.dataset.step=String(n);r.querySelector('[data-step-label]').textContent=n;b.dispatchEvent(new CustomEvent('change',{bubbles:true,detail:{value:n}}));},
@@ -368,10 +648,53 @@ function generated(){
  toggleLed(b){const on=b.getAttribute('aria-pressed')!=='true';b.setAttribute('aria-pressed',String(on));b.classList.toggle('on',on);b.dispatchEvent(new CustomEvent('change',{bubbles:true,detail:{value:on}}));},
  sparkline(c){const g=c.getContext('2d');if(!g)return;g.clearRect(0,0,c.width,c.height);g.strokeStyle='currentColor';g.lineWidth=3;let a=String(c.dataset.values||'').split(/[ ,;]+/).filter(Boolean).map(Number).filter(Number.isFinite);if(a.length<2)a=[.35,.2,.55,.42,.8,.5,.7,.45,.9];else{const lo=Math.min(...a),hi=Math.max(...a);a=a.map(v=>hi>lo?(v-lo)/(hi-lo):.5)}g.beginPath();a.forEach((v,i)=>{const x=5+i*(c.width-10)/(a.length-1),y=10+(1-v)*(c.height-20);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();if(!c.__ffSpark){c.__ffSpark=new MutationObserver(()=>FlowForgeUI.sparkline(c));c.__ffSpark.observe(c,{attributes:true,attributeFilter:['data-values']})}},
  init(root=document){root.querySelectorAll('canvas[data-ff-chart]').forEach(c=>{const g=c.getContext('2d');if(!g)return;g.clearRect(0,0,c.width,c.height);g.strokeStyle='#64748b';g.lineWidth=3;const a=[.25,.55,.4,.78,.62,.9,.68];g.beginPath();a.forEach((v,i)=>{const x=30+i*(c.width-60)/(a.length-1),y=25+(1-v)*(c.height-55);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();g.fillStyle='#64748b';a.forEach((v,i)=>{const x=30+i*(c.width-60)/(a.length-1),y=25+(1-v)*(c.height-55);g.beginPath();g.arc(x,y,4,0,Math.PI*2);g.fill()})});root.querySelectorAll('canvas[data-ff-sparkline]').forEach(c=>FlowForgeUI.sparkline(c));root.querySelectorAll('.ff-real-dialog').forEach(d=>{if(d.dataset.autoOpen==='true'&&!d.open)d.showModal()});}
-};FlowForgeUI.init();`;
- const pageRuntime=`function FlowForgeNavigate(value){const pages=[...document.querySelectorAll('.ff-page')];let raw=String(value??'');raw=raw.replace(/^#\\/page\\//,'').replace(/^#\\//,'');let target=pages.find(p=>String(p.dataset.pageId)===raw||String(p.id)===raw);if(!target){const meta=window.__FLOWFORGE_PAGES__||[];const m=meta.find(x=>String(x.id)===raw||String(x.slug)===raw||String(x.name)===raw);if(m)target=pages.find(p=>String(p.dataset.pageId)===String(m.id));}if(!target)return false;pages.forEach(p=>{const on=p===target;p.classList.toggle('hidden',!on);p.hidden=!on});const meta=(window.__FLOWFORGE_PAGES__||[]).find(x=>String(x.id)===String(target.dataset.pageId));if(meta&&history&&history.pushState){const route='#/page/'+encodeURIComponent(meta.slug||meta.id);if(location.hash!==route)history.pushState({flowforgePage:meta.id},'',route)}window.scrollTo({top:0,behavior:'smooth'});return true;}window.FlowForgeNavigate=FlowForgeNavigate;window.ffNavigate=FlowForgeNavigate;function ffRouteFromHash(){const h=decodeURIComponent(location.hash||'');if(h.startsWith('#/page/'))FlowForgeNavigate(h.slice(7));}window.addEventListener('hashchange',ffRouteFromHash);window.addEventListener('popstate',ffRouteFromHash);ffRouteFromHash();`;
- const timerBoot=project.pages.flatMap(p=>p.items).filter(x=>x.kind==='timer'&&x.enabled!==false).map(x=>`FlowForgeTimer.start({id:${JSON.stringify(x.id)},name:${JSON.stringify(x.name)},interval:${Number(x.interval)||1000},oneShot:${!!x.oneShot},enabled:true,events:{tick:${x.events&&x.events.tick?JSON.stringify(x.name+'_tick(event)'):'""'}}});`).join('\n');
- const eventCode=project.pages.flatMap(p=>p.items).flatMap(x=>Object.entries(x.events||{}).map(([ev,body])=>`${eventMarker(x,ev)}\nasync function ${x.name}_${ev}(event) {\n${String(body||'').split('\n').map(line=>'    '+line).join('\n')}\n}\n// @flow-event-end:${x.id}:${ev}`)).join('\n\n');
+};function ffCloseNavOverlays(){document.querySelectorAll('.ff-fab-menu:not([hidden])').forEach(function(m){m.hidden=true;var b=m.parentElement&&m.parentElement.querySelector('.ff-real-fab');if(b)b.setAttribute('aria-expanded','false')});document.querySelectorAll('.ff-real-drawer-collapsible.open').forEach(function(d){d.classList.remove('open');var b=d.querySelector('.ff-nav-toggle');if(b)b.setAttribute('aria-expanded','false')});document.querySelectorAll('.ff-real-bottomsheet.open').forEach(function(s){s.classList.remove('open');var body=s.querySelector('.ff-sheet-body');if(body)body.hidden=true;var b=s.querySelector('.ff-nav-toggle');if(b)b.setAttribute('aria-expanded','false')});}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'||e.key==='Esc')ffCloseNavOverlays()});
+document.addEventListener('click',function(e){var t=e.target;if(t&&t.closest&&(t.closest('.ff-fab-menu')||t.closest('.ff-real-fab')))return;document.querySelectorAll('.ff-fab-menu:not([hidden])').forEach(function(m){m.hidden=true;var b=m.parentElement&&m.parentElement.querySelector('.ff-real-fab');if(b)b.setAttribute('aria-expanded','false')})});
+FlowForgeUI.init();`;
+ const pageRuntime=`function ffSyncPageNav(value){
+  var id=String(value==null?'':value);
+  document.querySelectorAll('[data-ff-nav]').forEach(function(nav){
+   var links=Array.prototype.slice.call(nav.querySelectorAll('[data-page-id]'));
+   links.forEach(function(el){var on=String(el.dataset.pageId)===id;el.classList.toggle('active',on);if(on)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current')});
+   if(nav.getAttribute('data-ff-nav')==='pagination'){var i=links.findIndex(function(el){return String(el.dataset.pageId)===id});var prev=nav.querySelector('[data-ff-page-prev]'),next=nav.querySelector('[data-ff-page-next]');if(prev)prev.disabled=i<=0;if(next)next.disabled=i<0||i>=links.length-1}
+  });
+  document.querySelectorAll('select[data-ff-nav="pagenav"]').forEach(function(sel){if(Array.prototype.some.call(sel.options,function(o){return o.value===id}))sel.value=id});
+  document.querySelectorAll('.ff-fab-menu').forEach(function(m){if(!m.hidden){m.hidden=true;var b=m.parentElement&&m.parentElement.querySelector('.ff-real-fab');if(b)b.setAttribute('aria-expanded','false')}});
+  document.querySelectorAll('.ff-real-drawer-collapsible.open').forEach(function(d){d.classList.remove('open');var b=d.querySelector('.ff-nav-toggle');if(b)b.setAttribute('aria-expanded','false')});
+  document.querySelectorAll('.ff-real-bottomsheet.open').forEach(function(s){s.classList.remove('open');var body=s.querySelector('.ff-sheet-body');if(body)body.hidden=true;var b=s.querySelector('.ff-nav-toggle');if(b)b.setAttribute('aria-expanded','false')});
+ }
+ window.ffSyncPageNav=ffSyncPageNav;
+ function FlowForgeNavigate(value){
+  var pages=[...document.querySelectorAll('.ff-page')];
+  var raw=String(value==null?'':value).replace(/^#\\/page\\//,'').replace(/^#\\//,'');
+  var target=pages.find(function(p){return String(p.dataset.pageId)===raw||String(p.id)===raw});
+  if(!target){var meta=window.__FLOWFORGE_PAGES__||[];var m=meta.find(function(x){return String(x.id)===raw||String(x.slug)===raw||String(x.name)===raw});if(m)target=pages.find(function(p){return String(p.dataset.pageId)===String(m.id)})}
+  if(!target)return false;
+  pages.forEach(function(p){var on=p===target;p.classList.toggle('hidden',!on);p.hidden=!on});
+  var meta=(window.__FLOWFORGE_PAGES__||[]).find(function(x){return String(x.id)===String(target.dataset.pageId)});
+  // Em preview sandbox (origem opaca) e em alguns contextos file:// o pushState lança
+  // SecurityError. A troca de página e a sincronização da navegação devem continuar.
+  if(meta&&history&&history.pushState){try{var route='#/page/'+encodeURIComponent(meta.slug||meta.id);if(location.hash!==route)history.pushState({flowforgePage:meta.id},'',route)}catch(e){}}
+  ffSyncPageNav(target.dataset.pageId||target.id);
+  try{window.dispatchEvent(new CustomEvent('flowforge:pagechange',{detail:{pageId:target.dataset.pageId||target.id,page:target}}))}catch(e){}
+  window.scrollTo({top:0,behavior:'smooth'});
+  return true;
+ }
+ window.FlowForgeNavigate=FlowForgeNavigate;window.ffNavigate=FlowForgeNavigate;
+ function ffRouteFromHash(){var h=decodeURIComponent(location.hash||'');if(h.indexOf('#/page/')===0)FlowForgeNavigate(h.slice(7));}
+ window.addEventListener('hashchange',ffRouteFromHash);
+ window.addEventListener('popstate',ffRouteFromHash);
+ ffRouteFromHash();
+ (function(){var p=[...document.querySelectorAll('.ff-page')].find(function(x){return !x.hidden&&!x.classList.contains('hidden')});if(p)ffSyncPageNav(p.dataset.pageId||p.id)})();`;
+ const timerBoot=project.pages.flatMap(p=>p.items).filter(x=>x.kind==='timer'&&x.enabled!==false).map(x=>`FlowForgeTimer.start({id:${FFSecurity.scriptJson(x.id)},name:${FFSecurity.scriptJson(nameOf(x))},interval:${Number(x.interval)||1000},oneShot:${!!x.oneShot},enabled:true,events:{tick:${x.events&&x.events.tick?FFSecurity.scriptJson(nameOf(x)+'_tick(event)'):'""'}}});`).join('\n');
+ const eventCode=project.pages.flatMap(p=>p.items).flatMap(x=>Object.entries(x.events||{}).filter(([ev,body])=>FFSecurity.isEventName(ev)&&typeof body==='string').map(([ev,body])=>{
+   const name=nameOf(x);
+   const lines=FFSecurity.scriptBody(String(body||'')).split('\n').map(line=>'    '+line).join('\n');
+   // Cada handler fica em seu próprio <script>: um erro de sintaxe do usuário
+   // não pode derrubar o runtime da página, a navegação ou os demais eventos.
+   return `<script>\n${eventMarker(x,ev)}\nasync function ${name}_${ev}(event) {\n// @flow-event-body-start:${x.id}:${ev}\n${lines}\n// @flow-event-body-end:${x.id}:${ev}\n}\n// @flow-event-end:${x.id}:${ev}\n<\/script>`;
+ })).join('\n');
  return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -389,14 +712,24 @@ function generated(){
   ${project.icon?`<link rel="icon" sizes="192x192"${ffLinkType(resolveProjectImageRef(project.icon))} href="${esc(resolveProjectImageRef(project.icon))}">`:''}
   ${frameworkHead()}
   <style>
-    .ff-page.hidden{display:none!important}.ff-kind-listbox select{padding:6px}.ff-page-nav{width:100%;height:100%;padding:8px;border:1px solid #cfd5db;border-radius:6px;background:#fff}.ff-kind-combobox select{width:100%;height:100%}
+    .ff-page.hidden{display:none!important}.ff-kind-listbox select{padding:6px}.ff-page-nav{width:100%;height:100%;padding:8px 10px;border:1px solid rgba(127,127,127,.45);border-radius:8px;background:transparent;color:inherit;font:inherit;cursor:pointer}.ff-kind-combobox select{width:100%;height:100%}
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
     .ff-page { position: relative; min-height: 100vh; width: 100%; max-width: ${maxw}; margin: 0 auto; overflow: visible; background: #fff; }
     .ff-page-surface { position: ${project.type==='app'?'absolute':'relative'}; top: 0; left: 0; min-height: 100vh; width: 100%; overflow: visible; }
-    .ff-real-header{height:100%;display:flex;align-items:center;padding:0 24px;background:#111827;color:#fff;font-size:22px;font-weight:700}.ff-header-brand{display:flex;align-items:center;gap:12px;min-width:0}.ff-header-logo{display:block;max-height:48px;max-width:180px;width:auto;height:auto;object-fit:contain}.ff-real-header .ff-header-logo{flex:0 0 auto} .ff-real-navbar{display:flex !important;align-items:stretch !important;justify-content:center !important;gap:4px !important;width:100% !important;height:100% !important;background:#1f2937 !important;color:#fff !important;padding:6px 16px !important;overflow:auto !important}.ff-real-navbar button{display:inline-flex !important;align-items:center !important;justify-content:center !important;box-sizing:border-box !important;border:0 !important;background:transparent !important;color:#fff !important;padding:8px 16px !important;border-radius:6px !important;cursor:pointer !important;white-space:nowrap !important;font:inherit !important}.ff-real-navbar button:hover,.ff-real-navbar button.active{background:#374151 !important;color:#fff !important}.ff-real-tabs{width:100% !important;height:100% !important;background:transparent !important;color:inherit !important}.ff-tab-buttons{display:flex !important;align-items:stretch !important;gap:0 !important;width:100% !important;height:100% !important;border-bottom:1px solid #ddd !important;background:transparent !important}.ff-tab-buttons button{display:inline-flex !important;align-items:center !important;justify-content:center !important;box-sizing:border-box !important;border:0 !important;border-bottom:2px solid transparent !important;background:transparent !important;color:inherit !important;padding:8px 16px !important;cursor:pointer !important;font:inherit !important;white-space:nowrap !important}.ff-tab-buttons button.active{border-bottom-color:currentColor !important;font-weight:700 !important} .ff-real-footer{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;width:100%;height:100%;background:#111827;color:#fff;padding:14px 20px} .ff-real-footer button{border:0;background:transparent;color:#fff;padding:7px 12px;border-radius:5px;cursor:pointer}.ff-real-footer button:hover,.ff-real-footer button.active{background:#374151}
+    .ff-real-header{height:100%;display:flex;align-items:center;padding:0 24px;background:transparent;color:inherit;font-size:22px;font-weight:700}.ff-header-brand{display:flex;align-items:center;gap:12px;min-width:0}.ff-header-logo{display:block;max-height:48px;max-width:180px;width:auto;height:auto;object-fit:contain}.ff-real-header .ff-header-logo{flex:0 0 auto} .ff-real-navbar{display:flex;align-items:stretch;justify-content:center;gap:4px;width:100%;height:100%;background:transparent;color:inherit;padding:6px 12px;overflow:auto;box-sizing:border-box}.ff-real-navbar button{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border:0;background:transparent;color:inherit;padding:8px 16px;border-radius:8px;cursor:pointer;white-space:nowrap;font:inherit}.ff-real-navbar button:hover{background:rgba(127,127,127,.16)}.ff-real-navbar button.active{background:rgba(127,127,127,.28);font-weight:700}.ff-real-tabs{width:100%;height:100%;background:transparent;color:inherit;overflow:auto}.ff-tab-buttons{display:flex;align-items:stretch;gap:0;width:100%;height:100%;border-bottom:1px solid rgba(127,127,127,.3);background:transparent}.ff-tab-buttons button{display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:max-content;box-sizing:border-box;border:0;border-bottom:2px solid transparent;background:transparent;color:inherit;padding:8px 16px;cursor:pointer;font:inherit;white-space:nowrap}.ff-tab-buttons button:hover{background:rgba(127,127,127,.12)}.ff-tab-buttons button.active{border-bottom-color:currentColor;font-weight:700}.ff-real-footer{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;width:100%;height:100%;background:transparent;color:inherit;padding:12px 20px;box-sizing:border-box}.ff-real-footer button{border:0;background:transparent;color:inherit;padding:7px 12px;border-radius:6px;cursor:pointer;font:inherit}.ff-real-footer button:hover,.ff-real-footer button.active{background:rgba(127,127,127,.2);font-weight:600}
     .ff-app-titlebar { width:100%; height: 52px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; background: #212529; color: #fff; font-weight: 600; position: relative; z-index: 10000; }
-    .ff-component { position: absolute; min-width: 24px; min-height: 20px; } .ff-kind-gamesound,.ff-kind-timer{display:none!important} .ff-child-host{position:absolute;inset:0;overflow:visible;pointer-events:none}.ff-child-host>.ff-component{pointer-events:auto}
+    .ff-component { position: absolute; min-width: 24px; min-height: 20px; } .ff-kind-gamesound,.ff-kind-timer,.ff-kind-keyboardinput,.ff-kind-gamepadinput,.ff-kind-gametimer,.ff-kind-http,.ff-kind-websocket,.ff-kind-storage,.ff-kind-geolocation,.ff-kind-notification,.ff-kind-clipboard,.ff-kind-network,.ff-kind-vibration{display:none!important} .ff-child-host{position:absolute;inset:0;overflow:visible;pointer-events:none}.ff-child-host>.ff-component{pointer-events:auto}
+    .ff-kind-gamecanvas>canvas,.ff-kind-spritesheet>canvas{display:block;width:100%;height:100%}
+    .ff-sprite{width:100%;height:100%;display:grid;place-items:center;overflow:hidden}.ff-sprite img{display:block;max-width:100%;max-height:100%;pointer-events:none}
+    .ff-score{display:flex;align-items:center;gap:4px;height:100%;font:700 18px/1.2 system-ui,sans-serif;overflow:hidden}
+    .ff-health{position:relative;width:100%;height:100%;border-radius:8px;overflow:hidden;background:#e5e7eb;box-sizing:border-box}
+    .ff-health i{display:block;height:100%;width:100%;background:#22c55e;transition:width .15s linear}
+    .ff-health span{position:absolute;inset:0;display:grid;place-items:center;font:700 11px/1 system-ui,sans-serif;color:#0f172a;pointer-events:none}
+    .ff-joystick{position:relative;width:100%;height:100%;box-sizing:border-box;border-radius:50%;background:radial-gradient(circle at 50% 45%,rgba(148,163,184,.22),rgba(148,163,184,.08));border:1px solid rgba(148,163,184,.4);touch-action:none}
+    .ff-joystick>i{position:absolute;left:50%;top:50%;width:42%;height:42%;margin:-21% 0 0 -21%;border-radius:50%;background:#94a3b8;box-shadow:0 2px 8px rgba(15,23,42,.3);pointer-events:none}
+    .ff-kind-collisionarea{pointer-events:none}.ff-collision{width:100%;height:100%;box-sizing:border-box;border:0}
+    .ff-collision[data-ff-debug="true"]{border:1px dashed #f59e0b;background:rgba(245,158,11,.12)}
     .ff-component button, .ff-component input, .ff-component textarea, .ff-component select { max-width: 100%; }
     .ff-kind-button > button, .ff-kind-input > input, .ff-kind-textarea > textarea, .ff-kind-select > select, .ff-kind-date > input, .ff-kind-time > input, .ff-kind-range > input { width:100%; height:100%; }
     .ff-kind-checkbox > label, .ff-kind-radio > label { display: flex; align-items: center; gap: 8px; width: 100%; height: 100%; margin: 0; white-space: nowrap; }
@@ -414,6 +747,10 @@ function generated(){
     .ff-nav { display: flex; justify-content: space-around; align-items: center; height: 100%; }
     .ff-progress { height: 12px; background: #ddd; border-radius: 8px; overflow: hidden; }
     .ff-progress i { display: block; width: 65%; height: 100%; background: #777; }
+    .ff-kind-spinner { display: grid; place-items: center; }
+    .ff-spinner { width: 28px; height: 28px; max-width: 80%; max-height: 80%; box-sizing: border-box; border: 4px solid rgba(127,127,127,.3); border-top-color: #3b82f6; border-radius: 50%; animation: ff-spin .8s linear infinite; }
+    @keyframes ff-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .ff-spinner { animation-duration: 2.4s; } }
     .ff-component table { border-collapse: collapse; width: 100%; }
     .ff-component td, .ff-component th { border: 1px solid #bbb; padding: 4px; }
     .ff-badge { padding: 3px 8px; border-radius: 10px; background: #555; color: #fff; }
@@ -426,7 +763,7 @@ function generated(){
     .ff-titlebrand { display:flex; align-items:center; gap:8px; } .ff-titlemenu{font-size:8px;letter-spacing:3px;opacity:.7}
     .ff-battery{height:100%;display:flex;align-items:center;gap:10px}.ff-battery>span{width:68%;height:24px;border:2px solid currentColor;border-radius:5px;padding:3px;position:relative}.ff-battery>span:after{content:'';position:absolute;right:-6px;top:6px;width:4px;height:8px;background:currentColor;border-radius:0 2px 2px 0}.ff-battery i{display:block;height:100%;background:#22c55e;border-radius:2px}.ff-thermo{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}.ff-thermo>span{width:18px;height:105px;border:3px solid currentColor;border-radius:12px;position:relative;padding:3px;display:flex;align-items:flex-end}.ff-thermo>span:after{content:'';position:absolute;width:30px;height:30px;border-radius:50%;background:#ef4444;bottom:-18px;left:-9px}.ff-thermo i{width:100%;height:62%;background:#ef4444;border-radius:8px}.ff-led{height:100%;display:flex;align-items:center;gap:8px}.ff-led i{width:14px;height:14px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e}.ff-sevenseg{height:100%;display:grid;place-items:center;background:#171717;color:#ff3b30;font:700 34px monospace;letter-spacing:5px;border-radius:8px}.ff-dotmatrix{height:100%;display:grid;place-items:center;background:#111;color:#39ff88;font:700 24px monospace;letter-spacing:6px;border-radius:6px;text-shadow:0 0 8px currentColor}.ff-spark{height:100%;padding:8px;display:flex;flex-direction:column}.ff-spark svg{width:100%;height:100%}.ff-spark polyline{fill:none;stroke:currentColor;stroke-width:2}.ff-valuecard,.ff-statuscard,.ff-glasspanel{height:100%;padding:14px;border-radius:14px}.ff-valuecard{display:flex;flex-direction:column;box-shadow:0 4px 18px #0002}.ff-valuecard strong{font-size:28px}.ff-valuecard span{color:#16a34a}.ff-statuscard{display:flex;align-items:center;gap:12px;box-shadow:0 4px 18px #0002}.ff-statuscard>i{width:14px;height:14px;border-radius:50%;background:#22c55e}.ff-statuscard small,.ff-glasspanel small{display:block;opacity:.65}.ff-glasspanel{background:linear-gradient(135deg,#ffffff80,#ffffff25);backdrop-filter:blur(10px);border:1px solid #ffffff70;box-shadow:0 8px 30px #0002}.ff-gradientbutton,.ff-iconbutton{width:100%;height:100%;border:0;color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px}.ff-iconbutton{border-radius:50%;font-size:20px}.ff-mobilelist{height:100%;overflow:hidden;border:1px solid #ddd;border-radius:12px}.ff-mobilelist>div{padding:10px 12px;border-bottom:1px solid #eee;position:relative}.ff-mobilelist small{display:block;opacity:.6}.ff-mobilelist span{position:absolute;right:12px;top:18px;font-size:22px}
 
-    .ff-real-navbar,.ff-real-toolbar{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;height:100%;box-sizing:border-box}.ff-real-navbar button,.ff-real-toolbar button,.ff-real-bottomnav button,.ff-real-pagination button,.ff-real-list button,.ff-real-stepper button,.ff-real-carousel>button,.ff-real-rating button,.ff-real-led,.ff-real-iconbutton,.ff-real-gradient{cursor:pointer}.ff-real-menu{position:absolute;right:4px;top:100%;z-index:20;display:grid;background:#fff;border:1px solid #ddd;box-shadow:0 8px 24px #0002}.ff-real-menu button{padding:8px 14px;border:0;background:#fff;text-align:left}.ff-real-bottomnav{display:flex;justify-content:space-around;align-items:center;height:100%;padding:4px}.ff-real-bottomnav button{border:0;background:transparent;display:grid;gap:2px;place-items:center}.ff-real-bottomnav small{font-size:10px}.ff-tab-buttons{display:flex;border-bottom:1px solid #ddd}.ff-tab-buttons button{border:0;background:transparent;padding:8px 12px}.ff-tab-buttons button.active{border-bottom:2px solid currentColor;font-weight:700}.ff-tab-panel{padding:10px}.ff-real-drawer{height:100%;overflow:auto}.ff-real-drawer>button{width:100%;padding:10px;border:0;text-align:left}.ff-drawer-body{display:grid;gap:4px;padding:8px}.ff-drawer-body button{padding:8px;text-align:left}.ff-real-drawer-collapsible:not(.open) .ff-drawer-body{display:none}.ff-real-sidebar{height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;overflow:auto;background:var(--ff-nav-bg,#f8fafc);color:var(--ff-nav-color,#111827);border-right:1px solid rgba(100,116,139,.25)}.ff-sidebar-title{flex:0 0 auto;padding:12px 14px;font-weight:700;border-bottom:1px solid rgba(100,116,139,.2)}.ff-sidebar-nav{display:grid;gap:3px;padding:8px}.ff-sidebar-nav button{display:block;width:100%;box-sizing:border-box;padding:10px 12px;border:0;border-radius:6px;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}.ff-sidebar-nav button:hover{background:rgba(100,116,139,.12)}.ff-sidebar-nav button.active{background:rgba(59,130,246,.16);font-weight:700}.ff-real-bottomsheet{height:100%;overflow:auto}.ff-real-bottomsheet>button{width:100%;padding:10px;border:0}.ff-sheet-body{padding:10px}.ff-real-pagination{display:flex;gap:4px;justify-content:center;align-items:center}.ff-real-pagination button{border:1px solid #ddd;background:#fff;padding:6px 10px}.ff-real-pagination button.active{font-weight:700;background:#eee}.ff-real-list{display:grid;gap:1px}.ff-real-list button{position:relative;text-align:left;border:0;border-bottom:1px solid #eee;background:#fff;padding:10px 28px 10px 10px}.ff-real-list button small{display:block;opacity:.6}.ff-real-list button span{position:absolute;right:10px;top:12px}.ff-real-list button.selected{background:#eef6ff}.ff-real-table-wrap{overflow:auto}.ff-real-table{border-collapse:collapse;width:100%}.ff-real-table th,.ff-real-table td{border:1px solid #bbb;padding:6px;text-align:left}.ff-real-calendar{display:grid;gap:8px;padding:10px}.ff-real-calendar input{width:100%;box-sizing:border-box}.ff-real-tree details{margin-left:10px;padding:4px}.ff-real-card{height:100%;box-sizing:border-box;padding:14px;display:grid;gap:8px;border:1px solid #ddd;border-radius:12px}.ff-real-card strong{font-size:28px}.ff-real-rating{display:flex;gap:3px;align-items:center;justify-content:center;height:100%}.ff-real-rating button{border:0;background:transparent;font-size:28px;opacity:.35}.ff-real-rating button.selected{opacity:1}.ff-real-timeline{margin:0;padding:12px 28px}.ff-real-timeline li{margin:8px 0}.ff-real-stepper{display:flex;align-items:center;justify-content:center;gap:12px;height:100%}.ff-real-dialog{border:0;border-radius:12px;padding:20px;box-shadow:0 12px 50px #0004}.ff-real-dialog::backdrop{background:#0006}.ff-real-toast{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;background:#222;color:#fff;border-radius:8px}.ff-real-upload{display:grid;place-items:center;height:100%;cursor:pointer;border:1px dashed #999}.ff-real-upload input{display:none}.ff-real-led{display:flex;align-items:center;gap:8px;border:0;background:transparent}.ff-real-led i{width:14px;height:14px;border-radius:50%;background:#aaa}.ff-real-led.on i{background:#22c55e;box-shadow:0 0 10px #22c55e}.ff-real-sevenseg,.ff-real-dotmatrix{display:grid;place-items:center;height:100%;font-family:monospace;font-size:28px}.ff-real-glass{height:100%;box-sizing:border-box;padding:14px;border-radius:14px;background:#ffffff55;backdrop-filter:blur(10px);border:1px solid #ffffff88}.ff-real-gradient{width:100%;height:100%;border:0;border-radius:10px;color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6)}.ff-real-iconbutton{width:100%;height:100%;border:0;border-radius:50%;font-size:20px}.ff-real-tooltip{padding:8px;border:1px solid #ccc;background:#fff;border-radius:6px}.ff-real-carousel{display:flex;align-items:center;gap:8px;height:100%}.ff-carousel-slides{flex:1;text-align:center;padding:20px}.ff-real-led:disabled,.ff-real-gradient:disabled,.ff-real-iconbutton:disabled{opacity:.5}
+    .ff-real-navbar{position:relative;display:flex;align-items:stretch;justify-content:center;gap:4px;padding:6px 12px;height:100%;box-sizing:border-box;overflow:auto}.ff-real-toolbar{position:relative;display:flex;align-items:center;justify-content:flex-start;gap:6px;padding:6px 10px;height:100%;box-sizing:border-box;overflow:auto;background:transparent;color:inherit}.ff-real-toolbar button{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:inherit;padding:8px 12px;border-radius:8px;font:inherit;white-space:nowrap}.ff-real-toolbar button:hover{background:rgba(127,127,127,.16)}.ff-real-toolbar button.active{background:rgba(127,127,127,.28);font-weight:700}.ff-real-navbar button,.ff-real-toolbar button,.ff-real-bottomnav button,.ff-real-pagination button,.ff-real-list button,.ff-real-stepper button,.ff-real-carousel>button,.ff-real-rating button,.ff-real-led,.ff-real-iconbutton,.ff-real-gradient,.ff-real-fab,.ff-real-breadcrumb button,.ff-real-drawer .ff-nav-toggle,.ff-real-bottomsheet .ff-nav-toggle,.ff-fab-menu button{cursor:pointer}.ff-real-menu{position:absolute;right:4px;top:100%;z-index:20;display:grid;background:#fff;color:#111827;border:1px solid #ddd;box-shadow:0 8px 24px #0002}.ff-real-menu button{padding:8px 14px;border:0;background:#fff;color:inherit;text-align:left}.ff-real-menu[hidden]{display:none}.ff-real-bottomnav{display:flex;justify-content:space-around;align-items:stretch;height:100%;padding:4px;background:transparent;color:inherit}.ff-real-bottomnav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:1 1 0;min-width:0;border:0;border-radius:8px;background:transparent;color:inherit;padding:6px 4px;font:inherit}.ff-real-bottomnav button:hover{background:rgba(127,127,127,.14)}.ff-real-bottomnav button.active{background:rgba(127,127,127,.24);font-weight:700}.ff-real-bottomnav small{font-size:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ff-nav-icon{font-size:20px;line-height:1}.ff-tab-buttons{display:flex;border-bottom:1px solid rgba(127,127,127,.3)}.ff-tab-buttons button{border:0;background:transparent;color:inherit;padding:8px 12px;font:inherit}.ff-tab-buttons button.active{border-bottom:2px solid currentColor;font-weight:700}.ff-tab-panel{padding:10px}.ff-real-drawer{height:100%;overflow:auto;background:transparent;color:inherit}.ff-real-drawer>button{width:100%;padding:10px;border:0;background:transparent;color:inherit;text-align:left;font:inherit}.ff-real-drawer>button:hover{background:rgba(127,127,127,.12)}.ff-drawer-body{display:grid;gap:4px;padding:8px}.ff-drawer-body button{padding:8px;border:0;border-radius:6px;background:transparent;color:inherit;text-align:left;font:inherit}.ff-drawer-body button:hover{background:rgba(127,127,127,.14)}.ff-drawer-body button.active{background:rgba(59,130,246,.18);font-weight:700}.ff-real-drawer-collapsible:not(.open) .ff-drawer-body{display:none}.ff-real-sidebar{height:100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;overflow:auto;background:transparent;color:inherit;border-right:1px solid rgba(127,127,127,.25)}.ff-sidebar-title{flex:0 0 auto;padding:12px 14px;font-weight:700;border-bottom:1px solid rgba(127,127,127,.2)}.ff-sidebar-nav{display:grid;gap:3px;padding:8px}.ff-sidebar-nav button{display:block;width:100%;box-sizing:border-box;padding:10px 12px;border:0;border-radius:6px;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}.ff-sidebar-nav button:hover{background:rgba(127,127,127,.12)}.ff-sidebar-nav button.active{background:rgba(59,130,246,.16);font-weight:700}.ff-real-bottomsheet{height:100%;overflow:auto;background:transparent;color:inherit}.ff-real-bottomsheet>button{width:100%;padding:10px;border:0;background:transparent;color:inherit;font:inherit;text-align:left}.ff-sheet-body{padding:10px;display:grid;gap:4px}.ff-sheet-body[hidden]{display:none}.ff-sheet-body button{padding:9px 10px;border:0;border-radius:6px;background:transparent;color:inherit;text-align:left;font:inherit}.ff-sheet-body button:hover{background:rgba(127,127,127,.14)}.ff-sheet-body button.active{background:rgba(59,130,246,.18);font-weight:700}.ff-real-pagination{display:flex;gap:4px;justify-content:center;align-items:center;height:100%;width:100%;padding:4px;overflow:auto;background:transparent;color:inherit}.ff-real-pagination button{min-width:34px;height:34px;padding:0 10px;border:1px solid rgba(127,127,127,.35);border-radius:8px;background:transparent;color:inherit;font:inherit}.ff-real-pagination button:hover:not(:disabled){background:rgba(127,127,127,.14)}.ff-real-pagination button.active{background:rgba(59,130,246,.18);border-color:#3b82f6;font-weight:700}.ff-real-pagination button:disabled{opacity:.35;cursor:not-allowed}.ff-real-breadcrumb{display:flex;align-items:center;height:100%;padding:0 4px;overflow:auto;background:transparent;color:inherit}.ff-real-breadcrumb ol{display:flex;align-items:center;flex-wrap:wrap;gap:2px;margin:0;padding:0;list-style:none}.ff-real-breadcrumb li{display:flex;align-items:center;gap:2px}.ff-real-breadcrumb button{border:0;background:transparent;color:inherit;padding:6px 8px;border-radius:6px;font:inherit;text-decoration:underline;text-underline-offset:3px}.ff-real-breadcrumb button:hover{background:rgba(127,127,127,.14)}.ff-real-breadcrumb button.active{font-weight:700;text-decoration:none}.ff-crumb-sep{opacity:.45;padding:0 2px}.ff-real-fab{display:grid;place-items:center;width:100%;height:100%;min-width:44px;min-height:44px;border:0;border-radius:50%;background:#2563eb;color:#fff;font-size:26px;line-height:1;font-family:inherit;box-shadow:0 8px 24px rgba(37,99,235,.35)}.ff-real-fab:hover{background:#1d4ed8}.ff-real-fab:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.ff-real-fab:disabled{opacity:.5}.ff-fab-menu{position:absolute;right:0;bottom:calc(100% + 8px);z-index:30;display:flex;flex-direction:column;min-width:170px;max-width:min(80vw,260px);padding:6px;border:1px solid rgba(127,127,127,.25);border-radius:12px;background:#fff;color:#111827;box-shadow:0 18px 48px rgba(0,0,0,.28)}.ff-fab-menu[hidden]{display:none}.ff-fab-menu button{display:block;width:100%;padding:10px 12px;border:0;border-radius:8px;background:transparent;color:inherit;text-align:left;font:inherit;white-space:nowrap}.ff-fab-menu button:hover{background:#f1f5f9}.ff-fab-menu button.active{background:#e0ecff;font-weight:700}.ff-real-list{display:grid;gap:1px}.ff-real-list button{position:relative;text-align:left;border:0;border-bottom:1px solid #eee;background:#fff;padding:10px 28px 10px 10px}.ff-real-list button small{display:block;opacity:.6}.ff-real-list button span{position:absolute;right:10px;top:12px}.ff-real-list button.selected{background:#eef6ff}.ff-real-table-wrap{overflow:auto}.ff-real-table{border-collapse:collapse;width:100%}.ff-real-table th,.ff-real-table td{border:1px solid #bbb;padding:6px;text-align:left}.ff-real-calendar{display:grid;gap:8px;padding:10px}.ff-real-calendar input{width:100%;box-sizing:border-box}.ff-real-tree details{margin-left:10px;padding:4px}.ff-real-card{height:100%;box-sizing:border-box;padding:14px;display:grid;gap:8px;border:1px solid #ddd;border-radius:12px}.ff-real-card strong{font-size:28px}.ff-real-rating{display:flex;gap:3px;align-items:center;justify-content:center;height:100%}.ff-real-rating button{border:0;background:transparent;font-size:28px;opacity:.35}.ff-real-rating button.selected{opacity:1}.ff-real-timeline{margin:0;padding:12px 28px}.ff-real-timeline li{margin:8px 0}.ff-real-stepper{display:flex;align-items:center;justify-content:center;gap:12px;height:100%}.ff-real-dialog{border:0;border-radius:12px;padding:20px;box-shadow:0 12px 50px #0004}.ff-real-dialog::backdrop{background:#0006}.ff-real-toast{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;background:#222;color:#fff;border-radius:8px}.ff-real-upload{display:grid;place-items:center;height:100%;cursor:pointer;border:1px dashed #999}.ff-real-upload input{display:none}.ff-real-led{display:flex;align-items:center;gap:8px;border:0;background:transparent}.ff-real-led i{width:14px;height:14px;border-radius:50%;background:#aaa}.ff-real-led.on i{background:#22c55e;box-shadow:0 0 10px #22c55e}.ff-real-sevenseg,.ff-real-dotmatrix{display:grid;place-items:center;height:100%;font-family:monospace;font-size:28px}.ff-real-glass{height:100%;box-sizing:border-box;padding:14px;border-radius:14px;background:#ffffff55;backdrop-filter:blur(10px);border:1px solid #ffffff88}.ff-real-gradient{width:100%;height:100%;border:0;border-radius:10px;color:#fff;background:linear-gradient(135deg,#6366f1,#8b5cf6)}.ff-real-iconbutton{width:100%;height:100%;border:0;border-radius:50%;font-size:20px}.ff-real-tooltip{padding:8px;border:1px solid #ccc;background:#fff;border-radius:6px}.ff-real-carousel{display:flex;align-items:center;gap:8px;height:100%}.ff-carousel-slides{flex:1;text-align:center;padding:20px}.ff-real-led:disabled,.ff-real-gradient:disabled,.ff-real-iconbutton:disabled{opacity:.5}
   </style>
 </head>
 <body>
@@ -434,18 +771,26 @@ ${pages}
 
 <script>
 /* FlowForge WebStudio v0.13.0 */
-window.__FLOWFORGE_PAGES__ = ${JSON.stringify(project.pages.map(p=>({id:p.id,name:p.name,slug:p.slug})))};
+window.__FLOWFORGE_PAGES__ = ${FFSecurity.scriptJson(project.pages.map(p=>({id:p.id,name:p.name,slug:p.slug})))};
+${runtimeConfig}
 ${pageRuntime}
 ${uiRuntime}
 ${window.FlowForgeRuntimeSource||""}
+${usesGameRuntime?(window.FlowForgeGameRuntime||""):""}
+${usesServiceRuntime?(window.FlowForgeNonvisualRuntime||""):""}
 ${project.pages.some(p=>p.items.some(x=>x.kind==='gamesound'))?(window.FlowForgeSoundRuntime||""):""}
 ${project.pages.some(p=>p.items.some(x=>x.kind==='chart'))?(window.FlowForgeChartRuntime||""):""}
+${project.pages.some(p=>p.items.some(x=>x.kind==='qrcode'))?(window.FlowForgeQRRuntimeSource||""):""}
 const FlowForgeComponent = (root) => {
   if (!root) return root;
   const wrapper = root.classList?.contains('ff-component') ? root : root.closest?.('.ff-component');
   const kind = [...(wrapper?.classList||[])].find(c=>c.startsWith('ff-kind-'))?.slice(8) || root.tagName?.toLowerCase() || '';
   const semantic = root.classList?.contains('ff-component') ? root.querySelector?.('[data-ff-control],button,input,textarea,select,video,audio,img,iframe,canvas,dialog') : root;
   const isCard = ['statcard','valuecard','statuscard'].includes(kind);
+  const gameKinds = ['gamecanvas','sprite','spritesheet','collisionarea','keyboardinput','gamepadinput','gametimer','scorelabel','healthbar','joystick'];
+  const serviceKinds = ['http','websocket','storage','geolocation','notification','clipboard','network','vibration'];
+  const runtimeDomProps = ['style','classList','visible','enabled','dock','textContent','innerText'];
+  const runtimeApi = () => gameKinds.includes(kind) ? (window.FlowForgeGame && window.FlowForgeGame.forElement(wrapper||root)) : serviceKinds.includes(kind) ? (window.FlowForgeServices && window.FlowForgeServices.forElement(wrapper||root)) : null;
   if(kind==='gamesound' && window.FlowForgeSound) window.FlowForgeSound.attach(wrapper||root);
   /* cards: .textContent / .style act on the card label (<small>), not on the decorative "Detalhes" button */
   const target = (isCard && wrapper?.querySelector?.('small')) || semantic || root;
@@ -458,6 +803,10 @@ const FlowForgeComponent = (root) => {
       if(prop==='root') return wrapper||root;
       if(prop==='control') return target;
       if(kind==='gamesound' && window.FlowForgeSound && prop in window.FlowForgeSound){ const v=window.FlowForgeSound[prop]; return typeof v==='function'?v.bind(window.FlowForgeSound):v; }
+      if((gameKinds.includes(kind)||serviceKinds.includes(kind)) && !runtimeDomProps.includes(prop)){
+        const api=runtimeApi();
+        if(api && prop in api){ const v=api[prop]; return typeof v==='function'?v.bind(api):v; }
+      }
       if(isCard && prop==='value') return wrapper.querySelector('strong')?.textContent ?? '';
       if(kind==='sparkline' && prop==='dataset') return target.dataset;
       if(kind==='sparkline' && prop==='values') return target.dataset.values || '';
@@ -502,6 +851,10 @@ const FlowForgeComponent = (root) => {
     },
     set(obj,prop,value){
       if(kind==='gamesound' && window.FlowForgeSound && (prop==='volume'||prop==='muted')){ window.FlowForgeSound[prop]=value; return true; }
+      if((gameKinds.includes(kind)||serviceKinds.includes(kind)) && !runtimeDomProps.includes(prop)){
+        const api=runtimeApi();
+        if(api && prop in api){ try{ api[prop]=value; return true }catch(err){ return false } }
+      }
       if(isCard && prop==='value'){ const st=wrapper.querySelector('strong'); if(st) st.textContent=String(value ?? ''); return true; }
       if(kind==='sparkline' && prop==='values'){ target.dataset.values=Array.isArray(value)?value.join(','):String(value ?? ''); return true; }
       if(['select','combobox','listbox'].includes(kind) && prop==='items') { const list=Array.isArray(value)?value:[]; target.innerHTML=''; list.forEach(o=>{const it=(o&&typeof o==='object')?o:{text:String(o),value:o};const opt=document.createElement('option');opt.value=String(it.value??it.text??'');opt.textContent=String(it.text??it.value??'');target.appendChild(opt);}); if(kind==='listbox')target.size=Math.min(8,Math.max(3,list.length||3)); return true; }
@@ -513,7 +866,7 @@ const FlowForgeComponent = (root) => {
           target.dataset.ffQrText=text;
           const size=Math.max(64,Math.min(2048,Number(target.dataset.ffQrSize)||160));
           target.alt='QR Code: '+text;
-          target.src='https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&data='+encodeURIComponent(text);
+          if(window.FlowForgeQRCode)window.FlowForgeQRCode.apply(target,text,size);
           return true;
         }
         target[prop]=value; return true;
@@ -523,7 +876,7 @@ const FlowForgeComponent = (root) => {
         const size=Math.max(64,Math.min(2048,Number(value)||160));
         target.dataset.ffQrSize=String(size);
         const text=target.dataset.ffQrText ?? '';
-        target.src='https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&data='+encodeURIComponent(text);
+        if(window.FlowForgeQRCode)window.FlowForgeQRCode.apply(target,text,size);
         return true;
       }
       if(['disabled','checked','src'].includes(prop) && prop in target){ target[prop]=value; return true; }
@@ -571,9 +924,8 @@ const FlowForgeProgress={_bar(id){const outer=typeof id==='string'?document.getE
 window.FlowForgeProgress=FlowForgeProgress;
 
 ${timerBoot}
-
-${eventCode}
 <\/script>
+${eventCode}
 </body>
 </html>`;
 }
@@ -597,12 +949,35 @@ function syntaxHighlight(code){
  return out+esc(code.slice(last))+'\n';
 }
 function syncCodeHighlight(){let ta=$('#code'),pre=$('#codeHighlight'),nums=$('#codeLines');pre.innerHTML=syntaxHighlight(ta.value);pre.scrollTop=ta.scrollTop;pre.scrollLeft=ta.scrollLeft;if(nums){let n=ta.value.split('\n').length;nums.textContent=Array.from({length:n},(_,i)=>i+1).join('\n');nums.scrollTop=ta.scrollTop}}
-function saveEventBodiesFromEditor(){let code=$('#code').value;project.pages.flatMap(p=>p.items).forEach(x=>Object.keys(x.events||{}).forEach(ev=>{let a=code.indexOf(eventMarker(x,ev));if(a<0)return;let fn=code.indexOf('function ',a),brace=code.indexOf('{',fn),endMark=`// @flow-event-end:${x.id}:${ev}`,end=code.indexOf(endMark,brace);if(brace<0||end<0)return;let body=code.slice(brace+1,end).replace(/^\s*\n/,'').replace(/\n\s*}\s*$/,'').split('\n').map(line=>line.startsWith('    ')?line.slice(4):line).join('\n');x.events[ev]=body.replace(/\s+$/,'')+'\n'}))}
-function previewPermissions(){const it=(project.pages||[]).flatMap(p=>p.items||[]);const a=['clipboard-write','fullscreen'];if(it.some(x=>x.kind==='geolocation'))a.push('geolocation');const cams=it.filter(x=>x.kind==='camera');if(cams.length){a.push('camera');if(cams.some(x=>x.audio))a.push('microphone')}return a.join('; ')}
+function ffUnescapeEventBody(body){
+ return String(body??'').replace(/<\\\/script/gi,'</script').replace(/<\\!--/g,'<!--');
+}
+function saveEventBodiesFromEditor(){
+ const code=$('#code').value;
+ project.pages.flatMap(p=>p.items).forEach(x=>Object.keys(x.events||{}).forEach(ev=>{
+  const startMark=`// @flow-event-body-start:${x.id}:${ev}`,endMark=`// @flow-event-body-end:${x.id}:${ev}`;
+  let s=code.indexOf(startMark);
+  if(s>=0){
+   let bodyStart=code.indexOf('\n',s),e=s>=0?code.indexOf(endMark,bodyStart):-1;
+   if(bodyStart<0||e<0)return;
+   let body=code.slice(bodyStart+1,e).replace(/\s+$/,'');
+   body=body.split('\n').map(line=>line.startsWith('    ')?line.slice(4):line).join('\n');
+   x.events[ev]=ffUnescapeEventBody(body)+'\n';
+   return;
+  }
+  let a=code.indexOf(eventMarker(x,ev));if(a<0)return;
+  let fn=code.indexOf('function ',a),brace=code.indexOf('{',fn),end=code.indexOf(`// @flow-event-end:${x.id}:${ev}`,brace);
+  if(brace<0||end<0)return;
+  let body=code.slice(brace+1,end).replace(/^\s*\n/,'').replace(/\n\s*}\s*$/,'').split('\n').map(line=>line.startsWith('    ')?line.slice(4):line).join('\n');
+  x.events[ev]=ffUnescapeEventBody(body.replace(/\s+$/,''))+'\n';
+ }));
+ ffScheduleAutosave();
+}
+function previewPermissions(){const it=(project.pages||[]).flatMap(p=>p.items||[]);const a=['clipboard-write','clipboard-read','fullscreen'];if(it.some(x=>x.kind==='geolocation'))a.push('geolocation');if(it.some(x=>x.kind==='gamepadinput'))a.push('gamepad');const cams=it.filter(x=>x.kind==='camera');if(cams.length){a.push('camera');if(cams.some(x=>x.audio))a.push('microphone')}return a.join('; ')}
 window.ffPreviewPermissions=previewPermissions;
 function applyPreviewPermissions(pv){const v=previewPermissions();if(pv.getAttribute('allow')!==v)pv.setAttribute('allow',v)}
 window.ffApplyPreviewPermissions=applyPreviewPermissions;
-function updateCode(){let c=generated();$('#code').value=c;syncCodeHighlight();const pv=$('#preview');if(getComputedStyle(pv).display!=='none'){applyPreviewPermissions(pv);{const h=window.FlowForgeImageAssets?.resolveHtml?.(c)??c;pv.onload=()=>{try{pv.contentWindow.focus()}catch(_){}};pv.srcdoc=window.ffDebugWrap?window.ffDebugWrap(h):h}}}
+function updateCode(){let c=(window.generated&&window.generated!==generated)?window.generated():generated();$('#code').value=c;syncCodeHighlight();const pv=$('#preview');if(getComputedStyle(pv).display!=='none'){applyPreviewPermissions(pv);{const h=window.FlowForgeImageAssets?.resolveHtml?.(c)??c;pv.onload=()=>{try{pv.contentWindow.focus()}catch(_){}};pv.srcdoc=window.ffDebugWrap?window.ffDebugWrap(h):h}}}
 function duplicate(){if(!selected)return;snapshot();let x=JSON.parse(JSON.stringify(selected));x.id=uid();x.name=uniqueName(x.kind,(x.name||x.kind)+'_copy');x.x=(Number(x.x)||0)+16;x.y=(Number(x.y)||0)+16;project.pages[project.active].items.push(x);selected=x;render()}function del(){if(!selected)return;snapshot();let a=project.pages[project.active].items;a.splice(a.findIndex(x=>x.id===selected.id),1);selected=null;render()}
 
 
@@ -900,10 +1275,10 @@ $('#saveProjectFaviconAssetPick').onclick=()=>openProjectAssetPicker('favicon','
 $('#exportProjectIconAssetPick').onclick=()=>openProjectAssetPicker('icon','exportProjectIconInfo');
 $('#exportProjectFaviconAssetPick').onclick=()=>openProjectAssetPicker('favicon','exportProjectFaviconInfo');
 $('#projectAssetSearch').oninput=renderProjectAssetPicker;
-$('#confirmSaveProject').onclick=e=>{e.preventDefault();project.name=$('#saveProjectName').value.trim()||'Meu Projeto';project.projectVersion=$('#saveProjectVersion').value.trim()||'1.0.0';project.themeColor=$('#saveThemeColor').value;let n=$('#saveFileName').value.trim()||safeFileName(project.name)+'.flowmobile';if(!n.toLowerCase().endsWith('.flowmobile'))n+='.flowmobile';$('#saveProjectDlg').close();render();download(n,JSON.stringify(project,null,2),'application/json');};
+$('#confirmSaveProject').onclick=e=>{e.preventDefault();project.name=$('#saveProjectName').value.trim()||'Meu Projeto';project.projectVersion=$('#saveProjectVersion').value.trim()||'1.0.0';project.themeColor=$('#saveThemeColor').value;let n=$('#saveFileName').value.trim()||safeFileName(project.name)+'.flowmobile';if(!n.toLowerCase().endsWith('.flowmobile'))n+='.flowmobile';$('#saveProjectDlg').close();render();download(n,JSON.stringify(project,null,2),'application/json');clearTimeout(ffAutosaveTimer);ffAutosaveDelete();};
 function buildExportHtml(){
   saveEventBodiesFromEditor();
-  const raw=generated();
+  const raw=(window.generated&&window.generated!==generated)?window.generated():generated();
   return window.FlowForgeImageAssets?.resolveHtml?.(raw) ?? raw;
 }
 $('#confirmExportHtml').onclick=e=>{
@@ -1018,19 +1393,28 @@ function ideMessage(title,message,type='info'){
  $('#ideMsgDlg').showModal();
 }
 $('#openBtn').onclick=()=>$('#fileInput').click();$('#fileInput').onchange=async e=>{try{
- const raw=JSON.parse(await e.target.files[0].text());
- if(!raw || typeof raw!=='object') throw new Error('O arquivo não contém um projeto.');
- // Compatibilidade com projetos FlowForge antigos e exemplos externos.
- raw.name??='Projeto';
- raw.type??='app'; raw.framework??='none'; raw.projectVersion??='1.0.0';
- raw.icon??='';raw.favicon??='';raw.headerLogo??='';raw.themeColor??='#20242a';raw.titlebar??=(raw.type==='app');
- if(!Array.isArray(raw.pages)||!raw.pages.length) throw new Error('O projeto não possui páginas.');
- raw.active=Number.isInteger(raw.active)?raw.active:0;
- raw.active=Math.max(0,Math.min(raw.active,raw.pages.length-1));
- raw.pages.forEach((p,i)=>{p.id??=uid();p.name=String(p.name??`Página_${i+1}`).trim().replace(/\s+/g,'_')||`Página_${i+1}`;p.items=Array.isArray(p.items)?p.items:[];p.items.forEach(x=>{if(x.kind==='fileupload')x.kind='file';x.visible??=true;x.enabled??=true;x.events=(x.events&&typeof x.events==='object')?x.events:{};});});
- raw.activePage=raw.pages[raw.active]?.id;ensureSiteChrome(raw);
- ensureProjectNames(raw);
- project=raw; selected=null;undoStack=[];future=[];render();
+ const file=e.target.files?.[0];if(!file)return;
+ const raw=JSON.parse(await file.text());
+ let parsed;
+ if(window.FFSecurity?.validateProject){
+  parsed=FFSecurity.validateProject(raw);
+ }else{
+  if(!raw || typeof raw!=='object') throw new Error('O arquivo não contém um projeto.');
+  raw.name??='Projeto';raw.type??='app';raw.framework??='none';raw.projectVersion??='1.0.0';
+  raw.icon??='';raw.favicon??='';raw.headerLogo??='';raw.themeColor??='#20242a';raw.titlebar??=(raw.type==='app');
+  if(!Array.isArray(raw.pages)||!raw.pages.length) throw new Error('O projeto não possui páginas.');
+  raw.active=Number.isInteger(raw.active)?raw.active:0;
+  raw.active=Math.max(0,Math.min(raw.active,raw.pages.length-1));
+  raw.pages.forEach((p,i)=>{p.id??=uid();p.name=String(p.name??`Página_${i+1}`).trim().replace(/\s+/g,'_')||`Página_${i+1}`;p.items=Array.isArray(p.items)?p.items:[];p.items.forEach(x=>{if(x.kind==='fileupload')x.kind='file';x.visible??=true;x.enabled??=true;x.events=(x.events&&typeof x.events==='object')?x.events:{};});});
+  raw.activePage=raw.pages[raw.active]?.id;
+  parsed=raw;
+ }
+ assetPool.clear();
+ project=parsed;
+ ensureSiteChrome(project);ensureProjectNames(project);
+ project.active=Math.max(0,Math.min(Number.isInteger(project.active)?project.active:0,project.pages.length-1));
+ project.activePage=project.pages[project.active]?.id;
+ selected=null;undoStack=[];future=[];render();ffScheduleAutosave();
  ideMessage('Projeto aberto',`"${project.name}" foi carregado com sucesso.`);
  }catch(err){ideMessage('Não foi possível abrir o projeto',err?.message||'Arquivo de projeto inválido.','error')}
  finally{e.target.value=''}
@@ -1041,7 +1425,7 @@ $('#openBtn').onclick=()=>$('#fileInput').click();$('#fileInput').onchange=async
  $('#siteWizardTitle').textContent=isApp?'Novo App — Configuração inicial':(type==='landing'?'Novo Landing Page — Configuração inicial':'Novo Site — Configuração inicial');
  const desc=dlg.querySelector('.ffWizardHead p');if(desc)desc.textContent=isApp?'Defina a estrutura inicial do aplicativo. As escolhas serão aplicadas automaticamente às páginas.':'Defina a estrutura inicial. As escolhas serão aplicadas automaticamente a todas as páginas.';
  $('#wizPageNames').value=window.FlowForgeUIText?.t(isApp?'Home, Tela 2':'Home, Sobre, Contato')||(isApp?'Home, Tela 2':'Home, Sobre, Contato');
- $('#wizNavigation').value='navbar'; $('#wizHeader').checked=!isApp; $('#wizFooter').checked=!isApp; $('#wizFrameworkStyle').checked=true; $('#wizFramework').value='none';
+ $('#wizNavigation').value=isApp?'none':'navbar'; $('#wizNavigation').disabled=isApp; $('#wizHeader').checked=!isApp; $('#wizFooter').checked=!isApp; $('#wizFrameworkStyle').checked=true; $('#wizFramework').value='none';
  const h=$('#wizHeader')?.closest('.ffWizardChoice'),f=$('#wizFooter')?.closest('.ffWizardChoice'),tb=$('#wizTitlebar')?.closest('.ffWizardChoice');
  if(h)h.style.display=isApp?'none':'flex';if(f)f.style.display=isApp?'none':'flex';if(tb)tb.style.display=isApp?'flex':'none';
  if($('#wizTitlebar'))$('#wizTitlebar').checked=true;
@@ -1055,7 +1439,7 @@ function configureSiteWizard(type){
  project.pages=pageNames.map((name)=>({id:uid(),name,slug:sanitizeName(name,'pagina').toLowerCase(),items:[]}));
  project.active=0; project.activePage=project.pages[0].id;
  const isApp=type==='app';
- const header=!isApp && $('#wizHeader').checked, footer=!isApp && $('#wizFooter').checked, nav=$('#wizNavigation').value;
+ const header=!isApp && $('#wizHeader').checked, footer=!isApp && $('#wizFooter').checked, nav=isApp?'none':$('#wizNavigation').value;
  project.siteLayout={header,footer,navigation:nav,frameworkStyle:$('#wizFrameworkStyle').checked,titlebar:isApp?($('#wizTitlebar')?.checked!==false):false};
  project.titlebar=project.titlebar||{name:'titlebar1',text:project.name,height:'52px',bg:'#20242a',color:'#ffffff',showMenu:true,autoStyle:true};
  project.pages.forEach(page=>{
@@ -1066,7 +1450,7 @@ function configureSiteWizard(type){
    if(footer) items.push({id:uid(),kind:'footer',name:'siteFooter',text:'',x:0,y:900,width:'100%',height:'90px',bg:'#111827',color:'#ffffff',...auto});
    page.items=items;
  });
- selected=null;undoStack=[];future=[];ffApplyViewport(type);render();
+ selected=null;undoStack=[];future=[];clearTimeout(ffAutosaveTimer);ffAutosaveDelete();ffApplyViewport(type);render();
 }
 $('#newBtn').onclick=()=>$('#newDlg').showModal();$$('[data-new]').forEach(b=>b.onclick=e=>{
  e.preventDefault();
@@ -1083,14 +1467,16 @@ $('#undoBtn').onclick=()=>{
     future.push(JSON.stringify({__ffHistoryType:'framework',framework:project.framework||'none'}));
     project.framework=entry.framework||'none';
     applyFrameworkPreview();
+    ffScheduleAutosave();
     return;
   }
-  future.push(JSON.stringify(project));
+  future.push(ffHistoryJSON());
   const vp=project.viewport;
-  project=entry;
+  project=ffHistoryRestore(JSON.stringify(entry));
   if(vp)project.viewport=vp;
   selected=null;
   render();
+  ffScheduleAutosave();
 };
 $('#redoBtn').onclick=()=>{
   if(!future.length)return;
@@ -1099,15 +1485,17 @@ $('#redoBtn').onclick=()=>{
     undoStack.push(JSON.stringify({__ffHistoryType:'framework',framework:project.framework||'none'}));
     project.framework=entry.framework||'none';
     applyFrameworkPreview();
+    ffScheduleAutosave();
     return;
   }
-  undoStack.push(JSON.stringify(project));
+  undoStack.push(ffHistoryJSON());
   const vp=project.viewport;
-  project=entry;
+  project=ffHistoryRestore(JSON.stringify(entry));
   if(vp)project.viewport=vp;
   selected=null;
   render();
-};$$('#tabs button').forEach(b=>b.onclick=()=>{$$('#tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');let t=b.dataset.tab;activateTab(t);updateCode()});$('#previewBtn').onclick=()=>{let w=open();w.document.write(generated());w.document.close()};$('#helpBtn').onclick=()=>{const w=window.open('ajuda.html','flowforgeHelp','popup=yes,width=1200,height=800,resizable=yes,scrollbars=yes');if(w)w.focus();};$('#startupOpen').onclick=()=>{ $('#newDlg').close(); $('#fileInput').click(); };$('#examplesBtn').onclick=showExamples;$('#startupExamples').onclick=()=>{ $('#newDlg').close(); showExamples(); };
+  ffScheduleAutosave();
+};$$('#tabs button').forEach(b=>b.onclick=()=>{$$('#tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');let t=b.dataset.tab;activateTab(t);updateCode()});$('#previewBtn').onclick=()=>{$('#tabs button[data-tab="preview"]')?.click()};$('#helpBtn').onclick=()=>{const w=window.open('ajuda.html','flowforgeHelp','popup=yes,width=1200,height=800,resizable=yes,scrollbars=yes');if(w)w.focus();};$('#startupOpen').onclick=()=>{ $('#newDlg').close(); $('#fileInput').click(); };$('#examplesBtn').onclick=showExamples;$('#startupExamples').onclick=()=>{ $('#newDlg').close(); showExamples(); };
 // -----------------------------------------------------------------------------
 // FlowForge IntelliSense - autocomplete leve, sem bibliotecas externas.
 // Sugere os nomes dos componentes do projeto e, depois de "componente.",
@@ -1312,7 +1700,7 @@ function ffDeletePage(id){if(project.pages.length<=1){alert('O projeto precisa t
 window.ffDeletePage=ffDeletePage;
 function ffTreeRow(x,depth,container){let row=document.createElement('button');row.className='treeItem';row.style.paddingLeft=(10+depth*14)+'px';row.textContent=ffKindLabel(x.kind||'')+': '+(x.name||(window.FlowForgeUIText?.t('(sem nome)')||'(sem nome)'));if(selected&&selected.id===x.id)row.style.background='#3c414b';row.onclick=()=>{selected=x;render()};container.append(row);ffItems().filter(c=>c.parentId===x.id).forEach(c=>ffTreeRow(c,depth+1,container))}
 window.ffTreeRow=ffTreeRow;
-function refreshVisualTargets(){let q=$('#visualActionTarget');if(!q)return;let typ=$('#visualActionType')?.value;if(typ==='goPage')q.innerHTML=(project.pages||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (#/${esc(p.slug||p.id)})</option>`).join('');else q.innerHTML=ffItems().map(x=>`<option value="${x.name}">${x.name} (${esc(ffKindLabel(x.kind))})</option>`).join('')}
+function refreshVisualTargets(){let q=$('#visualActionTarget');if(!q)return;let typ=$('#visualActionType')?.value;if(typ==='goPage')q.innerHTML=(project.pages||[]).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (#/${esc(p.slug||p.id)})</option>`).join('');else q.innerHTML=ffItems().map(x=>`<option value="${esc(x.name)}">${esc(x.name)} (${esc(ffKindLabel(x.kind))})</option>`).join('')}
 function openStudioDrawer(mode){let d=$('#studioDrawer'),b=$('#drawerBody');d.hidden=false;$('#drawerTitle').textContent=mode==='outline'?'Árvore do Projeto':mode==='pages'?'Páginas':'Assets';b.innerHTML='';
  if(mode==='outline'){let root=document.createElement('div');root.className='treeRoot';root.textContent='▾ '+(project.name||'Projeto');b.append(root);ffItems().forEach(x=>{let r=document.createElement('button');r.className='treeItem';r.textContent=`${x.visible===false?'○':'●'} ${x.name} · ${ffKindLabel(x.kind)}`;r.onclick=()=>{selected=x;render();props()};b.append(r)})}
  if(mode==='pages'){let pages=FlowForge.modules.pages.ensure(project);pages.forEach(p=>{let r=document.createElement('button');r.className='treeItem';r.textContent=(p.id===project.activePage?'● ':'○ ')+p.name;r.onclick=()=>{snapshot();project.activePage=p.id;project.active=Math.max(0,pages.findIndex(x=>x.id===p.id));selected=null;render();openStudioDrawer('pages')};b.append(r)});let a=document.createElement('button');a.textContent='＋ Nova página';a.onclick=()=>{let n=prompt('Nome da página','Nova Página');if(n){FlowForge.modules.pages.add(project,n);openStudioDrawer('pages')}};b.append(a)}
@@ -1338,7 +1726,7 @@ function ffCut(){ffCopy();let a=ffSelection();if(!a.length)return;snapshot();let
 function ffDuplicate(){ffCopy();ffPaste()}
 document.addEventListener('click',e=>{let el=e.target.closest?.('.component');if(el&&(e.ctrlKey||e.shiftKey)){let x=ffItems().find(i=>i.id===el.dataset.id);if(x){e.preventDefault();e.stopPropagation();ffToggleMulti(x)}}},true);
 document.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'){e.preventDefault();ffCopy()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='x'){e.preventDefault();ffCut()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'){e.preventDefault();ffPaste()}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();ffDuplicate()}});
-renderTools();project=fresh();render();$('#newDlg').showModal();
+renderTools();project=fresh();render();ffInstallAutosaveUI();ffOfferAutosaveRecovery().then(found=>{if(!found)$('#newDlg').showModal()}).catch(()=>$('#newDlg').showModal());
 
 
 // v0.6.0 - Toolbox usa apenas a scrollbar nativa; sem controles artificiais.

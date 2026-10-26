@@ -16,7 +16,7 @@ Testado em Linux/macOS (Python 3.10+). Todos os scripts iniciam sozinhos um serv
 | Script | O que faz |
 |---|---|
 | `python tools/run_all.py` | Roda tudo abaixo e mostra um resumo |
-| `python tools/run_suites.py [nome...]` | Suítes HTML de `tests/` (idiomas, ícones, viewport, câmera, eventos…) |
+| `python tools/run_suites.py [nome...]` | Suítes HTML de `tests/` (idiomas, ícones, viewport, câmera, eventos, runtime de jogos/serviços…) |
 | `python tools/export_examples.py` | Exporta todos os `examples/*.flowmobile` para `tools/_out/exemplos_html/` |
 | `python tools/test_exemplos.py [Exemplo...]` | Cenários de uso de cada exemplo (cliques, digitação, persistência…) |
 | `python tools/test_camera.py` | Exemplo Estúdio de Câmera com câmera simulada do Chromium e com permissão negada |

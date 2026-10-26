@@ -7,7 +7,7 @@
 (function(){
   'use strict';
 
-  const IMAGE_KINDS = new Set(['image','picturebox']);
+  const IMAGE_KINDS = new Set(['image','picturebox','sprite','spritesheet']);
   const DATA_RE = /^data:image\//i;
   const ASSET_RE = /^asset:\/\/([^\s"'<>]+)$/;
 
@@ -215,10 +215,8 @@
     if(previewBtn && !previewBtn.__ffImageWrapped){
       previewBtn.__ffImageWrapped=true;
       previewBtn.onclick=()=>{
-        const w=open();
-        if(!w)return;
-        w.document.write(resolveHtml(generated()));
-        w.document.close();
+        const tab=document.querySelector('#tabs button[data-tab="preview"]');
+        if(tab)tab.click();
       };
     }
   }

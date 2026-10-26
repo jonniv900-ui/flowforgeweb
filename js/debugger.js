@@ -1,16 +1,40 @@
-// FlowForge WebStudio — Depurador integrado (v2)
-// O código de captura (boot) é injetado no início do app em execução, antes dos scripts do projeto,
-// para registrar também mensagens e erros do carregamento (onload, etc.).
+// FlowForge WebStudio — Depurador integrado (v3)
+// O Preview roda em um iframe sandbox (origem opaca). Toda inspeção e execução
+// acontece dentro do app via postMessage; o editor nunca acessa o DOM do iframe.
 (function(){
+ 'use strict';
  const $=s=>document.querySelector(s);
  const state={logs:[],errors:[],events:[],net:[],paused:false,running:false};
  const MAX=500;
- let tab='console',level='all',filter='',stdKeys=null,raf=0,hist=[],histPos=0;
+ let tab='console',level='all',filter='',raf=0,hist=[],histPos=0,cmdSeq=0,inspecting=false;
+ const pending=new Map();
 
- /* ---------- código executado dentro do app (Preview/Debug) ---------- */
+ /* ---------- executado dentro do app (Preview/Debug) ---------- */
+ function sandboxBootstrap(){
+  function makeStore(){
+   var m=new Map();
+   return {
+    getItem:function(k){k=String(k);return m.has(k)?m.get(k):null},
+    setItem:function(k,v){m.set(String(k),String(v))},
+    removeItem:function(k){m.delete(String(k))},
+    clear:function(){m.clear()},
+    key:function(i){var a=Array.from(m.keys());return i>=0&&i<a.length?a[i]:null},
+    get length(){return m.size}
+   };
+  }
+  function ok(name){try{window[name].getItem('__ff_probe__');return true}catch(e){return false}}
+  if(!ok('localStorage')){
+   try{Object.defineProperty(window,'localStorage',{configurable:true,get:function(){return window.__ffMemStorage||(window.__ffMemStorage=makeStore())}})}catch(e){}
+  }
+  if(!ok('sessionStorage')){
+   try{Object.defineProperty(window,'sessionStorage',{configurable:true,get:function(){return window.__ffMemSession||(window.__ffMemSession=makeStore())}})}catch(e){}
+  }
+ }
+
  function boot(){
   if(window.__ffDebuggerInstalled)return;window.__ffDebuggerInstalled=true;
   var P=parent;
+  var stdKeys=new Set(Object.getOwnPropertyNames(window));
   function send(o){o.__ffdbg=1;o.t=Date.now();try{P.postMessage(o,'*')}catch(e){}}
   function safe(v,d){d=d||0;try{
    if(v===null||v===undefined||typeof v==='number'||typeof v==='boolean'||typeof v==='string')return v;
@@ -21,6 +45,64 @@
    if(Array.isArray(v))return v.slice(0,50).map(function(x){return safe(x,d+1)});
    if(typeof v==='object'){var o={},n=0;for(var k in v){if(n++>50)break;o[k]=safe(v[k],d+1)}return o}
    return String(v)}catch(e){return '[não serializável]'}}
+  function describe(v){
+   if(typeof v==='function')return '[Function '+(v.name||'anônima')+']';
+   if(v&&v.nodeType===1)return '<'+v.tagName.toLowerCase()+(v.id?'#'+v.id:'')+'>';
+   return safe(v);
+  }
+  function reply(id,ok,value){send({type:'reply',id:id,ok:ok,value:value})}
+  function userVars(){
+   var out=[];
+   Object.keys(window).forEach(function(k){
+    if(stdKeys.has(k)||/^(__|webkit|FlowForge|FF|ff[A-Z_]|on[a-z]+$)/.test(k)||['project','params'].includes(k))return;
+    var v;try{v=window[k]}catch(e){return}
+    try{
+     // iframes nomeados expõem WindowProxy; ler nodeType nele lança SecurityError.
+     if(typeof v==='function'||(v&&v.nodeType))return;
+     if(v&&typeof v==='object'&&!Array.isArray(v)){var vals=[];try{vals=Object.values(v)}catch(e){};if(vals.length&&vals.every(function(x){return typeof x==='function'}))return}
+     var type=v===null?'null':typeof v;
+     out.push({name:k,type:type,primitive:v===null||['string','number','boolean','undefined'].includes(typeof v),value:describe(v)});
+    }catch(e){}
+   });
+   return out.slice(0,300);
+  }
+  function components(){
+   return Array.prototype.slice.call(document.querySelectorAll('.ff-component')).slice(0,500).map(function(el){
+    var c=el.querySelector('[data-ff-control],input,button,textarea,select,img,video')||el;
+    var kind=(el.className.match(/ff-kind-([\w-]+)/)||[])[1]||c.tagName.toLowerCase();
+    return {name:c.id||el.id||el.dataset.flowId||'',kind:kind,value:'value' in c&&typeof c.value==='string'?c.value:(c.textContent||'').trim().slice(0,100),visible:getComputedStyle(el).display!=='none'};
+   });
+  }
+  function highlight(name){
+   var el=document.getElementById(String(name||''));
+   var box=el&&(el.closest('.ff-component')||el);
+   if(!box)return false;
+   var old=box.style.outline,off=box.style.outlineOffset;
+   try{box.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){}
+   box.style.outline='3px solid #f59e0b';box.style.outlineOffset='2px';
+   setTimeout(function(){box.style.outline=old;box.style.outlineOffset=off},1600);
+   return true;
+  }
+  addEventListener('message',function(e){
+   if(e.source!==P)return;
+   var d=e.data;if(!d||!d.__ffdbgCmd)return;
+   try{
+    if(d.cmd==='eval'){
+     var r=(0,eval)(String(d.code||''));
+     if(r&&typeof r.then==='function'){
+      r.then(function(v){reply(d.id,true,describe(v))},function(er){reply(d.id,false,(er&&er.name||'Erro')+': '+(er&&er.message||er))});
+     }else reply(d.id,true,describe(r));
+    }else if(d.cmd==='vars')reply(d.id,true,userVars());
+    else if(d.cmd==='components')reply(d.id,true,components());
+    else if(d.cmd==='setVar'){
+     var name=String(d.name||'');
+     if(!/^[A-Za-z_$][\w$]*$/.test(name))throw new Error('Nome de variável inválido');
+     window[name]=d.value;reply(d.id,true,true);
+    }else if(d.cmd==='highlight')reply(d.id,true,highlight(d.name));
+    else if(d.cmd==='ping')reply(d.id,true,true);
+    else reply(d.id,false,'Comando desconhecido');
+   }catch(err){reply(d.id,false,(err&&err.name||'Erro')+': '+(err&&err.message||err))}
+  });
   ['log','info','warn','error','debug'].forEach(function(k){var o=console[k];console[k]=function(){try{send({type:'console',kind:k==='debug'?'info':k,args:[].map.call(arguments,function(a){return safe(a)})})}catch(e){}return o.apply(console,arguments)}});
   addEventListener('error',function(e){
    if(e.target&&e.target!==window&&e.target.tagName){send({type:'error',args:['Falha ao carregar <'+e.target.tagName.toLowerCase()+'> '+(e.target.currentSrc||e.target.src||e.target.href||'')]});return}
@@ -43,11 +125,17 @@
   XMLHttpRequest.prototype.send=function(){var x=this,t0=performance.now();x.addEventListener('loadend',function(){send({type:'net',method:x.__ffm||'GET',url:x.__ffu||'',status:x.status,ms:Math.round(performance.now()-t0),error:x.status?'':'falha de rede'})});return xs.apply(this,arguments)};
   send({type:'boot'});
  }
- window.ffDebugWrap=function(html){
-  const p=$('#debuggerPanel');if(!p||p.hidden||typeof html!=='string')return html;
-  const tag='<script>('+boot.toString()+')()<\/script>';
-  return /<head[^>]*>/i.test(html)?html.replace(/<head[^>]*>/i,m=>m+tag):tag+html;
- };
+
+ function injectPreview(html){
+  if(typeof html!=='string')return html;
+  const panel=$('#debuggerPanel');
+  const withDebug=!!(panel&&!panel.hidden);
+  const clean=src=>src.replace(/<\/script/gi,'<\\/script');
+  const scripts='<script>'+clean('('+sandboxBootstrap.toString()+')()')+'</script>'+
+    (withDebug?'<script>'+clean('('+boot.toString()+')()')+'</script>':'');
+  return /<head[^>]*>/i.test(html)?html.replace(/<head[^>]*>/i,m=>m+scripts):scripts+html;
+ }
+ window.ffDebugWrap=injectPreview;
 
  /* ---------- utilidades ---------- */
  function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -62,10 +150,25 @@
  const win=()=>$('#preview')?.contentWindow;
  function push(list,o){list.push(o);if(list.length>MAX)list.shift()}
  function match(text){return !filter||String(text).toLowerCase().includes(filter.toLowerCase())}
+
+ function sendCmd(cmd,args={},timeout=8000){
+  const w=win();
+  if(!w)return Promise.reject(new Error('Preview não está em execução.'));
+  const id=++cmdSeq;
+  return new Promise((resolve,reject)=>{
+   const timer=setTimeout(()=>{pending.delete(id);reject(new Error('O app não respondeu ao depurador.'))},timeout);
+   pending.set(id,{resolve,reject,timer});
+   try{w.postMessage({__ffdbgCmd:1,id,cmd,...args},'*')}catch(e){pending.delete(id);clearTimeout(timer);reject(e)}
+  });
+ }
+
  function originOf(text){
-  const d=win()?.document;if(!d)return null;
   const re=/\b([A-Za-z_$][\w$]*)_([a-z]+)\b/g;let m;
-  while((m=re.exec(text))){try{if(d.getElementById(m[1]))return {name:m[1],ev:m[2]}}catch(_){}}
+  try{
+   while((m=re.exec(text))){
+    if((project.pages||[]).some(p=>(p.items||[]).some(x=>x.name===m[1])))return {name:m[1],ev:m[2]};
+   }
+  }catch(_){}
   return null;
  }
  function selectInIde(name){
@@ -78,14 +181,7 @@
    select(item);return true;
   }catch(_){return false}
  }
- function flash(name){
-  const d=win()?.document;if(!d)return;
-  const el=d.getElementById(name);const box=el&&(el.closest('.ff-component')||el);if(!box)return;
-  const old=box.style.outline,off=box.style.outlineOffset;
-  box.scrollIntoView({block:'center',behavior:'smooth'});
-  box.style.outline='3px solid #f59e0b';box.style.outlineOffset='2px';
-  setTimeout(()=>{box.style.outline=old;box.style.outlineOffset=off},1600);
- }
+ function flash(name){sendCmd('highlight',{name},3000).catch(()=>{})}
 
  /* ---------- renderização ---------- */
  function logRow(x){
@@ -118,43 +214,39 @@
   $('#dbgState').textContent=state.paused?'Pausado':(state.running?'Executando':'Parado');
  }
 
- /* ---------- variáveis e componentes ---------- */
- function stdSet(){
-  if(stdKeys)return stdKeys;
-  const f=document.createElement('iframe');f.style.display='none';document.body.appendChild(f);
-  stdKeys=new Set(Object.getOwnPropertyNames(f.contentWindow));f.remove();return stdKeys;
- }
- function userVars(w){
-  const std=stdSet(),out=[];
-  Object.keys(w).forEach(k=>{
-   if(std.has(k)||/^(FlowForge|FF|ff[A-Z_]|__|webkit|on[a-z]+$)/.test(k)||['project','params'].includes(k))return;
-   let v;try{v=w[k]}catch(_){return}
-   if(typeof v==='function'||(v&&v.nodeType))return;
-   if(v&&typeof v==='object'&&!Array.isArray(v)){let vals=[];try{vals=Object.values(v)}catch(_){}if(vals.length&&vals.every(x=>typeof x==='function'))return}
-   out.push([k,v]);
-  });
-  return out.slice(0,200);
- }
- function inspect(){
-  const w=win();if(!w)return;
+ async function inspect(){
+  if(inspecting||!state.running||!win())return;
+  inspecting=true;
   try{
-   const ed=document.activeElement;if(ed&&ed.closest&&ed.closest('#dbgVars,#dbgComponents')&&ed.tagName==='INPUT')return;
-   const vars=userVars(w).filter(([k,v])=>match(k+' '+fmt(v)));
-   $('#dbgVars').innerHTML=vars.map(([k,v])=>{const prim=v===null||['string','number','boolean','undefined'].includes(typeof v);
-    return `<div class="dbgKV"><b>${esc(k)}</b>${prim?`<input data-var="${esc(k)}" data-type="${typeof v}" value="${esc(v)}" title="Enter para alterar">`:`<span>${esc(fmt(v)).slice(0,300)}</span>`}</div>`}).join('')||'<em>Nenhuma variável pública detectada.</em>';
-   const comps=[...w.document.querySelectorAll('.ff-component')].map(el=>{
-    const c=el.querySelector('[data-ff-control],input,button,textarea,select,img,video')||el;
-    const kind=(el.className.match(/ff-kind-([\w-]+)/)||[])[1]||c.tagName.toLowerCase();
-    return {name:c.id||el.id||el.dataset.flowId||'',kind,value:'value'in c&&typeof c.value==='string'?c.value:(c.textContent||'').trim().slice(0,100),visible:getComputedStyle(el).display!=='none'};
-   }).filter(c=>match(c.name+' '+c.kind+' '+c.value));
-   $('#dbgComponents').innerHTML=comps.map(c=>`<div class="dbgKV dbgComp${c.visible?'':' off'}"><b>${c.name?`<a class="dbgGo" data-flash="${esc(c.name)}" title="Destacar no app">${esc(c.name)}</a>`:'(sem nome)'}</b><span><i>${esc(c.kind)}</i> ${esc(c.value)} ${c.visible?'':'(oculto)'} ${c.name?`<a class="dbgGo" data-go="${esc(c.name)}" title="Selecionar no Design">↗</a>`:''}</span></div>`).join('')||'<em>Sem componentes.</em>';
-  }catch(e){push(state.errors,{t:Date.now(),args:['Falha ao inspecionar: '+e.message]});render()}
+   const [vars,comps]=await Promise.all([sendCmd('vars',{},5000),sendCmd('components',{},5000)]);
+   if(!state.running)return;
+   const ed=document.activeElement;
+   if(ed&&ed.closest&&ed.closest('#dbgVars,#dbgComponents')&&ed.tagName==='INPUT')return;
+   const filtered=vars.filter(v=>match(v.name+' '+fmt(v.value)));
+   $('#dbgVars').innerHTML=filtered.map(v=>{
+    return `<div class="dbgKV"><b>${esc(v.name)}</b>${v.primitive?`<input data-var="${esc(v.name)}" data-type="${esc(v.type)}" value="${esc(v.value)}" title="Enter para alterar">`:`<span>${esc(fmt(v.value)).slice(0,300)}</span>`}</div>`;
+   }).join('')||'<em>Nenhuma variável pública detectada.</em>';
+   $('#dbgComponents').innerHTML=comps.filter(c=>match(c.name+' '+c.kind+' '+c.value)).map(c=>
+    `<div class="dbgKV dbgComp${c.visible?'':' off'}"><b>${c.name?`<a class="dbgGo" data-flash="${esc(c.name)}" title="Destacar no app">${esc(c.name)}</a>`:'(sem nome)'}</b><span><i>${esc(c.kind)}</i> ${esc(c.value)} ${c.visible?'':'(oculto)'} ${c.name?`<a class="dbgGo" data-go="${esc(c.name)}" title="Selecionar no Design">↗</a>`:''}</span></div>`
+   ).join('')||'<em>Sem componentes.</em>';
+  }catch(err){
+   if(state.running)console.warn('[FlowForge Debugger]',err.message);
+  }finally{inspecting=false}
  }
 
  /* ---------- mensagens vindas do app ---------- */
  addEventListener('message',e=>{
   const d=e.data;if(!d||!d.__ffdbg||e.source!==win())return;
-  if(d.type==='boot'){state.running=true;push(state.logs,{t:d.t,kind:'info',args:['[FlowForge Debugger] conectado']});render();return}
+  if(d.type==='reply'){
+   const p=pending.get(d.id);
+   if(p){pending.delete(d.id);clearTimeout(p.timer);d.ok?p.resolve(d.value):p.reject(new Error(d.value))}
+   return;
+  }
+  if(d.type==='boot'){
+   state.running=true;
+   push(state.logs,{t:d.t,kind:'info',args:['[FlowForge Debugger] conectado']});
+   render();inspect();return;
+  }
   if(state.paused&&d.type!=='error')return;
   if(d.type==='console')push(state.logs,{t:d.t,kind:d.kind,args:d.args});
   else if(d.type==='error')push(state.errors,{t:d.t,args:d.args,stack:d.stack,src:d.src});
@@ -174,30 +266,36 @@
  }
 
  /* ---------- REPL ---------- */
- function runExpr(code){
-  const w=win();const now=Date.now();
+ async function runExpr(code){
+  const now=Date.now();
   push(state.logs,{t:now,kind:'repl',args:['› '+code]});
-  if(!w){push(state.logs,{t:now,kind:'error',args:['Execute o app (Debug) antes de avaliar expressões.']});render();return}
-  const show=r=>{push(state.logs,{t:Date.now(),kind:'repl',args:['← '+fmt(r&&r.__err?r:(typeof r==='function'?'[Function]':(r&&r.nodeType?'<'+r.tagName.toLowerCase()+(r.id?'#'+r.id:'')+'>':r)))]});render()};
-  try{const r=w.eval(code);if(r&&typeof r.then==='function'){r.then(show,e=>{push(state.logs,{t:Date.now(),kind:'error',args:['Promise rejeitada: '+(e&&e.message||e)]});render()})}else show(r)}
-  catch(err){push(state.logs,{t:Date.now(),kind:'error',args:[(err&&err.name||'Erro')+': '+(err&&err.message||err)]});render()}
-  setTimeout(()=>inspect(),50);
+  if(!state.running||!win()){
+   push(state.logs,{t:now,kind:'error',args:['Execute o app (Debug) antes de avaliar expressões.']});
+   render();return;
+  }
+  try{
+   const r=await sendCmd('eval',{code},12000);
+   push(state.logs,{t:Date.now(),kind:'repl',args:['← '+fmt(r)]});
+  }catch(err){
+   push(state.logs,{t:Date.now(),kind:'error',args:[err.message||String(err)]});
+  }
+  render();setTimeout(inspect,50);
  }
 
  addEventListener('DOMContentLoaded',()=>{
   const preview=$('#preview'),panel=$('#debuggerPanel');
   function reset(){state.logs=[];state.errors=[];state.events=[];state.net=[];render()}
   $('#debugBtn').onclick=()=>{
-   reset();state.running=false;
+   reset();state.running=false;pending.forEach(p=>clearTimeout(p.timer));pending.clear();
    document.querySelector('[data-tab="preview"]').click();panel.hidden=false;
    window.ffApplyPreviewPermissions?.(preview);
    const h=window.FlowForgeImageAssets?.resolveHtml?.(window.generated())??window.generated();
    preview.srcdoc=window.ffDebugWrap(h);$('#dbgState').textContent='Iniciando...';
   };
-  preview.addEventListener('load',()=>{if(!panel.hidden){inspect();render()}});
-  $('#dbgClose').onclick=()=>{panel.hidden=true;state.running=false};
+  preview.addEventListener('load',()=>{if(!panel.hidden&&!state.running)$('#dbgState').textContent='Iniciando...'});
+  $('#dbgClose').onclick=()=>{panel.hidden=true;state.running=false;render()};
   $('#dbgClear').onclick=reset;
-  $('#dbgRefresh').onclick=()=>inspect();
+  $('#dbgRefresh').onclick=()=>{if(state.running)inspect()};
   $('#dbgPause').onclick=()=>{state.paused=true;render()};$('#dbgResume').onclick=()=>{state.paused=false;render()};
   $('#dbgCopy').onclick=async()=>{const b=$('#dbgCopy');try{await navigator.clipboard.writeText(plain())}catch(_){const t=document.createElement('textarea');t.value=plain();document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(__){}t.remove()}b.classList.add('copied');setTimeout(()=>b.classList.remove('copied'),1200)};
   document.querySelectorAll('[data-dbg-tab]').forEach(b=>b.onclick=()=>{
@@ -216,10 +314,12 @@
   });
   panel.addEventListener('keydown',e=>{
    const i=e.target.closest&&e.target.closest('input[data-var]');
-   if(i&&e.key==='Enter'){const w=win();if(!w)return;let v=i.value;const ty=i.dataset.type;
+   if(i&&e.key==='Enter'){
+    let v=i.value;const ty=i.dataset.type;
     if(ty==='number'){const n=Number(v);v=isNaN(n)?v:n}else if(ty==='boolean')v=(v==='true'||v==='1');
-    else if(ty==='undefined'){try{v=JSON.parse(v)}catch(_){}}
-    try{w[i.dataset.var]=v}catch(_){}i.blur();setTimeout(inspect,30)}
+    else if(ty==='undefined'||ty==='null'){try{v=JSON.parse(v)}catch(_){}}
+    sendCmd('setVar',{name:i.dataset.var,value:v},4000).then(()=>{i.blur();setTimeout(inspect,30)}).catch(err=>{push(state.errors,{t:Date.now(),args:[err.message||String(err)]});render()});
+   }
   });
   $('#dbgRepl').onsubmit=e=>{e.preventDefault();const i=$('#dbgExpr'),c=i.value.trim();if(!c)return;hist.push(c);histPos=hist.length;i.value='';runExpr(c)};
   $('#dbgExpr').onkeydown=e=>{if(e.key==='ArrowUp'&&histPos>0){histPos--;e.target.value=hist[histPos];e.preventDefault()}else if(e.key==='ArrowDown'){histPos=Math.min(hist.length,histPos+1);e.target.value=hist[histPos]||'';e.preventDefault()}};
@@ -237,5 +337,5 @@
   /* atualização automática de variáveis/componentes enquanto visíveis */
   setInterval(()=>{if(!panel.hidden&&!state.paused&&state.running&&['vars','components'].includes(tab))inspect()},800);
  });
- window.FlowForgeDebugger={state,inspect,render};
+ window.FlowForgeDebugger={state,inspect,render,runExpr};
 })();

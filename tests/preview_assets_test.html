@@ -36,7 +36,18 @@ async function run(){
     if($('#siteWizardDlg')?.open)$('#wizCreate').click();
     await sleep(450);closeDialogs();
   }
-  const previewImgs=()=>[...$('#preview').contentDocument.querySelectorAll('img')].map(i=>i.complete&&i.naturalWidth>0);
+  /* The preview is intentionally sandboxed without allow-same-origin, so its DOM is not reachable.
+     Render the preview's srcdoc in a local frame to inspect the actual images. */
+  const previewRun=document.createElement('iframe');
+  previewRun.style.cssText='position:absolute;left:-9999px;top:0;width:1200px;height:800px;border:0';
+  document.body.append(previewRun);
+  async function previewImgs(){
+    const src=$('#preview').srcdoc||'';
+    const loaded=new Promise(r=>previewRun.addEventListener('load',r,{once:true}));
+    previewRun.srcdoc=src;
+    await Promise.race([loaded,sleep(3000)]);
+    return [...(previewRun.contentDocument?.querySelectorAll('img')||[])].map(i=>i.complete&&i.naturalWidth>0);
+  }
 
   closeDialogs();await createProject('app');
   W.eval(`addItem('image');addItem('picturebox');
@@ -46,7 +57,7 @@ async function run(){
 
   /* Aba Preview */
   $('#tabs [data-tab=preview]').click();await sleep(700);
-  const imgs=previewImgs();
+  const imgs=await previewImgs();
   check('aba Preview: Image e PictureBox renderizados',imgs.length===2&&imgs.every(Boolean),imgs);
   check('aba Preview: srcdoc sem tokens asset://',!$('#preview').srcdoc.includes('asset://'));
 
@@ -54,13 +65,13 @@ async function run(){
   $('#tabs [data-tab=design]').click();await sleep(200);
   W.eval(`addItem('image');const x=ffItems().at(-1);x.assetId='asset-t1';x.src='asset://asset-t1';x.srcType='asset';render()`);
   $('#tabs [data-tab=preview]').click();await sleep(700);
-  const imgs2=previewImgs();
+  const imgs2=await previewImgs();
   check('Preview atualiza após editar',imgs2.length===3&&imgs2.every(Boolean),imgs2);
 
   /* Depurador */
   $('#tabs [data-tab=design]').click();await sleep(200);
   $('#debugBtn').click();await sleep(900);
-  const imgs3=previewImgs();
+  const imgs3=await previewImgs();
   check('Depurador: imagens renderizadas',imgs3.length===3&&imgs3.every(Boolean),imgs3);
   $('#debuggerPanel').hidden=true;
 

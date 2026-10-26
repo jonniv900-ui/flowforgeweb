@@ -8,6 +8,7 @@
   var PAL=['#4f46e5','#06b6d4','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899','#84cc16'];
   var NS='http://www.w3.org/2000/svg';
   function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+  function color(v){v=String(v==null?'':v).trim();if(/^#[0-9a-f]{3,8}$/i.test(v))return v;if(/^[a-z]{3,24}$/i.test(v)&&!/^(url|expression|javascript)$/i.test(v))return v;if(/^(?:rgb|rgba|hsl|hsla)\(\s*[-+.\d%,\s/]+\)$/i.test(v))return v;return ''}
   function num(v){v=Number(v);return isFinite(v)?v:0}
   function opt(v){return v===undefined||v===null||v===''?null:(isFinite(Number(v))?Number(v):null)}
   function bool(v,d){if(v===undefined||v===null||v==='')return d;return v===true||v==='true'||v==='1'||v===1}
@@ -83,7 +84,7 @@
    var pie=type==='pie'||type==='doughnut',S=d.series.length;
    var L=d.labels.length; d.series.forEach(function(s){if(s.values.length>L)L=s.values.length});
    var labels=[];for(var i=0;i<L;i++)labels.push(d.labels[i]!=null?d.labels[i]:String(i+1));
-   var col=function(i){return o.colors[i%Math.max(1,o.colors.length)]&&o.colors.length?o.colors[i%o.colors.length]:PAL[i%PAL.length]};
+   var col=function(i){var c=o.colors.length?color(o.colors[i%o.colors.length]):'';return c||PAL[i%PAL.length]};
    var out=[],pre=function(v){return o.prefix+fmt(v)+o.suffix},lab=function(v){return o.prefix+fmt(v,true)+o.suffix};
    var title=o.title,top=(title?32:10)+(o.showValues&&!(o.type==='pie'||o.type==='doughnut'||o.type==='donut')?10:0),bottom=8;
    // legenda (embaixo, com quebra de linha)
@@ -211,7 +212,9 @@
     });
     if(window.ResizeObserver){var ro=new ResizeObserver(function(){if(h.__ffs!==(h.clientWidth||0)+'x'+(h.clientHeight||0))schedule(h)});ro.observe(h)}
     C.expose(h); var w=h.closest&&h.closest('.ff-component'); if(w&&w!==h)C.expose(w,h);
-    schedule(h);
+    /* Desenha já no primeiro frame: requestAnimationFrame fica suspenso quando o
+       preview está em segundo plano e o gráfico ficaria vazio até um resize. */
+    draw(h);
    },
    initAll:function(root){(root||document).querySelectorAll('[data-ff-chart]').forEach(function(h){if(h.tagName!=='CANVAS')C.init(h)})},
    // métodos e propriedades usados pelo código: grafico.setData(...), grafico.addPoint(...), grafico.chartType = 'line'
