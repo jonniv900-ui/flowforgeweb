@@ -3,6 +3,9 @@
  FlowForgeRegistry.register({kind,version:1,responsive:true,properties:window.FlowForgePropertySchemaFor?FlowForgePropertySchemaFor(kind):[]});
 });
 
+// TabControl: abas internas com painéis, teclado (setas/Home/End) e evento change.
+FlowForgeRegistry.register({kind:'tabcontrol',version:2,responsive:true,event:'change',properties:window.FlowForgePropertySchemaFor?FlowForgePropertySchemaFor('tabcontrol'):[],defaults:{activeTab:0,tabs:[{label:'Geral',content:'Conteúdo da aba Geral.'},{label:'Detalhes',content:'Conteúdo da aba Detalhes.'},{label:'Histórico',content:'Conteúdo da aba Histórico.'}]}});
+
 // Componentes Web reais: iframe, canvas, mapa e QR Code.
 FlowForgeRegistry.register({kind:'iframe',version:2,responsive:true,properties:window.FlowForgePropertySchemaFor('iframe'),defaults:{src:'about:blank',lazy:true}});
 FlowForgeRegistry.register({kind:'canvas',version:2,responsive:true,properties:window.FlowForgePropertySchemaFor('canvas'),defaults:{canvasWidth:300,canvasHeight:180,canvasBackground:'#ffffff'}});

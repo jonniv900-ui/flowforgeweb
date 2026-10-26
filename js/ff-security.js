@@ -279,6 +279,12 @@
     if(Array.isArray(item.options))item.options=item.options.slice(0,500).map(v=>typeof v==='string'?cap(v,2000):v);
     if(Array.isArray(item.items))item.items=item.items.slice(0,500);
     if(typeof item.items==='string')item.items=cap(item.items,20000);
+    if(item.tabs!==undefined){
+      if(Array.isArray(item.tabs))item.tabs=item.tabs.slice(0,24).map(t=>typeof t==='string'?cap(t,2000):(t&&typeof t==='object'?{label:cap(t.label??t.title??t.name??'',80),content:cap(t.content??t.text??'',4000)}:null)).filter(Boolean);
+      else if(typeof item.tabs==='string')item.tabs=cap(item.tabs,20000);
+      else delete item.tabs;
+    }
+    if(item.activeTab!==undefined)item.activeTab=Math.max(0,Math.min(999,Math.trunc(safeNumber(item.activeTab,0,0,999))||0));
     if(typeof item.events!=='object'||!item.events)item.events={};
     else item.events=normalizeEvents(item.events);
     Object.keys(item).forEach(k=>{

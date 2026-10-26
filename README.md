@@ -770,6 +770,19 @@ Resultado atual: **46 verificações, todas aprovadas (111 componentes)**. Compo
 
 Na exportação, componentes "diretos" (o evento fica no controle real, como `<button>` ou `<video>`) tinham o `onclick`/`onchange` interno substituído pelo evento do usuário. Com isso, o FAB deixava de abrir o menu e o PageNav deixava de navegar quando o projeto definia uma ação para `click`/`change`. Agora os dois são mesclados: o comportamento nativo roda primeiro e o código do usuário roda em seguida. Teste: `tests/generated_events_test.html` e `tests/all_components_test.html`.
 
+## TabControl: abas internas (diferente de Tabs)
+
+O **TabControl** deixou de ser um clone das abas de página. Ele agora tem abas e painéis próprios, no palco e no HTML exportado:
+
+- `tabs` aceita `["Geral", "Detalhes"]`, `[{ "label": "Geral", "content": "Texto do painel" }, …]` ou o JSON já salvo (até 24 abas). Texto inválido vira uma lista separada por linha/`|`; vazio cai no padrão de 3 abas.
+- `activeTab` escolhe a aba inicial (índice fora da faixa é limitado à última).
+- Markup acessível: `role="tablist"` → `role="tab"` (`aria-selected`, `tabindex` roving) e `role="tabpanel"` (`aria-labelledby`, `hidden` nos inativos). `←/→/↑/↓`, `Home` e `End` navegam; o foco acompanha a aba ativa.
+- Trocar de aba dispara o evento **change** do componente com `event.detail = { index, value, label }`. O evento padrão do TabControl na Toolbox é `change`.
+- No palco, a aba clicada é gravada em `activeTab`, então selecionar o componente (que antes re-renderizava o palco) não faz a aba voltar. A seleção no palco também não reconstrói mais o DOM: drawer, bottom sheet e FAB abrem já no primeiro clique.
+- A navegação por páginas continua nos componentes **Navbar, BottomNav, Tabs, Sidebar, Drawer, BottomSheet, Toolbar, Breadcrumb, Pagination, PageNav e FAB**; o TabControl não interfere nela.
+
+Teste: `tests/navigation_test.html` (**70 verificações**) cobre o markup de todas as navegações, troca e sincronização de páginas (navbar, paginação, drawer, FAB, select do PageNav), estados `disabled` da paginação, fechamento por Escape/clique fora, o evento `change` do usuário junto do `goPage` nativo, ARIA/teclado/`change`/escape do TabControl, o palco e a preservação de `tabs`/`activeTab` na importação.
+
 ## Layout do palco (Mobile/Tablet/Desktop/Livre) é preservado ao abrir o projeto
 
 O tamanho escolhido no designer (`project.viewport`) era descartado por `FFSecurity.validateProject()` ao abrir um `.flowmobile`, e o projeto reaberto voltava ao padrão do tipo (390 px para App). Agora a largura (280–1440), a altura (200–4000) e o preset (Livre/390/768/1440) são validados e restaurados. Teste: `tests/viewport_test.html` (33 verificações).
@@ -779,7 +792,7 @@ O tamanho escolhido no designer (`project.viewport`) era descartado por `FFSecur
 Com um servidor local na raiz (`python -m http.server`), abra o `tests/*_test.html` no navegador. Para rodar tudo sem a limitação de temporizadores de abas em segundo plano, use o Chrome em modo headless e leia o resultado em `body[data-test]`:
 
 ```bash
-for t in all_components camera component_semantics generated_events preview_assets \
+for t in all_components camera component_semantics generated_events navigation preview_assets \
          project_icons runtime_components site_chrome toolbox_i18n ui_i18n viewport; do
   "/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --disable-gpu \
     --virtual-time-budget=600000 --dump-dom "http://127.0.0.1:8000/tests/${t}_test.html" \
