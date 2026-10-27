@@ -178,13 +178,13 @@
   }
 
   const FRAMEWORKS=new Set(['none','bootstrap','bulma','pico','tailwind','materialize','foundation','uikit','semantic']);
-  const EVENT_KEYS=new Set(['click','dblclick','mousedown','mouseup','mouseenter','mouseleave','focus','blur','input','change','submit','reset','keydown','keyup','load','error','play','pause','ended','timeupdate','volumechange','camerastart','camerastop','cameraerror','tick','start','stop','request','response','open','message','close','online','offline','complete','toggle',
+  const EVENT_KEYS=new Set(['click','dblclick','mousedown','mouseup','mouseenter','mouseleave','focus','blur','input','change','submit','reset','keydown','keyup','load','error','play','pause','ended','timeupdate','volumechange','camerastart','camerastop','cameraerror','tick','start','stop','request','response','open','message','close','online','offline','complete','toggle','action','send','save','copy','select','search',
     // Jogos
     'gameStart','gameUpdate','gameOver','animationStart','animationEnd','frame','collision','enter','leave','connected','disconnected','buttondown','buttonup','axis','move','end','empty','show','hide','reset','score','damage','heal']);
   const EVENT_CANON=new Map([...EVENT_KEYS].map(k=>[k.toLowerCase(),k]));
-  const NUMBER_KEYS=new Set(['x','y','value','min','max','step','interval','fontSize','borderRadius','qrcodeSize','mapLat','mapLng','mapZoom','volume','activeTab','activeIndex','pageSize','maxLength','gap','rows',
+  const NUMBER_KEYS=new Set(['x','y','value','min','max','step','interval','fontSize','borderRadius','qrcodeSize','mapLat','mapLng','mapZoom','volume','activeTab','activeIndex','pageSize','maxLength','gap','rows','lines','lineWidth',
     'fps','canvasWidth','canvasHeight','frameWidth','frameHeight','frames','frame','rotation','vx','vy','index','deadZone','timeout','maximumAge']);
-  const COLOR_KEYS=new Set(['bg','color','barColor','canvasBackground','themeColor','knobColor']);
+  const COLOR_KEYS=new Set(['bg','color','barColor','canvasBackground','themeColor','knobColor','penColor']);
   const MEDIA_KEYS=new Set(['src','poster','icon']);
   const FRAME_KEYS=new Set(['iframeUrl']);
   const HREF_KEYS=new Set(['href']);
@@ -253,7 +253,7 @@
     if(src.dock!==undefined)item.dock=['none','top','bottom','left','right','fill'].includes(src.dock)?src.dock:'none';
     if(src.textAlign!==undefined)item.textAlign=safeAlign(src.textAlign);
     if(src.fit!==undefined)item.fit=safeFit(src.fit);
-    COLOR_KEYS.forEach(k=>{if(k in item&&item[k]!==undefined)item[k]=safeColor(item[k],k==='bg'?'#ffffff':'#222222')});
+    COLOR_KEYS.forEach(k=>{if(k in item&&item[k]!==undefined)item[k]=safeColor(item[k],k==='bg'?'#ffffff':k==='penColor'?'#111827':'#222222')});
     if(item.fontFamily!==undefined)item.fontFamily=safeFontFamily(item.fontFamily);
     if(item.fontSize!==undefined)item.fontSize=safeNumber(item.fontSize,16,6,200);
     if(item.borderRadius!==undefined)item.borderRadius=safeNumber(item.borderRadius,0,0,2000);
@@ -272,6 +272,22 @@
     if(typeof item.textContent==='string')item.textContent=cap(item.textContent,5000);
     if(typeof item.placeholder==='string')item.placeholder=cap(item.placeholder,500);
     if(typeof item.alt==='string')item.alt=cap(item.alt,500);
+    if(typeof item.description==='string')item.description=cap(item.description,5000);
+    if(typeof item.actionText==='string')item.actionText=cap(item.actionText,200);
+    if(typeof item.sendText==='string')item.sendText=cap(item.sendText,200);
+    if(typeof item.code==='string')item.code=cap(item.code,MAX_CODE);
+    else if(item.code&&typeof item.code==='object'){try{item.code=cap(JSON.stringify(item.code),MAX_CODE)}catch(_){delete item.code}}
+    if(item.language!==undefined){const l=String(item.language).toLowerCase();item.language=['javascript','typescript','html','css','json','text'].includes(l)?l:'text'}
+    if(typeof item.content==='string')item.content=cap(item.content,20000);
+    if(item.placement!==undefined)item.placement=['top','bottom','left','right'].includes(item.placement)?item.placement:'bottom';
+    if(typeof item.showClear!=='undefined')item.showClear=!!item.showClear;
+    if(typeof item.showCopy!=='undefined')item.showCopy=!!item.showCopy;
+    if(typeof item.readOnly!=='undefined')item.readOnly=!!item.readOnly;
+    if(item.lines!==undefined)item.lines=Math.max(1,Math.min(12,Math.trunc(safeNumber(item.lines,3,1,12))));
+    if(item.lineWidth!==undefined)item.lineWidth=safeNumber(item.lineWidth,2,1,40);
+    if(item.step!==undefined)item.step=safeNumber(item.step,1,-1000000,1000000);
+    if(item.penColor!==undefined)item.penColor=safeColor(item.penColor,'#111827');
+    if(item.activeIndex!==undefined)item.activeIndex=Math.max(0,Math.min(999,Math.trunc(safeNumber(item.activeIndex,0,0,999))||0));
     if(typeof item.multiple!=='undefined')item.multiple=!!item.multiple;
     if(typeof item.allowHtml!=='undefined')item.allowHtml=!!item.allowHtml;
     if(typeof item.visible!=='undefined')item.visible=!!item.visible;
@@ -279,6 +295,14 @@
     if(Array.isArray(item.options))item.options=item.options.slice(0,500).map(v=>typeof v==='string'?cap(v,2000):v);
     if(Array.isArray(item.items))item.items=item.items.slice(0,500);
     if(typeof item.items==='string')item.items=cap(item.items,20000);
+    if(item.kind==='chat'&&Array.isArray(item.items))item.items=item.items.slice(0,200).map(m=>{
+      if(m&&typeof m==='object')return {from:String(m.from??m.role??'').toLowerCase()==='me'?'me':'them',text:cap(m.text??m.message??'',4000)};
+      return {from:'them',text:cap(m,4000)};
+    });
+    if(['segmentedcontrol','dropdownmenu'].includes(item.kind)&&Array.isArray(item.items))item.items=item.items.slice(0,24).map(v=>{
+      const label=typeof v==='object'&&v?(v.label??v.text??v.value??''):(v==null?'':v);
+      return cap(String(label),120).trim();
+    }).filter(Boolean);
     if(item.tabs!==undefined){
       if(Array.isArray(item.tabs))item.tabs=item.tabs.slice(0,24).map(t=>typeof t==='string'?cap(t,2000):(t&&typeof t==='object'?{label:cap(t.label??t.title??t.name??'',80),content:cap(t.content??t.text??'',4000)}:null)).filter(Boolean);
       else if(typeof item.tabs==='string')item.tabs=cap(item.tabs,20000);

@@ -64,14 +64,18 @@ Exemplos:
 - IconButton, GradientButton, FAB
 - Image, Video, Audio, IFrame, Canvas
 - Input, TextArea, CheckBox, Radio, Switch
+- SearchBar, PasswordBox, NumberBox, SegmentedControl
 - ComboBox, ListBox, ColorPicker, FileUpload
 - Navbar, BottomNav, Tabs, TabControl, Drawer, Sidebar, Toolbar
-- Pagination, PageNav
+- Pagination, PageNav, DropdownMenu, Popover
+- Skeleton, ProgressRing, EmptyState
+- CodeBlock, Chat, SignaturePad
 - List, ListView, MobileList, Table, DataGrid, TreeView
 - Chart, Calendar, Rating, Timeline, Stepper, Accordion
 - Modal, Toast, Tooltip, Carousel, QRCode
 - Battery, Thermometer, LED, Sparkline
 - ValueCard, StatusCard, StatCard, GlassPanel
+- ThemeToggle
 
 ### Toolbox traduzida
 
@@ -318,7 +322,7 @@ Além da Toolbox, todo o restante da interface do editor segue o idioma escolhid
 - **Conteúdo do usuário nunca é traduzido**: nomes de componentes e de páginas, textos digitados nos campos, o conteúdo do editor WYSIWYG, o palco, o preview e o código gerado. Só textos que coincidem exatamente com uma entrada do dicionário são trocados, nunca trechos de frases.
 - O dicionário fica em `js/ui-i18n-dom.js`. Cada entrada tem as três versões, no formato `['português', 'english', 'español']`. Um `{0}` marca uma parte dinâmica (por exemplo `'definir {0}'`), e a opção `scope` limita a entrada a um trecho da tela. O texto reconhecido pode estar em qualquer um dos três idiomas, então voltar ao português restaura tudo.
 - Rótulos desenhados por CSS no palco (`duplo clique → ação`, `HIDDEN`, `DISABLED`) usam variáveis CSS atualizadas a cada troca de idioma.
-- Ao criar um texto novo na interface, adicione a entrada no dicionário. O teste `/tests/ui_i18n_test.html` percorre os 110 componentes, os painéis e os diálogos nos três idiomas e avisa se algum texto conhecido aparecer no idioma errado.
+- Ao criar um texto novo na interface, adicione a entrada no dicionário. O teste `/tests/ui_i18n_test.html` percorre os 124 componentes, os painéis e os diálogos nos três idiomas e avisa se algum texto conhecido aparecer no idioma errado.
 
 ## Layout e responsividade
 
@@ -755,16 +759,16 @@ O componente **Chart** (categoria Dados) agora desenha gráficos de verdade em S
 
 O motor só entra no HTML exportado quando o projeto usa um gráfico. O exemplo **Painel_de_Graficos** (3 páginas) mostra tudo: *Vendas* (troca o tipo do gráfico, novos dados, clique nas barras), *Ao vivo* (Timer + `addPoint` + `maxPoints`, pausar e limpar) e *Despesas* (rosca com lançamentos salvos no aparelho). Gerador: `tools/gerar_exemplos/exemplo_22.py`; testes: `tools/test_grafico.py` (48 verificações) e o cenário do exemplo (30).
 
-## Auditoria dos 111 componentes
+## Auditoria dos 124 componentes
 
-O teste `tests/all_components_test.html` cria **todos os 111 tipos de componente** da Toolbox em uma página (uma única renderização, para o teste ser rápido), exporta o projeto e verifica o resultado no HTML gerado:
+O teste `tests/all_components_test.html` cria **todos os 124 tipos de componente** da Toolbox em uma página (uma única renderização, para o teste ser rápido), exporta o projeto e verifica o resultado no HTML gerado:
 
 - todo tipo chega ao palco (`.component.ff-kind-<tipo>`) e ao export (`.ff-component.ff-kind-<tipo>`);
 - componentes visíveis têm conteúdo e tamanho; os não visuais (timer, http, websocket, storage, geolocalização, notificação, clipboard, rede, vibração) ficam ocultos como serviço;
 - as APIs dos jogos/serviços existem no export (`FlowForgeSound`, `FlowForgeTimer`, `FlowForgeChart`, `FlowForgeQRCode`, câmera, canvas com contexto 2D, `http`, `db`);
 - as interações funcionam após carregar o HTML exportado: checkbox, switch, range, select, color, date, accordion, rating, stepper, carrossel, LED, lista, drawer, bottom sheet, FAB (menu abre **e** o `click` do usuário roda), toast, modal, gráfico (SVG), sparkline (canvas), QR Code, câmera (autoplay), navbar, pagenav (navega e dispara o `change` do usuário), timer (`tick`) e nenhum erro de runtime.
 
-Resultado atual: **46 verificações, todas aprovadas (111 componentes)**. Componentes dependentes do ambiente (câmera, geolocalização, notificações, clipboard, gamepad, vibração, rede, mapa) são testados com stubs/permissões simuladas; em uso real dependem de HTTPS/localhost, permissão do usuário e do hardware.
+Resultado atual: **46 verificações, todas aprovadas (124 componentes)**. Componentes dependentes do ambiente (câmera, geolocalização, notificações, clipboard, gamepad, vibração, rede, mapa) são testados com stubs/permissões simuladas; em uso real dependem de HTTPS/localhost, permissão do usuário e do hardware.
 
 ## Eventos do usuário não substituem mais o comportamento nativo do componente
 
@@ -783,6 +787,41 @@ O **TabControl** deixou de ser um clone das abas de página. Ele agora tem abas 
 
 Teste: `tests/navigation_test.html` (**70 verificações**) cobre o markup de todas as navegações, troca e sincronização de páginas (navbar, paginação, drawer, FAB, select do PageNav), estados `disabled` da paginação, fechamento por Escape/clique fora, o evento `change` do usuário junto do `goPage` nativo, ARIA/teclado/`change`/escape do TabControl, o palco e a preservação de `tabs`/`activeTab` na importação.
 
+## Novos componentes (13 tipos)
+
+A Toolbox ganhou 13 componentes com markup real, propriedades, eventos e runtime no palco e no HTML exportado:
+
+- **Entrada:** SearchBar, PasswordBox, NumberBox, SegmentedControl.
+- **Feedback/estado:** Skeleton, ProgressRing, EmptyState.
+- **Conteúdo/mídia:** CodeBlock, Chat, SignaturePad.
+- **Menus/tema:** DropdownMenu, Popover, ThemeToggle.
+
+Eventos padrão e interações:
+
+| Componente | Evento padrão | Interação |
+| --- | --- | --- |
+| SearchBar | `search` | Digitar mostra o botão limpar; `Enter` dispara `search` com `{ value }`; limpar zera o campo. |
+| PasswordBox | `input` | Botão alterna `type=password/text`, com `aria-pressed` e rótulo. |
+| NumberBox | `change` | Botões −/+ respeitam `min`, `max` e `step`; cada passo dispara `input` e `change`. |
+| SegmentedControl | `change` | Clique, setas, `Home`/`End` e `aria-pressed`/`tabindex` roving; detalhe `{ index, value }`. |
+| Skeleton | `click` | Barras shimmer com `role=status` e `aria-busy`; `lines` de 1 a 12. |
+| ProgressRing | `change` | SVG com `pathLength=100`; `min`, `max`, `barColor`, `showText`; API `.value` atualiza anel, texto e ARIA. |
+| EmptyState | `action` | Ícone, título, descrição e botão opcional; clique dispara `action`. |
+| CodeBlock | `copy` | Cabeçalho com linguagem e botão copiar (Clipboard API com fallback); feedback "Copiado!". |
+| Chat | `send` | Log com `role=log`/`aria-live`, formulário adiciona a mensagem e dispara `send` com `{ message, text }`. |
+| SignaturePad | `save` | Canvas com pointer events (escala por DPR); Limpar e Salvar; `save` recebe `{ dataUrl, empty }`. |
+| DropdownMenu | `select` | Menu `role=menu`; setas, `Home`/`End`, `Escape`, clique fora e foco no primeiro item; `{ index, value }`. |
+| Popover | `toggle` | Painel `role=dialog` posicionado por `placement` (top/bottom/left/right), `Escape` e clique fora; `{ open }`. |
+| ThemeToggle | `change` | Alterna `data-theme` no `<html>`, persiste em `localStorage['ff-theme']` e aplica o tema escuro às páginas e superfícies. |
+
+**Eventos sem handler nativo:** `search`, `action`, `send` e `save` não funcionam como atributos inline (`onsearch`/`onaction` são inertes para `CustomEvent`). A exportação marca o wrapper com `data-ff-custom-events` e liga esses eventos via `addEventListener` depois que as funções do usuário são declaradas. `copy`, `select`, `toggle` e `change` continuam como atributos inline normais.
+
+**APIs no export:** `FF_searchbar.clear()`, `FF_searchbar.value`; `FF_segmentedcontrol.value` (índice ou rótulo); `FF_progressring.value`; `FF_codeblock.code`; `FF_chat.messages`/`FF_chat.send(texto)`; `FF_signaturepad.isEmpty`/`.clear()`/`.save()`/`.toDataURL()`; `FF_dropdownmenu.value`; `FF_themetoggle.theme`.
+
+**Importação:** `validateProject()` normaliza os novos campos. Mensagens do Chat viram `{ from: 'me'|'them', text }`; itens de SegmentedControl/DropdownMenu viram rótulos sem espaços nas pontas (máximo 24); `language` aceita apenas javascript/typescript/html/css/json/text; `placement` cai em `bottom`; `lines` fica entre 1 e 12; `lineWidth` entre 1 e 40; `penColor` inválido vira `#111827`; `activeIndex` negativo vira 0; e os eventos `search`/`action`/`send`/`save` são preservados no round-trip.
+
+Teste: `tests/new_components_test.html` (**56 verificações**) cobre palco, export, todas as interações acima, os quatro eventos personalizados, a API proxy, o tema persistido e a sanitização na importação. O `tests/all_components_test.html` também passa a incluir os 13 tipos (124 no total).
+
 ## Layout do palco (Mobile/Tablet/Desktop/Livre) é preservado ao abrir o projeto
 
 O tamanho escolhido no designer (`project.viewport`) era descartado por `FFSecurity.validateProject()` ao abrir um `.flowmobile`, e o projeto reaberto voltava ao padrão do tipo (390 px para App). Agora a largura (280–1440), a altura (200–4000) e o preset (Livre/390/768/1440) são validados e restaurados. Teste: `tests/viewport_test.html` (33 verificações).
@@ -792,7 +831,7 @@ O tamanho escolhido no designer (`project.viewport`) era descartado por `FFSecur
 Com um servidor local na raiz (`python -m http.server`), abra o `tests/*_test.html` no navegador. Para rodar tudo sem a limitação de temporizadores de abas em segundo plano, use o Chrome em modo headless e leia o resultado em `body[data-test]`:
 
 ```bash
-for t in all_components camera component_semantics generated_events navigation preview_assets \
+for t in all_components camera component_semantics generated_events navigation new_components preview_assets \
          project_icons runtime_components site_chrome toolbox_i18n ui_i18n viewport; do
   "/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --disable-gpu \
     --virtual-time-budget=600000 --dump-dom "http://127.0.0.1:8000/tests/${t}_test.html" \

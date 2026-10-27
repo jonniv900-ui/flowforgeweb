@@ -45,7 +45,11 @@
       network:'Status da rede',vibration:'Vibração',
       /* Componentes FlowForge */
       battery:'Indicador de bateria',thermometer:'Termômetro',led:'Indicador LED',sevenseg:'7 segmentos',dotmatrix:'Matriz de pontos',sparkline:'Minigráfico',valuecard:'Cartão de valor',
-      statuscard:'Cartão de status',glasspanel:'Painel de vidro',gradientbutton:'Botão com gradiente',iconbutton:'Botão de ícone',mobilelist:'Lista mobile'
+      statuscard:'Cartão de status',glasspanel:'Painel de vidro',gradientbutton:'Botão com gradiente',iconbutton:'Botão de ícone',mobilelist:'Lista mobile',
+      searchbar:'Barra de busca',passwordbox:'Caixa de senha',numberbox:'Caixa numérica',segmentedcontrol:'Controle segmentado',
+      skeleton:'Esqueleto de carregamento',progressring:'Anel de progresso',emptystate:'Estado vazio',
+      codeblock:'Bloco de código',chat:'Chat',signaturepad:'Assinatura digital',
+      dropdownmenu:'Menu suspenso',popover:'Popover',themetoggle:'Alternador de tema'
     },
     /* English keeps the technical names already shown by the editor (original names are the fallback). */
     en:{},
@@ -77,7 +81,11 @@
       network:'Estado de la red',vibration:'Vibración',
       /* Componentes FlowForge */
       battery:'Indicador de batería',thermometer:'Termómetro',led:'Indicador LED',sevenseg:'7 segmentos',dotmatrix:'Matriz de puntos',sparkline:'Minigráfico',valuecard:'Tarjeta de valor',
-      statuscard:'Tarjeta de estado',glasspanel:'Panel de cristal',gradientbutton:'Botón con degradado',iconbutton:'Botón de icono',mobilelist:'Lista móvil'
+      statuscard:'Tarjeta de estado',glasspanel:'Panel de cristal',gradientbutton:'Botón con degradado',iconbutton:'Botón de icono',mobilelist:'Lista móvil',
+      searchbar:'Barra de búsqueda',passwordbox:'Cuadro de contraseña',numberbox:'Cuadro numérico',segmentedcontrol:'Control segmentado',
+      skeleton:'Esqueleto de carga',progressring:'Anillo de progreso',emptystate:'Estado vacío',
+      codeblock:'Bloque de código',chat:'Chat',signaturepad:'Firma digital',
+      dropdownmenu:'Menú desplegable',popover:'Popover',themetoggle:'Alternador de tema'
     }
   };
 
