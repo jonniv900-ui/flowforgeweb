@@ -30,5 +30,10 @@ FlowForgeRegistry.register({kind:'themetoggle',version:1,responsive:true,event:'
 // Componentes Web reais: iframe, canvas, mapa e QR Code.
 FlowForgeRegistry.register({kind:'iframe',version:2,responsive:true,properties:window.FlowForgePropertySchemaFor('iframe'),defaults:{src:'about:blank',lazy:true}});
 FlowForgeRegistry.register({kind:'canvas',version:2,responsive:true,properties:window.FlowForgePropertySchemaFor('canvas'),defaults:{canvasWidth:300,canvasHeight:180,canvasBackground:'#ffffff'}});
-FlowForgeRegistry.register({kind:'map',version:2,responsive:true,properties:window.FlowForgePropertySchemaFor('map'),defaults:{mapLat:0,mapLng:0,mapZoom:13}});
+FlowForgeRegistry.register({kind:'map',version:2,responsive:true,properties:window.FlowForgePropertySchemaFor('map'),defaults:{mapProvider:'google',mapAddress:'',mapLat:0,mapLng:0,mapZoom:13}});
 FlowForgeRegistry.register({kind:'qrcode',version:2,responsive:true,properties:window.FlowForgePropertySchemaFor('qrcode'),defaults:{qrcodeSize:160,textContent:'https://flowforge.local'}});
+
+// Rodada adicional de componentes HTML nativos.
+FlowForgeRegistry.register({kind:'meterbar',version:1,responsive:true,properties:FlowForgePropertySchemaFor('meterbar'),defaults:{text:'Medidor',min:0,max:100,value:50}});
+FlowForgeRegistry.register({kind:'detailsbox',version:1,responsive:true,properties:FlowForgePropertySchemaFor('detailsbox'),defaults:{text:'Mais detalhes',description:'Informações adicionais.'}});
+FlowForgeRegistry.register({kind:'textcounter',version:1,responsive:true,event:'input',properties:FlowForgePropertySchemaFor('textcounter'),defaults:{text:'',placeholder:'Digite aqui',maxLength:200}});

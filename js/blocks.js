@@ -21,9 +21,9 @@
   {type:'setvar',label:'definir variável',cat:'Variáveis'},{type:'inc',label:'somar variável',cat:'Variáveis'},{type:'repeat',label:'repetir N vezes',cat:'Controle'},{type:'while',label:'enquanto',cat:'Controle'},{type:'math',label:'operação matemática',cat:'Matemática'},{type:'join',label:'juntar textos',cat:'Texto'},{type:'logic',label:'comparação lógica',cat:'Lógica'},{type:'navigate',label:'ir para página',cat:'Navegação'}
  ];
  
- const blockHistory=[];
- function saveBlocks(){let x=selected();if(!x)return;blockHistory.push(JSON.stringify(x.blocks||{}));if(blockHistory.length>40)blockHistory.shift()}
- function undoBlocks(){let x=selected();if(!x||blockHistory.length<2)return;blockHistory.pop();x.blocks=JSON.parse(blockHistory[blockHistory.length-1]);render();sync()}
+ const blockHistory=[]; let historyOwner=null;
+ function saveBlocks(){let x=selected();if(!x)return;if(historyOwner!==x){historyOwner=x;blockHistory.length=0;}blockHistory.push(JSON.stringify(x.blocks||{}));if(blockHistory.length>40)blockHistory.shift()}
+ function undoBlocks(){let x=selected();if(!x||historyOwner!==x||blockHistory.length<2)return;blockHistory.pop();x.blocks=JSON.parse(blockHistory[blockHistory.length-1]);render();sync()}
  function sourceName(s){if(!s)return'';if(s.kind==='component')return `${s.target}.${s.prop}`;if(s.kind==='variable')return `variável ${s.name}`;if(s.kind==='number')return String(s.value);return s.kind}
 
  function items(){return window.ffItems?.()||[]}
@@ -94,7 +94,7 @@
  function card(b,i){let nested=['if','repeat','while'].includes(b.type)?`<div class="nestedZone" data-parent="${i}" data-branch="body"><small>faça</small>${(b.body||[]).map((z,j)=>`<div class="nestedMini">${esc(label(z))}<button data-nested-del="${i}:${j}:body">×</button></div>`).join('')||'<em>arraste uma ação aqui</em>'}</div>`:'';let els=b.type==='if'?`<div class="nestedZone elseZone" data-parent="${i}" data-branch="elseBody"><small>senão</small>${(b.elseBody||[]).map((z,j)=>`<div class="nestedMini">${esc(label(z))}<button data-nested-del="${i}:${j}:elseBody">×</button></div>`).join('')||'<em>arraste uma ação aqui</em>'}</div>`:'';return `<div class="ff-block ff-block-${esc(b.type)}" draggable="true" data-i="${i}"><span class="blockGrip">⋮⋮</span><b>${esc(label(b))}</b><div>${optionsFor(b)}</div><span class="blockBtns"><button data-up="${i}">↑</button><button data-down="${i}">↓</button><button data-copy="${i}">⧉</button><button data-del="${i}">×</button></span>${nested}${els}</div>`}
  function render(forceEvent){
   palette();let x=selected(),sel=$('#blockEvent'),ws=$('#blockWorkspace');if(!sel||!ws)return;if(!x){sel.innerHTML='';ws.innerHTML='<div class="blockHint">Selecione um componente no Designer ou na lista de componentes.</div>';return}
-  let snap=JSON.stringify(x.blocks||{});if(blockHistory[blockHistory.length-1]!==snap)blockHistory.push(snap);if(blockHistory.length>40)blockHistory.shift();
+  if(historyOwner!==x){historyOwner=x;blockHistory.length=0;}let snap=JSON.stringify(x.blocks||{});if(blockHistory[blockHistory.length-1]!==snap)blockHistory.push(snap);if(blockHistory.length>40)blockHistory.shift();
   let evs=eventList(x),cur=forceEvent||sel.value;sel.innerHTML=evs.map(e=>`<option value="${esc(e)}">${esc(x.name)} → ${esc(EVENT_NAMES[e]||e)}</option>`).join('');sel.value=evs.includes(cur)?cur:evs[0];
   let a=ensure(x,sel.value);ws.innerHTML=`<div class="blockEventHat">quando <b>${esc(x.name)}</b> ${esc(EVENT_NAMES[sel.value]||sel.value)}</div>`+(a.length?a.map(card).join(''):'<div class="blockHint">Arraste ações compatíveis para este evento.</div>');
   ws.querySelectorAll('[data-k]').forEach(el=>el.oninput=()=>{let z=a[+el.closest('.ff-block').dataset.i];z[el.dataset.k]=el.value;if(el.dataset.k==='target')render();else sync()});
